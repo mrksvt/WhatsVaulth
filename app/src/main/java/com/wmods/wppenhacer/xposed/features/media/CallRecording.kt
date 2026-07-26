@@ -118,11 +118,7 @@ class CallRecording(
         }
 
         try {
-            val voipActivityClass = Unobfuscator.findFirstClassUsingName(
-                classLoader,
-                StringMatchType.Contains,
-                "VoipActivity"
-            )
+            val voipActivityClass = Unobfuscator.loadVoipActivityClass(classLoader)
 
             if (Activity::class.java.isAssignableFrom(voipActivityClass)) {
                 logDebug("WaEnhancer: Found VoipActivity: ${voipActivityClass.name}")

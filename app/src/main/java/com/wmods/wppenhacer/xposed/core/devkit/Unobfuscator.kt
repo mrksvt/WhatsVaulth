@@ -814,7 +814,7 @@ object Unobfuscator {
     @JvmStatic
     fun loadAntiRevokeMessageMethod(loader: ClassLoader): Method? {
         return UnobfuscatorCache.getInstance().getMethod(loader) {
-            for (s in listOf("msgstore/edit/revoke", "msgstore/revoking/")) {
+            for (s in listOf("msgstore/revoke/", "msgstore/revoking/", "msgstore/revoking/has-placeholder", "msgstore/edit/revoke")) {
                 val method = findFirstMethodUsingStrings(loader, StringMatchType.Contains, s)
                 if (method != null) return@getMethod method
             }
@@ -2505,6 +2505,26 @@ object Unobfuscator {
                 )
             }
             throw ClassNotFoundException("VoipManager Class not found")
+        }
+    }
+
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadVoipActivityClass(classLoader: ClassLoader): Class<*> {
+        return UnobfuscatorCache.getInstance().getClass(classLoader) {
+            var voipCls = findFirstClassUsingName(
+                classLoader,
+                StringMatchType.Contains,
+                "VoipActivityV2"
+            )
+            if (voipCls == null) {
+                voipCls = findFirstClassUsingName(
+                    classLoader,
+                    StringMatchType.Contains,
+                    "VoipActivity"
+                )
+            }
+            voipCls!!
         }
     }
 

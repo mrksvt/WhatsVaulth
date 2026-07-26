@@ -19,10 +19,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.crossbowffs.remotepreferences.RemotePreferences
-import com.wmods.wppenhacer.App
 import com.wmods.wppenhacer.BuildConfig
 import com.wmods.wppenhacer.R
-import com.wmods.wppenhacer.UpdateChecker
 import com.wmods.wppenhacer.WppXposed
 import com.wmods.wppenhacer.activities.CrashReportActivity
 import com.wmods.wppenhacer.xposed.core.components.AlertDialogWpp
@@ -76,6 +74,8 @@ import com.wmods.wppenhacer.xposed.features.others.ChatFilters
 import com.wmods.wppenhacer.xposed.features.others.CopySelectionMessage
 import com.wmods.wppenhacer.xposed.features.others.CopyStatus
 import com.wmods.wppenhacer.xposed.features.others.DebugFeature
+import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesDebug
+import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesFix
 import com.wmods.wppenhacer.xposed.features.others.GoogleTranslate
 import com.wmods.wppenhacer.xposed.features.others.GroupAdmin
 import com.wmods.wppenhacer.xposed.features.others.JumpFirstMessage
@@ -365,15 +365,6 @@ class FeatureLoader {
                 if (type == WppCore.ActivityChangeState.ChangeType.RESUMED) {
                     checkUpdate(activity)
                 }
-
-
-                if (App.isOriginalPackage && pref.getBoolean("update_check", true)) {
-                    if (activity.javaClass.simpleName == "HomeActivity" && type == WppCore.ActivityChangeState.ChangeType.RESUMED) {
-                        activity.window.decorView.postDelayed({
-                            CompletableFuture.runAsync(UpdateChecker(activity))
-                        }, 2000)
-                    }
-                }
             }
 
         }
@@ -475,6 +466,8 @@ class FeatureLoader {
         private fun plugins(loader: ClassLoader, pref: SharedPreferences, versionWpp: String) {
             val classes = arrayOf(
                 DebugFeature::class.java,
+                MarketingMessagesFix::class.java,
+                MarketingMessagesDebug::class.java,
                 ContactItemListener::class.java,
                 ConversationItemListener::class.java,
                 MenuStatusListener::class.java,
