@@ -546,4 +546,12 @@
     <string name="diag_hma_blocked">Hide My App List is hiding WaEnhancer from:</string>
     <string name="diag_hma_disable">Disable the block for WhatsApp/Business in Hide My App List so WaEnhancer can work correctly.</string>
     <string name="diag_copied">Line copied to clipboard</string>
+
+    <!-- Contact block detection (locale strings; defaults required by AAPT) -->
+    <string name="possible_block_detected">Possible block detected</string>
+    <string name="block_not_detected">Block not detected</string>
+    <string name="checking_if_the_contact_is_blocked">Checking if the contact is blocked…</string>
+    <string name="show_contact_blocked">Show Contact Blocked in Conversation</string>
+    <string name="show_contact_blocked_sum">Verifies whether the contact may have blocked you (note: false positives may occur).</string>
+    <string name="block_unverified">Block Unverified</string>
 </resources>

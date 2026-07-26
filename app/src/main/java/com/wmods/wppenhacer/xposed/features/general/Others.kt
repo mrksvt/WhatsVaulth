@@ -238,7 +238,11 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
             }
         }
 
-        customPlayBackSpeed()
+        try {
+            customPlayBackSpeed()
+        } catch (e: Exception) {
+            log("customPlayBackSpeed skipped: ${e.message}")
+        }
 
         showOnline(showOnline)
 

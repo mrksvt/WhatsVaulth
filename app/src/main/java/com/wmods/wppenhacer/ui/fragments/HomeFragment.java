@@ -387,16 +387,25 @@ public class HomeFragment extends BaseFragment {
                         .build();
 
                 var request = new Request.Builder()
-                        .url("https://api.github.com/repos/Dev4Mod/WaEnhancer/releases/latest")
+                        .url("https://api.github.com/repos/mrksvt/WaEnhancer/releases/latest")
                         .build();
 
                 try (var response = client.newCall(request).execute()) {
+                    // 404 / no releases on fork = local build is tip; show up to date
+                    if (response.code() == 404) {
+                        updateCardState(true, true, null);
+                        return;
+                    }
                     if (!response.isSuccessful()) {
                         updateCardState(false, false, null);
                         return;
                     }
 
                     var body = response.body();
+                    if (body == null) {
+                        updateCardState(true, true, null);
+                        return;
+                    }
 
                     var content = body.string();
                     var release = new JSONObject(content);
@@ -407,10 +416,14 @@ public class HomeFragment extends BaseFragment {
                         return;
                     }
 
-                    var hash = tagName.split("-")[1].trim();
-                    var isNewVersion = !BuildConfig.VERSION_NAME.toLowerCase().contains(hash.toLowerCase());
+                    var parts = tagName.split("-");
+                    var hash = parts.length > 1 ? parts[1].trim() : tagName.trim();
+                    var local = BuildConfig.VERSION_NAME.toLowerCase(Locale.US);
+                    var remoteHash = hash.toLowerCase(Locale.US);
+                    var isUpToDate = local.contains(remoteHash)
+                            || local.contains(tagName.toLowerCase(Locale.US));
 
-                    updateCardState(true, !isNewVersion, tagName);
+                    updateCardState(true, isUpToDate, tagName);
                 }
             } catch (UnknownHostException e) {
                 updateCardState(false, false, null);

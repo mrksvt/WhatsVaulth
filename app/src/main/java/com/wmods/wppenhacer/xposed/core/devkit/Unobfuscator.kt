@@ -1958,20 +1958,37 @@ object Unobfuscator {
     @JvmStatic
     fun loadPlaybackSpeed(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
-            val method = findFirstMethodUsingStrings(
-                classLoader,
-                StringMatchType.Contains,
-                "heroaudioplayer/setPlaybackSpeed"
+            val stringCandidates = listOf(
+                "heroaudioplayer/setPlaybackSpeed",
+                "FbHeroAudioPlayer/setPlaybackSpeed",
+                "HeroServicePlayer.setPlaybackSpeed",
+                "HeroManager.setPlaybackSpeed",
             )
-            if (method != null) return@getMethod method
+            for (s in stringCandidates) {
+                val method = findFirstMethodUsingStrings(classLoader, StringMatchType.Contains, s)
+                if (method != null) return@getMethod method
+            }
 
-            val methodData = bridge.findMethod {
+            val withNewSpeed = bridge.findMethod {
                 matcher {
-                    addUsingString("setPlaybackSpeed", StringMatchType.Equals)
-                    addUsingString("newSpeed")
+                    addUsingString("setPlaybackSpeed", StringMatchType.Contains)
+                    addUsingString("newSpeed", StringMatchType.Contains)
                 }
-            }.singleOrNull() ?: throw RuntimeException("PlaybackSpeed method not found")
-            methodData.getMethodInstance(classLoader)
+            }
+            if (withNewSpeed.isNotEmpty()) {
+                return@getMethod withNewSpeed.first().getMethodInstance(classLoader)
+            }
+
+            val heroFailed = bridge.findMethod {
+                matcher {
+                    addUsingString("FbHeroAudioPlayer/setPlaybackSpeed failed", StringMatchType.Contains)
+                }
+            }
+            if (heroFailed.isNotEmpty()) {
+                return@getMethod heroFailed.first().getMethodInstance(classLoader)
+            }
+
+            throw RuntimeException("PlaybackSpeed method not found")
         }
     }
 

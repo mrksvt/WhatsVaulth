@@ -24,22 +24,17 @@ class MarketingMessagesFix(classLoader: ClassLoader, preferences: SharedPreferen
     }
 
     private fun hookOpenDatabase() {
+        val afterOpen = object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val path = param.args.getOrNull(0) as? String ?: return
+                if (!path.contains("smb.db", ignoreCase = true)) return
+                val db = param.result as? SQLiteDatabase ?: return
+                migrateMarketingBackgroundSend(db)
+            }
+        }
         try {
-            XposedHelpers.findAndHookMethod(
-                SQLiteDatabase::class.java,
-                "openDatabase",
-                String::class.java,
-                SQLiteDatabase.CursorFactory::class.java,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        val path = param.args[0] as? String ?: return
-                        if (!path.contains("smb.db", ignoreCase = true)) return
-                        val db = param.result as? SQLiteDatabase ?: return
-                        migrateMarketingBackgroundSend(db)
-                    }
-                }
-            )
+            XposedBridge.hookAllMethods(SQLiteDatabase::class.java, "openDatabase", afterOpen)
+            XposedBridge.hookAllMethods(SQLiteDatabase::class.java, "openOrCreateDatabase", afterOpen)
         } catch (e: Throwable) {
             log("Error hooking openDatabase: ${e.message}")
         }
