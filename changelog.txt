@@ -1,4 +1,4 @@
-WaEnhancer 1.5.5 (beta) — 098bd4e6
+WaEnhancer 1.5.5 — 098bd4e6
 
 [ADDED]
 * Support WhatsApp / Business 2.26.28.xx and 2.26.29.xx (supported_versions lists)
@@ -20,6 +20,5 @@ WaEnhancer 1.5.5 (beta) — 098bd4e6
 * Restored default English strings for contact-block resources (AAPT locale warnings)
 
 [NOTES]
-* Branch: beta (stable remains master until soak test)
 * Rebuild + re-enable in LSPosed; force-stop WhatsApp Business after install
 * Prefer reboot once if hooks still show old hash in crash dialog
