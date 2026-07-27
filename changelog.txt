@@ -1,10 +1,25 @@
+WaEnhancer 1.5.5 (beta) — 098bd4e6
+
 [ADDED]
-* Added support for WA 2.26.27.xx
+* Support WhatsApp / Business 2.26.28.xx and 2.26.29.xx (supported_versions lists)
+* MarketingMessagesFix: migrate smb.db marketing_messages_background_send columns and catch SQLiteException (fixes Business force-close on scheduled_batch_id)
+* MarketingMessagesDebug: optional debug hooks for marketing SQL (pref marketing_debug)
 
 [IMPROVED]
-* Improvements in detecting problems in sepolicy in root diagnostics (I suggest you run a test if you have configuration problems by resetting)
+* CallRecording: resolve VoipActivityV2 with fallback to VoipActivity
+* AntiRevoke: broader msgstore revoke string matchers for newer WA
+* Unobfuscator loadPlaybackSpeed: FbHeroAudioPlayer / HeroServicePlayer patterns for WA 2.26.29
+* UnobfuscatorCache schema bumped (v3) so DexKit method cache refreshes after hook changes
+* customPlayBackSpeed isolated so a miss no longer fails whole Others plugin load
 
 [FIXED]
-* Fixed issue with floating bar
-* Fixed issue sending images in HEIC format (Apple format) (Thanks to Alpha3288)
-* Fixed problem with root diagnostic colors in light theme
+* Business crash: no such column scheduled_batch_id on marketing_messages_background_send
+* Home “Update Available” false positive: update check uses mrksvt/WaEnhancer (not Dev4Mod); missing releases treated as up-to-date
+* Xposed UpdateChecker popup to upstream Dev4Mod disabled on this fork
+* UpdateChecker / release links pointed at github.com/mrksvt/WaEnhancer
+* Restored default English strings for contact-block resources (AAPT locale warnings)
+
+[NOTES]
+* Branch: beta (stable remains master until soak test)
+* Rebuild + re-enable in LSPosed; force-stop WhatsApp Business after install
+* Prefer reboot once if hooks still show old hash in crash dialog
