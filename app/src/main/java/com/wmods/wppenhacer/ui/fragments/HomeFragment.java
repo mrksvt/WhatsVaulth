@@ -130,7 +130,11 @@ public class HomeFragment extends BaseFragment {
             showDiagnosticsDialog();
         });
 
-        checkForUpdates();
+        if (BuildConfig.DEBUG) {
+            binding.updateCard.setVisibility(android.view.View.GONE);
+        } else {
+            checkForUpdates();
+        }
 
         startCardAnimations();
 
