@@ -2419,6 +2419,12 @@ object Unobfuscator {
                     classLoader
                 )
             }
+
+            for (s in listOf("FilterItem(text=", "chat_filter_pill", "SmbChatFiltersUtilsImpl")) {
+                val clazz = findFirstClassUsingStrings(classLoader, StringMatchType.Contains, s) ?: continue
+                return@getClass clazz
+            }
+
             throw RuntimeException("FilterItemClass Not Found")
         }
     }
