@@ -76,6 +76,7 @@ import com.wmods.wppenhacer.xposed.features.others.CopyStatus
 import com.wmods.wppenhacer.xposed.features.others.DebugFeature
 import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesDebug
 import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesFix
+import com.wmods.wppenhacer.xposed.features.others.PremiumMessageFix
 import com.wmods.wppenhacer.xposed.features.others.GoogleTranslate
 import com.wmods.wppenhacer.xposed.features.others.GroupAdmin
 import com.wmods.wppenhacer.xposed.features.others.JumpFirstMessage
@@ -467,6 +468,7 @@ class FeatureLoader {
             val classes = arrayOf(
                 DebugFeature::class.java,
                 MarketingMessagesFix::class.java,
+                PremiumMessageFix::class.java,
                 MarketingMessagesDebug::class.java,
                 ContactItemListener::class.java,
                 ConversationItemListener::class.java,
