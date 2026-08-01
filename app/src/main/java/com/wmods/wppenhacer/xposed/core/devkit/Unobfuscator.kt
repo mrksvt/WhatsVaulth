@@ -660,14 +660,20 @@ object Unobfuscator {
     @JvmStatic
     fun loadMenuStatusMethod(loader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(loader) {
-            val id = Utils.getID("menuitem_conversations_message_contact", "id")
-            val methods = bridge.findMethod {
-                matcher {
-                    addUsingNumber(id)
+            for (resName in listOf(
+                "menuitem_conversations_message_contact",
+                "menuitem_about_this_status",
+                "menuitem_status_info",
+                "menuitem_status_my_status",
+            )) {
+                val id = Utils.getID(resName, "id")
+                if (id == 0) continue
+                val methods = bridge.findMethod {
+                    matcher { addUsingNumber(id) }
                 }
+                if (methods.isNotEmpty()) return@getMethod methods[0].getMethodInstance(loader)
             }
-            if (methods.isEmpty()) throw Exception("MenuStatus method not found")
-            methods[0].getMethodInstance(loader)
+            throw Exception("MenuStatus method not found")
         }
     }
 

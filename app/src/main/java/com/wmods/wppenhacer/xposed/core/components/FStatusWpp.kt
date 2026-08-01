@@ -84,10 +84,32 @@ class FStatusWpp(val fstatus: Any?) {
 
     fun getMediaFile(): File? {
         if (!isMediaFile) return null
-        val item = classFMediaStatus.getField("A00").get(fstatus) ?: return null
-        return item.javaClass.declaredMethods.first {
-            it.returnType == File::class.java
-        }.apply { isAccessible = true }.invoke(item) as? File
+        var c: Class<*>? = classFMediaStatus
+        while (c != null && c != Any::class.java) {
+            for (f in c.declaredFields) {
+                f.isAccessible = true
+                val v = runCatching { f.get(fstatus) }.getOrNull() ?: continue
+                if (v is File) return v
+                if (v is String && v.isNotBlank()) {
+                    val file = File(v)
+                    if (file.exists()) return file
+                }
+                val fileMethod = findFileMethod(v.javaClass)
+                if (fileMethod != null) return fileMethod.apply { isAccessible = true }.invoke(v) as? File
+            }
+            c = c.superclass
+        }
+        return null
+    }
+
+    private fun findFileMethod(clazz: Class<*>): java.lang.reflect.Method? {
+        var c: Class<*>? = clazz
+        while (c != null && c != Any::class.java) {
+            val m = c.declaredMethods.firstOrNull { it.returnType == File::class.java }
+            if (m != null) return m
+            c = c.superclass
+        }
+        return null
     }
 
     override fun toString(): String {
