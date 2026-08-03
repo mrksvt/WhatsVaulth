@@ -50,8 +50,8 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val sql = param.args[0] as? String ?: return
-                        if (!isPremiumMessageSql(sql)) return
                         val db = param.thisObject as SQLiteDatabase
+                        if (!isPremiumMessageSql(sql, db)) return
                         migratePremiumMessage(db)
                         runSafeQuery(param) {
                             XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
@@ -76,8 +76,8 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val sql = param.args[1] as? String ?: return
-                        if (!isPremiumMessageSql(sql)) return
                         val db = param.thisObject as SQLiteDatabase
+                        if (!isPremiumMessageSql(sql, db)) return
                         migratePremiumMessage(db)
                         runSafeQuery(param) {
                             XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
@@ -105,8 +105,8 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val table = param.args[0] as? String ?: return
-                        if (!table.contains(TABLE, ignoreCase = true)) return
                         val db = param.thisObject as SQLiteDatabase
+                        if (!table.contains(TABLE, ignoreCase = true) || !tableExists(db, TABLE)) return
                         migratePremiumMessage(db)
                         runSafeQuery(param) {
                             XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
@@ -139,8 +139,11 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
         }
     }
 
-    private fun isPremiumMessageSql(sql: String): Boolean =
-        sql.contains(TABLE, ignoreCase = true)
+    private fun isPremiumMessageSql(sql: String, db: SQLiteDatabase): Boolean {
+        if (!sql.contains(TABLE, ignoreCase = true)) return false
+        // Skip if table doesn't exist (avoid empty cursor logs)
+        return tableExists(db, TABLE)
+    }
 
     private fun emptyPremiumMessageCursor(): MatrixCursor =
         MatrixCursor(EXPECTED_COLUMNS)
@@ -153,17 +156,28 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
                 if (!db.isOpen) return
                 val hasTable = tableExists(db, TABLE)
                 if (!hasTable) return
-                val existing = columnNames(db, TABLE)
-                for ((col, decl) in MISSING_COLUMNS) {
-                    if (col !in existing) {
-                        val sql = "ALTER TABLE $TABLE ADD COLUMN $col $decl"
-                        try {
-                            db.execSQL(sql)
-                            log("Added column $col to $TABLE")
-                        } catch (e: SQLiteException) {
-                            log("ALTER TABLE $col failed: ${e.message}")
+                
+                // Start transaction for atomic migration
+                db.beginTransaction()
+                try {
+                    val existing = columnNames(db, TABLE)
+                    for ((col, decl) in MISSING_COLUMNS) {
+                        if (col !in existing) {
+                            val sql = "ALTER TABLE $TABLE ADD COLUMN $col $decl"
+                            try {
+                                db.execSQL(sql)
+                                log("Added column $col to $TABLE")
+                            } catch (e: SQLiteException) {
+                                // Skip duplicate column errors (expected)
+                                if (!e.message?.contains("duplicate column name")!!) {
+                                    log("ALTER TABLE $col failed: ${e.message}")
+                                }
+                            }
                         }
                     }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
                 }
                 schemaMigrated.set(true)
             } catch (e: Throwable) {

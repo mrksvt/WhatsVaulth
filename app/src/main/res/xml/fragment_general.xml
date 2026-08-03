@@ -16,6 +16,12 @@
         app:iconSpaceReserved="false"
         app:title="@string/conversation" />
 
+    <Preference
+        app:fragment="com.wmods.wppenhacer.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
+        app:iconSpaceReserved="false"
+        app:title="@string/translator_menu"
+        app:summary="@string/translator_menu_sum" />
+
     <PreferenceCategory
         app:iconSpaceReserved="false"
         app:title="@string/status">

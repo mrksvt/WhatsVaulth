@@ -231,4 +231,23 @@
         <item>2</item>
         <item>6</item>
     </string-array>
+
+    <string-array name="translator_provider_entries">
+        <item>@string/translator_provider_google</item>
+        <item>@string/translator_provider_groq</item>
+    </string-array>
+
+    <string-array name="translator_provider_values">
+        <item>google</item>
+        <item>groq</item>
+    </string-array>
+
+    <string-array name="groq_translator_model_entries">
+        <item>llama-3.1-8b-instant</item>
+    </string-array>
+
+    <string-array name="groq_translator_model_values">
+        <item>llama-3.1-8b-instant</item>
+    </string-array>
+
 </resources>

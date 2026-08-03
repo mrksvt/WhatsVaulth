@@ -114,6 +114,13 @@
             app:summary="@string/google_translate_sum"
             app:title="@string/google_translate" />
 
+        <Preference
+            app:fragment="com.wmods.wppenhacer.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
+            app:dependency="google_translate"
+            app:iconSpaceReserved="false"
+            app:title="@string/translator_menu"
+            app:summary="@string/translator_menu_sum" />
+
         <rikka.material.preference.MaterialSwitchPreference
             app:key="verify_blocked_contact"
             app:summary="@string/show_contact_added_status_sum"

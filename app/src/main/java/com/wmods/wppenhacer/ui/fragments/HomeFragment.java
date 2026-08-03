@@ -120,21 +120,14 @@ public class HomeFragment extends BaseFragment {
             resetConfigs(this.getContext());
         });
 
-        binding.updateCard.setOnClickListener(view -> {
-            animateClick(view);
-            Utils.openLink(requireActivity(), "https://t.me/waenhancher");
-        });
+
 
         binding.diagBtn.setOnClickListener(view -> {
             animateClick(view);
-            showDiagnosticsDialog();
+
         });
 
-        if (BuildConfig.DEBUG) {
-            binding.updateCard.setVisibility(android.view.View.GONE);
-        } else {
-            checkForUpdates();
-        }
+        // Always hide update card (AntiUpdater removed)
 
         startCardAnimations();
 
@@ -166,11 +159,7 @@ public class HomeFragment extends BaseFragment {
             binding.infoCard.startAnimation(fadeIn);
         }, 300);
 
-        binding.updateCard.postDelayed(() -> {
-            if (!isAdded() || binding == null) return;
-            var anim = AnimationUtils.loadAnimation(requireContext(), R.anim.slide_up);
-            binding.updateCard.startAnimation(anim);
-        }, 400);
+
     }
 
     private void animateClick(View view) {
@@ -377,139 +366,4 @@ public class HomeFragment extends BaseFragment {
         activity.sendBroadcast(checkWpp);
     }
 
-    private void checkForUpdates() {
-        var context = getContext();
-        if (context == null) return;
-
-        binding.updateSummary.setText(getString(R.string.current_version_s, BuildConfig.VERSION_NAME));
-
-        new Thread(() -> {
-            try {
-                var client = new OkHttpClient.Builder()
-                        .connectTimeout(10, TimeUnit.SECONDS)
-                        .readTimeout(10, TimeUnit.SECONDS)
-                        .build();
-
-                var request = new Request.Builder()
-                        .url("https://api.github.com/repos/mrksvt/WaEnhancer/releases/latest")
-                        .build();
-
-                try (var response = client.newCall(request).execute()) {
-                    // 404 / no releases on fork = local build is tip; show up to date
-                    if (response.code() == 404) {
-                        updateCardState(true, true, null);
-                        return;
-                    }
-                    if (!response.isSuccessful()) {
-                        updateCardState(false, false, null);
-                        return;
-                    }
-
-                    var body = response.body();
-                    if (body == null) {
-                        updateCardState(true, true, null);
-                        return;
-                    }
-
-                    var content = body.string();
-                    var release = new JSONObject(content);
-                    var tagName = release.optString("tag_name", "");
-
-                    if (tagName.isBlank()) {
-                        updateCardState(true, true, null);
-                        return;
-                    }
-
-                    var parts = tagName.split("-");
-                    var hash = parts.length > 1 ? parts[1].trim() : tagName.trim();
-                    var local = BuildConfig.VERSION_NAME.toLowerCase(Locale.US);
-                    var remoteHash = hash.toLowerCase(Locale.US);
-                    var isUpToDate = local.contains(remoteHash)
-                            || local.contains(tagName.toLowerCase(Locale.US));
-
-                    updateCardState(true, isUpToDate, tagName);
-                }
-            } catch (UnknownHostException e) {
-                updateCardState(false, false, null);
-            } catch (Exception e) {
-                updateCardState(false, false, null);
-            }
-        }).start();
-    }
-
-    private void updateCardState(boolean success, boolean isUpToDate, @Nullable String newVersion) {
-        var activity = getActivity();
-        if (activity == null || !isAdded()) return;
-
-        activity.runOnUiThread(() -> {
-            if (binding == null) return;
-
-            if (!success) {
-                binding.updateIcon.setImageResource(R.drawable.ic_round_error_outline_24);
-                binding.updateTitle.setText(R.string.update_check_failed);
-                binding.updateSummary.setText(R.string.update_check_failed_summary);
-                binding.updateCard.getChildAt(0).setBackgroundResource(R.drawable.gradient_warning);
-            } else if (isUpToDate) {
-                binding.updateIcon.setImageResource(R.drawable.ic_round_check_circle_24);
-                binding.updateTitle.setText(R.string.up_to_date);
-                binding.updateSummary.setText(getString(R.string.current_version_s, BuildConfig.VERSION_NAME));
-                binding.updateCard.getChildAt(0).setBackgroundResource(R.drawable.gradient_success);
-            } else {
-                binding.updateIcon.setImageResource(R.drawable.ic_round_update_24);
-                binding.updateTitle.setText(R.string.update_available);
-                binding.updateSummary.setText(getString(R.string.update_available_summary, newVersion));
-                binding.updateCard.getChildAt(0).setBackgroundResource(R.drawable.gradient_update);
-            }
-        });
-    }
-
-    private void showDiagnosticsDialog() {
-        var context = requireContext();
-        var dialogBinding = DialogDiagnosticsLogBinding.inflate(LayoutInflater.from(context));
-        var adapter = new LogLineAdapter();
-
-        dialogBinding.logRecycler.setLayoutManager(new LinearLayoutManager(context));
-        dialogBinding.logRecycler.setAdapter(adapter);
-
-        var dialog = new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.diag_dialog_title)
-                .setView(dialogBinding.getRoot())
-                .setPositiveButton(R.string.diag_close, null)
-                .setCancelable(true)
-                .show();
-
-        var handler = new Handler(Looper.getMainLooper());
-        var queue = new java.util.ArrayList<RootDiagnostics.LogEntry>();
-
-        RootDiagnostics.INSTANCE.runDiagnostics(context, entry -> {
-            if (!isAdded()) return;
-            queue.add(entry);
-        });
-
-        Runnable poller = new Runnable() {
-            private int emptyCycles = 0;
-
-            @Override
-            public void run() {
-                if (!isAdded() || dialog == null || !dialog.isShowing()) return;
-
-                if (!queue.isEmpty()) {
-                    emptyCycles = 0;
-                    adapter.add(queue.remove(0));
-                    dialogBinding.logRecycler.smoothScrollToPosition(adapter.getItemCount() - 1);
-                    handler.postDelayed(this, 120);
-                } else if (emptyCycles < 50) {
-                    emptyCycles++;
-                    handler.postDelayed(this, 120);
-                }
-            }
-        };
-        handler.postDelayed(poller, 120);
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-    }
 }

@@ -50,8 +50,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34
-        versionCode = 154
-        versionName = "1.5.5 ($gitHash)"
+        versionCode = 155
+        versionName = "1.5.6 ($gitHash)"
         multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -72,6 +72,7 @@ android {
         }
 
         buildConfigField("Boolean", "RESET_ON_INSTALL", "false")
+        buildConfigField("Boolean", "DISABLE_ANTI_UPDATER", "false")
 
     }
 
@@ -100,15 +101,15 @@ android {
     buildTypes {
 
         debug {
-            isMinifyEnabled = project.hasProperty("minify") && project.properties["minify"].toString().toBoolean()
-            //noinspection NotShrinkingResources
-            isShrinkResources = false
+            isMinifyEnabled = true  // Minify debug untuk mengurangi ukuran
+            isShrinkResources = true  // Shrink resources di debug
             signingConfig =
                 if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // buildConfigField("Boolean", "DISABLE_ANTI_UPDATER", "true")  // Nonaktifkan jika tidak diperlukan
         }
 
         release {

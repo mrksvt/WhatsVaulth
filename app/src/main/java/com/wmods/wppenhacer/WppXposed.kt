@@ -7,7 +7,7 @@ import android.view.Window
 import android.view.WindowManager
 import androidx.preference.PreferenceManager
 import com.wmods.wppenhacer.activities.MainActivity
-import com.wmods.wppenhacer.xposed.AntiUpdater
+
 import com.wmods.wppenhacer.xposed.bridge.ScopeHook
 import com.wmods.wppenhacer.xposed.core.FeatureLoader
 import com.wmods.wppenhacer.xposed.downgrade.Patch
@@ -71,8 +71,6 @@ class WppXposed : IXposedHookLoadPackage, IXposedHookInitPackageResources, IXpos
                 "android.app.ContextImpl", classLoader, "checkMode", Int::class.javaPrimitiveType!!, XC_MethodReplacement.DO_NOTHING)
             return
         }
-
-        AntiUpdater.hookSession(lpparam)
 
         Patch.handleLoadPackage(lpparam)
 
