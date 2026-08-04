@@ -101,7 +101,7 @@
             app:summary="@string/double_click_to_like_sum"
             app:title="@string/double_click_to_react" />
 
-        <com.wmods.wppenhacer.preference.LimitedEditTextPreference
+        <com.mrksvt.waen.preference.LimitedEditTextPreference
             app:defaultValue="👍"
             app:dependency="doubletap2like"
             app:key="doubletap2like_emoji"
@@ -115,7 +115,7 @@
             app:title="@string/google_translate" />
 
         <Preference
-            app:fragment="com.wmods.wppenhacer.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
+            app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
             app:dependency="google_translate"
             app:iconSpaceReserved="false"
             app:title="@string/translator_menu"

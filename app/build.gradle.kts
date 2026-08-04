@@ -26,7 +26,7 @@ val gitHash: String = getGitHashCommit().uppercase(Locale.getDefault())
 val versionSuffix: String = if (project.hasProperty("versionSuffix")) "-${project.property("versionSuffix")}" else ""
 
 android {
-    namespace = "com.wmods.wppenhacer"
+    namespace = "com.mrksvt.waen"
     //noinspection GradleDependency
     compileSdk = 36
     ndkVersion = "28.2.13676358"
@@ -47,7 +47,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.wmods.wppenhacer"
+        applicationId = "com.mrksvt.waen"
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34

@@ -7,7 +7,7 @@
         errorLine1="        editor.putString(getKey(), &quot;&quot;).commit();"
         errorLine2="                                       ~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/preference/FileSelectPreference.java"
+            file="src/main/java/com/mrksvt/waen/preference/FileSelectPreference.java"
             line="214"
             column="40"/>
     </issue>
@@ -18,7 +18,7 @@
         errorLine1="                cachePrefs.edit().remove(cacheKey).commit();"
         errorLine2="                                                   ~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/utils/ReflectionUtils.java"
+            file="src/main/java/com/mrksvt/waen/xposed/utils/ReflectionUtils.java"
             line="167"
             column="52"/>
     </issue>
@@ -29,7 +29,7 @@
         errorLine1="                cachePrefs.edit().putString(cacheKey, field.getName()).commit();"
         errorLine2="                                                                       ~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/utils/ReflectionUtils.java"
+            file="src/main/java/com/mrksvt/waen/xposed/utils/ReflectionUtils.java"
             line="175"
             column="72"/>
     </issue>
@@ -40,7 +40,7 @@
         errorLine1="                        prefs.edit().putString(&quot;custom_css&quot;, code).commit();"
         errorLine2="                                                                   ~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/activities/TextEditorActivity.java"
+            file="src/main/java/com/mrksvt/waen/activities/TextEditorActivity.java"
             line="160"
             column="68"/>
     </issue>
@@ -51,7 +51,7 @@
         errorLine1="        return switch (animationName.toLowerCase()) {"
         errorLine2="                                     ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/utils/AnimationUtil.java"
+            file="src/main/java/com/mrksvt/waen/xposed/utils/AnimationUtil.java"
             line="16"
             column="38"/>
     </issue>
@@ -62,7 +62,7 @@
         errorLine1="            return String.format(&quot;%d:%02d:%02d&quot;, hours, minutes, seconds);"
         errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/dialogs/AudioPlayerDialog.java"
+            file="src/main/java/com/mrksvt/waen/ui/dialogs/AudioPlayerDialog.java"
             line="166"
             column="20"/>
     </issue>
@@ -73,7 +73,7 @@
         errorLine1="        return String.format(&quot;%d:%02d&quot;, minutes, seconds);"
         errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/dialogs/AudioPlayerDialog.java"
+            file="src/main/java/com/mrksvt/waen/ui/dialogs/AudioPlayerDialog.java"
             line="168"
             column="16"/>
     </issue>
@@ -84,7 +84,7 @@
         errorLine1="                var name = param.thisObject.getClass().getSimpleName().toLowerCase();"
         errorLine2="                                                                       ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/others/BackupRestore.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/others/BackupRestore.java"
             line="43"
             column="72"/>
     </issue>
@@ -95,7 +95,7 @@
         errorLine1="                            tv.setText(tv.getText().toString().toLowerCase());"
         errorLine2="                                                               ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/customization/CustomView.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/customization/CustomView.java"
             line="750"
             column="64"/>
     </issue>
@@ -106,7 +106,7 @@
         errorLine1="                    String name = file.getName().toLowerCase();"
         errorLine2="                                                 ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/fragments/RecordingsFragment.java"
+            file="src/main/java/com/mrksvt/waen/ui/fragments/RecordingsFragment.java"
             line="197"
             column="50"/>
     </issue>
@@ -117,7 +117,7 @@
         errorLine1="            String lowerText = text.toLowerCase();"
         errorLine2="                                    ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/SearchAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/SearchAdapter.java"
             line="155"
             column="37"/>
     </issue>
@@ -128,7 +128,7 @@
         errorLine1="            String lowerQuery = query.toLowerCase();"
         errorLine2="                                      ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/SearchAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/SearchAdapter.java"
             line="156"
             column="39"/>
     </issue>
@@ -139,7 +139,7 @@
         errorLine1="        String lowerQuery = query.toLowerCase().trim();"
         errorLine2="                                  ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/model/SearchableFeature.java"
+            file="src/main/java/com/mrksvt/waen/model/SearchableFeature.java"
             line="118"
             column="35"/>
     </issue>
@@ -150,7 +150,7 @@
         errorLine1="        if (title != null &amp;&amp; title.toLowerCase().contains(lowerQuery)) {"
         errorLine2="                                   ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/model/SearchableFeature.java"
+            file="src/main/java/com/mrksvt/waen/model/SearchableFeature.java"
             line="121"
             column="36"/>
     </issue>
@@ -161,7 +161,7 @@
         errorLine1="        if (summary != null &amp;&amp; summary.toLowerCase().contains(lowerQuery)) {"
         errorLine2="                                       ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/model/SearchableFeature.java"
+            file="src/main/java/com/mrksvt/waen/model/SearchableFeature.java"
             line="126"
             column="40"/>
     </issue>
@@ -172,7 +172,7 @@
         errorLine1="            if (tag.toLowerCase().contains(lowerQuery)) {"
         errorLine2="                    ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/model/SearchableFeature.java"
+            file="src/main/java/com/mrksvt/waen/model/SearchableFeature.java"
             line="132"
             column="21"/>
     </issue>
@@ -183,7 +183,7 @@
         errorLine1="        if (category.getDisplayName().toLowerCase().contains(lowerQuery)) {"
         errorLine2="                                      ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/model/SearchableFeature.java"
+            file="src/main/java/com/mrksvt/waen/model/SearchableFeature.java"
             line="138"
             column="39"/>
     </issue>
@@ -194,7 +194,7 @@
         errorLine1="        if (fileName != null &amp;&amp; fileName.toLowerCase().endsWith(&quot;.zip&quot;)) {"
         errorLine2="                                         ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/preference/ThemePreference.java"
+            file="src/main/java/com/mrksvt/waen/preference/ThemePreference.java"
             line="242"
             column="42"/>
     </issue>
@@ -206,7 +206,7 @@
         errorLine1="            boolean isNewVersion = !packageInfo.versionName.toLowerCase().contains(hash.toLowerCase().trim());"
         errorLine2="                                                            ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/UpdateChecker.java"
+            file="src/main/java/com/mrksvt/waen/UpdateChecker.java"
             line="94"
             column="61"/>
     </issue>
@@ -217,7 +217,7 @@
         errorLine1="            boolean isNewVersion = !packageInfo.versionName.toLowerCase().contains(hash.toLowerCase().trim());"
         errorLine2="                                                                                        ~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/UpdateChecker.java"
+            file="src/main/java/com/mrksvt/waen/UpdateChecker.java"
             line="94"
             column="89"/>
     </issue>
@@ -228,7 +228,7 @@
         errorLine1="    private static final List&lt;String> sdk30Permissions = List.of(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.MANAGE_EXTERNAL_STORAGE);"
         errorLine2="                                                                                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/permission/AndroidPermissions.java"
+            file="src/main/java/com/mrksvt/waen/xposed/permission/AndroidPermissions.java"
             line="18"
             column="153"/>
     </issue>
@@ -246,7 +246,7 @@
         errorLine1="        addBaseDir(addedPaths, new File(&quot;/sdcard/Android/data/com.whatsapp/files/Recordings&quot;));"
         errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/fragments/RecordingsFragment.java"
+            file="src/main/java/com/mrksvt/waen/ui/fragments/RecordingsFragment.java"
             line="130"
             column="41"/>
     </issue>
@@ -257,7 +257,7 @@
         errorLine1="        addBaseDir(addedPaths, new File(&quot;/sdcard/Android/data/com.whatsapp.w4b/files/Recordings&quot;));"
         errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/fragments/RecordingsFragment.java"
+            file="src/main/java/com/mrksvt/waen/ui/fragments/RecordingsFragment.java"
             line="131"
             column="41"/>
     </issue>
@@ -268,7 +268,7 @@
         errorLine1="            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream);"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/views/WallpaperView.java"
+            file="src/main/java/com/mrksvt/waen/views/WallpaperView.java"
             line="93"
             column="13"/>
     </issue>
@@ -279,7 +279,7 @@
         errorLine1="        config.setLocale(LocaleDelegate.getDefaultLocale());"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/App.java"
+            file="src/main/java/com/mrksvt/waen/App.java"
             line="134"
             column="9"/>
     </issue>
@@ -378,7 +378,7 @@
         errorLine1="        View view = LayoutInflater.from(context).inflate(R.layout.dialog_audio_player, null);"
         errorLine2="                                                                                       ~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/dialogs/AudioPlayerDialog.java"
+            file="src/main/java/com/mrksvt/waen/ui/dialogs/AudioPlayerDialog.java"
             line="39"
             column="88"/>
     </issue>
@@ -389,7 +389,7 @@
         errorLine1="            View itemView = LayoutInflater.from(context).inflate(R.layout.item_folder, null, false);"
         errorLine2="                                                                                       ~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/preference/ThemePreference.java"
+            file="src/main/java/com/mrksvt/waen/preference/ThemePreference.java"
             line="94"
             column="88"/>
     </issue>
@@ -565,7 +565,7 @@
         errorLine1="        var colorRes = Resources.getSystem().getIdentifier(resourceName, &quot;color&quot;, &quot;android&quot;);"
         errorLine2="                                             ~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/customization/CustomThemeV2.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/customization/CustomThemeV2.java"
             line="378"
             column="46"/>
     </issue>
@@ -1573,7 +1573,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/DeletedMessagesAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/DeletedMessagesAdapter.java"
             line="42"
             column="9"/>
     </issue>
@@ -1584,7 +1584,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/DeletedMessagesAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/DeletedMessagesAdapter.java"
             line="225"
             column="9"/>
     </issue>
@@ -1595,7 +1595,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/DeletedMessagesAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/DeletedMessagesAdapter.java"
             line="230"
             column="9"/>
     </issue>
@@ -1606,7 +1606,7 @@
         errorLine1="            adapter.notifyDataSetChanged();"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/fragments/DeletedMessagesFragment.java"
+            file="src/main/java/com/mrksvt/waen/ui/fragments/DeletedMessagesFragment.java"
             line="93"
             column="13"/>
     </issue>
@@ -1617,7 +1617,7 @@
         errorLine1="                adapter.notifyDataSetChanged();"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/ui/fragments/DeletedMessagesFragment.java"
+            file="src/main/java/com/mrksvt/waen/ui/fragments/DeletedMessagesFragment.java"
             line="105"
             column="17"/>
     </issue>
@@ -1628,7 +1628,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/MessageListAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/MessageListAdapter.java"
             line="41"
             column="9"/>
     </issue>
@@ -1639,7 +1639,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/MessageListAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/MessageListAdapter.java"
             line="160"
             column="9"/>
     </issue>
@@ -1650,7 +1650,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/MessageListAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/MessageListAdapter.java"
             line="165"
             column="9"/>
     </issue>
@@ -1661,7 +1661,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/RecordingsAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/RecordingsAdapter.java"
             line="56"
             column="9"/>
     </issue>
@@ -1672,7 +1672,7 @@
         errorLine1="            notifyDataSetChanged();"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/RecordingsAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/RecordingsAdapter.java"
             line="65"
             column="13"/>
     </issue>
@@ -1683,7 +1683,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/RecordingsAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/RecordingsAdapter.java"
             line="86"
             column="9"/>
     </issue>
@@ -1694,7 +1694,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/RecordingsAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/RecordingsAdapter.java"
             line="95"
             column="9"/>
     </issue>
@@ -1705,7 +1705,7 @@
         errorLine1="        notifyDataSetChanged();"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/SearchAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/SearchAdapter.java"
             line="60"
             column="9"/>
     </issue>
@@ -3846,7 +3846,7 @@
         errorLine1="                    item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/media/DownloadProfile.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/media/DownloadProfile.kt"
             line="33"
             column="51"/>
     </issue>
@@ -3857,7 +3857,7 @@
         errorLine1="                    item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/media/DownloadViewOnce.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/media/DownloadViewOnce.kt"
             line="41"
             column="51"/>
     </issue>
@@ -3868,7 +3868,7 @@
         errorLine1="                        item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/media/DownloadViewOnce.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/media/DownloadViewOnce.kt"
             line="70"
             column="55"/>
     </issue>
@@ -3879,7 +3879,7 @@
         errorLine1="            itemMenu.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/others/MenuHome.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/others/MenuHome.java"
             line="89"
             column="47"/>
     </issue>
@@ -3890,7 +3890,7 @@
         errorLine1="            itemMenu.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/others/MenuHome.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/others/MenuHome.java"
             line="113"
             column="47"/>
     </issue>
@@ -3901,7 +3901,7 @@
         errorLine1="            item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/others/MenuHome.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/others/MenuHome.java"
             line="138"
             column="43"/>
     </issue>
@@ -3912,7 +3912,7 @@
         errorLine1="            item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/others/MenuHome.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/others/MenuHome.java"
             line="176"
             column="43"/>
     </issue>
@@ -3923,7 +3923,7 @@
         errorLine1="                    item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/general/NewChat.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/general/NewChat.java"
             line="52"
             column="51"/>
     </issue>
@@ -3934,7 +3934,7 @@
         errorLine1="                        menuItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);"
         errorLine2="                                                          ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/general/Others.java"
+            file="src/main/java/com/mrksvt/waen/xposed/features/general/Others.java"
             line="106"
             column="59"/>
     </issue>
@@ -3945,7 +3945,7 @@
         errorLine1="                if (ticktype == 1) menuItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/general/SeenTick.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/general/SeenTick.kt"
             line="346"
             column="70"/>
     </issue>
@@ -3956,7 +3956,7 @@
         errorLine1="                if (ticktype == 1) item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/general/SeenTick.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/general/SeenTick.kt"
             line="413"
             column="66"/>
     </issue>
@@ -3967,7 +3967,7 @@
         errorLine1="                    if (ticktype == 1) item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
         errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/xposed/features/general/SeenTick.kt"
+            file="src/main/java/com/mrksvt/waen/xposed/features/general/SeenTick.kt"
             line="449"
             column="70"/>
     </issue>
@@ -4088,7 +4088,7 @@
         errorLine1="        holder.lastMessage.setText(senderPrefix + text);"
         errorLine2="                                   ~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/DeletedMessagesAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/DeletedMessagesAdapter.java"
             line="152"
             column="36"/>
     </issue>
@@ -4099,7 +4099,7 @@
         errorLine1="        contactName.setText(&quot;Name&quot;);"
         errorLine2="                            ~~~~~~">
         <location
-            file="src/main/java/com/wmods/wppenhacer/adapter/IGStatusAdapter.java"
+            file="src/main/java/com/mrksvt/waen/adapter/IGStatusAdapter.java"
             line="279"
             column="29"/>
     </issue>

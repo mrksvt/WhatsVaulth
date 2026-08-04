@@ -1,0 +1,39 @@
+package com.mrksvt.waen.ui.fragments;
+
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import com.mrksvt.waen.R;
+import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
+
+public class CustomizationFragment extends BasePreferenceFragment {
+    @Override
+    public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+        super.onCreatePreferences(savedInstanceState, rootKey);
+        setPreferencesFromResource(R.xml.fragment_customization, rootKey);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        setDisplayHomeAsUpEnabled(false);
+    }
+    
+    @Override
+    public void onViewCreated(@NonNull android.view.View view, @Nullable android.os.Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        
+        // Handle scroll to preference from search
+        if (getActivity() != null && getActivity().getIntent() != null) {
+            String scrollToKey = getActivity().getIntent().getStringExtra("scroll_to_preference");
+            if (scrollToKey != null) {
+                scrollToPreference(scrollToKey);
+                // Clear the intent extra
+                getActivity().getIntent().removeExtra("scroll_to_preference");
+            }
+        }
+    }
+
+}
