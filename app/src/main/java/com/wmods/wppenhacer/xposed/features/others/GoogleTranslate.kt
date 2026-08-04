@@ -112,13 +112,22 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                 if (messageText.isBlank()) return
 
                 val messageId = fMessage.key.messageID
+                val isFromMe = fMessage.key.isFromMe
 
-                removeTranslationBubble(view)
+                val previousId = XposedHelpers.getAdditionalInstanceField(view, "wae_bound_id") as? String
+                if (previousId != messageId) {
+                    removeTranslationBubble(view)
+                    XposedHelpers.setAdditionalInstanceField(view, "wae_bound_id", messageId)
+                }
 
-                view.setOnClickListener { v ->
+                val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
+                val anchor = messageTextView ?: view
+
+                view.setOnClickListener {
                     if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return@setOnClickListener
 
-                    val popup = PopupMenu(v.context, v)
+                    val popup = PopupMenu(anchor.context, anchor)
+                    popup.gravity = if (isFromMe) android.view.Gravity.END else android.view.Gravity.START
                     popup.menu.add(0, 1, 0, "Terjemahkan")
 
                     val existingBubble = XposedHelpers.getAdditionalInstanceField(view, FIELD_BUBBLE_REF) as? TextView
@@ -152,8 +161,11 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
             return
         }
 
-        val bubble = createTranslationBubble(rootView, "Menerjemahkan...")
-        rootView.addView(bubble)
+        val messageTextView = rootView.findViewById<TextView>(Utils.getID("message_text", "id")) ?: return
+        val container = messageTextView.parent as? ViewGroup ?: return
+
+        val bubble = createTranslationBubble(container)
+        container.addView(bubble)
         XposedHelpers.setAdditionalInstanceField(rootView, FIELD_BUBBLE_REF, bubble)
 
         val lang = Locale.getDefault().language
@@ -164,12 +176,12 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         future.thenAccept { translated ->
             Handler(Looper.getMainLooper()).post {
                 if (!ConversationItemListener.isViewBoundToMessage(rootView, messageId)) {
-                    rootView.removeView(bubble)
+                    container.removeView(bubble)
                     XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
                     return@post
                 }
                 if (translated.isNullOrBlank()) {
-                    rootView.removeView(bubble)
+                    container.removeView(bubble)
                     XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
                 } else {
                     bubble.text = translated
@@ -177,7 +189,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
             }
         }.exceptionally { err ->
             Handler(Looper.getMainLooper()).post {
-                rootView.removeView(bubble)
+                container.removeView(bubble)
                 XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
                 Toast.makeText(rootView.context, "Gagal: ${err.message}", Toast.LENGTH_SHORT).show()
             }
@@ -185,36 +197,50 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         }
     }
 
-    private fun createTranslationBubble(rootView: ViewGroup, initialText: String): TextView {
-        val context = rootView.context
+    private fun createTranslationBubble(container: ViewGroup): TextView {
+        val context = container.context
         val dp8 = Utils.dipToPixels(8)
         val dp4 = Utils.dipToPixels(4)
 
+        val lp: ViewGroup.LayoutParams = when (container) {
+            is LinearLayout -> LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+            is android.widget.RelativeLayout -> android.widget.RelativeLayout.LayoutParams(
+                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+            else -> android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+        }
+
         return TextView(context).apply {
             tag = TAG_TRANSLATION_VIEW
-            text = initialText
+            text = "Menerjemahkan..."
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(Color.parseColor("#E3F2FD"))
             setBackgroundColor(Color.parseColor("#1565C0"))
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
             setPadding(dp8, dp4, dp8, dp4)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp4
-            }
+            layoutParams = lp
         }
     }
 
     private fun removeTranslationBubble(rootView: ViewGroup) {
-        for (i in rootView.childCount - 1 downTo 0) {
-            val child = rootView.getChildAt(i)
+        removeBubbleRecursive(rootView)
+        XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
+    }
+
+    private fun removeBubbleRecursive(vg: ViewGroup) {
+        for (i in vg.childCount - 1 downTo 0) {
+            val child = vg.getChildAt(i)
             if (child.tag == TAG_TRANSLATION_VIEW) {
-                rootView.removeViewAt(i)
-                XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
+                vg.removeViewAt(i)
             } else if (child is ViewGroup) {
-                removeTranslationBubble(child)
+                removeBubbleRecursive(child)
             }
         }
     }
