@@ -46,7 +46,7 @@ Editor tema visual langsung dari dalam aplikasi WAE dengan live preview dan bant
 **Status:** Kustomisasi dasar sudah ada, theme builder UI belum.
 
 **Rencana:**
-- Theme builder UI di dalam WAE
+- Theme builder UI di dalam WhatsVault
 - Live preview perubahan tema secara real-time
 - Drag & drop elemen
 - AI Design assistant untuk saran desain
@@ -57,7 +57,7 @@ Editor tema visual langsung dari dalam aplikasi WAE dengan live preview dan bant
 Pulihkan pesan dan media yang telah dihapus sepenuhnya.
 
 **Rencana:**
-- Restore pesan yang dihapus
+- Restore pesan yang dihapus (hook-based interception)
 - Restore media yang dihapus
 
 ---
@@ -73,4 +73,53 @@ Terjemahan berbasis AI langsung di chat composer sebelum pesan dikirim.
 
 ---
 
+## ☁️ WhatsVault Backup — Native Cloud Storage
+Backup WhatsApp (chat + media) ke Google Drive multi-akun via storage gateway native yang berjalan di HP user sendiri. Menjadi fallback jika backup bawaan WhatsApp tidak tersedia, atau sebagai alternatif pilihan user.
+
+**Arsitektur:**
+```
+HP User (rooted)
+├── WhatsVault
+│   ├── Backup scheduler (WorkManager - PeriodicWorkRequest)
+│   ├── Setup wizard: GDrive OAuth + CF tunnel token
+│   └── Backup UI (status, history, restore)
+├── BackupService (foreground service)
+│   ├── Copy msgstore.db + WAL dari /data/data/com.whatsapp/databases/ (root)
+│   ├── Copy media dari /sdcard/WhatsApp/
+│   └── Upload ke 9drive via localhost HTTP
+├── 9drive Native (Ktor HTTP server, foreground service)
+│   ├── Expose HTTP API di localhost:8080
+│   ├── Route ke multiple Google Drive accounts
+│   └── Bypass 5GB limit via multi-account pooling
+└── cloudflared arm64 (foreground service)
+    ├── Binary: cloudflared-linux-arm64 (download saat setup)
+    ├── Tunnel localhost:8080 → 9drive.{user-domain}
+    └── Autentikasi via CF Zero Trust token
+```
+
+**Keputusan teknis:**
+- Root access via `libsu` (Magisk/Shizuku)
+- 9drive backend: Kotlin native (Ktor + NanoHTTPD) — bukan Node.js
+- cloudflared binary: download saat setup pertama (~17MB)
+- Backup trigger: scheduled via WorkManager
+- CF tunnel token: guided setup dari dalam app WhatsVault
+- Subdomain format: `9drive.{user-domain}`
+- Google Drive OAuth: per-akun WebView flow, multi-account
+
+**Rencana implementasi:**
+1. Setup wizard CF Zero Trust + GDrive OAuth
+2. 9drive Ktor server (multi-account GDrive routing)
+3. cloudflared binary management (download, start, stop)
+4. BackupService (root file copy + upload)
+5. WorkManager scheduled backup
+6. UI restore flow (download → extract → overwrite WA db)
+
+**Pertimbangan open:**
+- Enkripsi backup sebelum upload ke GDrive (plain vs AES)
+- Notifikasi persistent 2 foreground service
+- Battery optimization exemption guide
+
+---
+
 *Dokumen ini diperbarui sesuai perkembangan fitur.*
+
