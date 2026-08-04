@@ -403,8 +403,8 @@
     <string name="assemblyai_key_sum">מפתח גישה לממשק ה-API של AssemblyAI (ניתן להשיג ב- assemblyai.com)</string>
     <string name="groq_api_key">מפתח ה-API של Groq</string>
     <string name="groq_api_key_sum">מפתח גישה ל-API של Groq (ניתן להשיג ב- console.groq.com)</string>
-    <string name="google_translate">הפעל את גוגל תרגום</string>
-    <string name="google_translate_sum">מחליף את מתרגם ברירת המחדל של ווצאפ בגוגל תרגום</string>
+    <string name="google_translate">הפעל תרגום מותאם אישית</string>
+    <string name="google_translate_sum">מחליף את מתרגם ברירת המחדל של WhatsApp בתרגום Google ו/או Groq</string>
     <string name="show_contact_info">הצג בפרטי יצירת קשר</string>
     <string name="show_contact_info_menu">הצג ב3 נקודות של פרטי איש הקשר</string>
     <string name="block_call">חסום שיחה</string>

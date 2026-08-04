@@ -27,6 +27,7 @@ import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.wmods.wppenhacer.BuildConfig;
 import com.wmods.wppenhacer.R;
 import com.wmods.wppenhacer.ui.fragments.base.BaseFragment;
 import com.wmods.wppenhacer.ui.fragments.base.BasePreferenceFragment;
@@ -77,6 +78,10 @@ public class GeneralFragment extends BaseFragment {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             super.onCreatePreferences(savedInstanceState, rootKey);
             setPreferencesFromResource(R.xml.fragment_general, rootKey);
+            if (!BuildConfig.DEBUG) {
+                Preference devPref = findPreference("dev_engineering_screen");
+                if (devPref != null) devPref.setVisible(false);
+            }
         }
 
         @Override

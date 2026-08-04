@@ -401,8 +401,8 @@
     <string name="assemblyai_key_sum">Chave de acesso à API do AssemblyAI (Obtenha-o em assemblyai.com)</string>
     <string name="groq_api_key">Chave API da Groq</string>
     <string name="groq_api_key_sum">Chave de acesso Groq API (Obtenha-o em console.groq.com)</string>
-    <string name="google_translate">Ativar Google Tradutor</string>
-    <string name="google_translate_sum">Substitui o tradutor nativo do WhatsApp pelo Google Tradutor</string>
+    <string name="google_translate">Ativar Tradução Personalizada</string>
+    <string name="google_translate_sum">Substitui o tradutor nativo do WhatsApp pelo Google Tradutor e/ou Groq</string>
     <string name="show_contact_info">Mostrar nas informações do contato</string>
     <string name="show_contact_info_menu">Mostrar no menu de informações de contato</string>
     <string name="block_call">Bloquear chamadas</string>

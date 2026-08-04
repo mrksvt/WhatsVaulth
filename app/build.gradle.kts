@@ -23,6 +23,7 @@ fun getGitHashCommit(): String {
 }
 
 val gitHash: String = getGitHashCommit().uppercase(Locale.getDefault())
+val versionSuffix: String = if (project.hasProperty("versionSuffix")) "-${project.property("versionSuffix")}" else ""
 
 android {
     namespace = "com.wmods.wppenhacer"
@@ -51,7 +52,7 @@ android {
         //noinspection OldTargetApi
         targetSdk = 34
         versionCode = 155
-        versionName = "1.5.5 ($gitHash)_mrksvt"
+        versionName = "1.5.5$versionSuffix ($gitHash)_mrksvt"
         multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

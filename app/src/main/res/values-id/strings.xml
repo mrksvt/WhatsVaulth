@@ -412,8 +412,8 @@ Saat Anda mengaktifkan bekukan \"terakhir dilihat dan online\", Anda tidak dapat
     <string name="assemblyai_key_sum">Kunci akses API AssemblyAI (Dapatkan di assemblyai.com)</string>
     <string name="groq_api_key">Kunci API Groq</string>
     <string name="groq_api_key_sum">Kunci akses API Groq (Dapatkan di console.groq.com)</string>
-    <string name="google_translate">Aktifkan Google Translate</string>
-    <string name="google_translate_sum">Menggantikan penerjemah bawaan WhatsApp dengan Google Terjemahan</string>
+    <string name="google_translate">Aktifkan Terjemahan Custom</string>
+    <string name="google_translate_sum">Ganti penerjemah asli WhatsApp dengan penerjemah Google dan atau Groq</string>
     <string name="show_contact_info">Tampilkan di info kontak</string>
     <string name="show_contact_info_menu">Tampilkan di menu info kontak</string>
     <string name="block_call">Blokir Panggilan</string>

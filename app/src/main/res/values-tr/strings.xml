@@ -401,8 +401,8 @@
     <string name="assemblyai_key_sum">AssemblyAI API erişim anahtarı (assemblyai.com adresinden edinin)</string>
     <string name="groq_api_key">Groq API Anahtarı</string>
     <string name="groq_api_key_sum">Groq API erişim anahtarı (console.groq.com adresinden edinin)</string>
-    <string name="google_translate">Google Çeviri\'yi Etkinleştir</string>
-    <string name="google_translate_sum">WhatsApp\'ın yerel çeviri özelliğini Google Çeviri ile değiştirir</string>
+    <string name="google_translate">Özel Çeviriyi Etkinleştir</string>
+    <string name="google_translate_sum">WhatsApp\'ın yerel çeviri özelliğini Google Çeviri ve/veya Groq ile değiştirir</string>
     <string name="show_contact_info">İletişim bilgilerinde göster</string>
     <string name="show_contact_info_menu">İletişim bilgileri menüsünde göster</string>
     <string name="block_call">Aramaları Engelle</string>

@@ -23,6 +23,7 @@
         app:summary="@string/translator_menu_sum" />
 
     <Preference
+        app:key="dev_engineering_screen"
         app:fragment="com.wmods.wppenhacer.ui.fragments.GeneralFragment$DevEngineeringFragment"
         app:iconSpaceReserved="false"
         app:title="@string/dev_engineering" />
