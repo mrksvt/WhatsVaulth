@@ -401,8 +401,8 @@
     <string name="assemblyai_key_sum">مفتاح الوصول إلى واجهة برمجة تطبيقات AssemblyAI (احصل عليه من assemblyai.com)</string>
     <string name="groq_api_key">مفتاح واجهة برمجة تطبيقات Groq</string>
     <string name="groq_api_key_sum">مفتاح الوصول إلى واجهة برمجة تطبيقات Groq (احصل عليه من console.groq.com)</string>
-    <string name="google_translate">تمكين ترجمة جوجل</string>
-    <string name="google_translate_sum">يستبدل مترجم واتساب الأصلي بترجمة جوجل</string>
+    <string name="google_translate">تمكين الترجمة المخصصة</string>
+    <string name="google_translate_sum">يستبدل مترجم واتساب الأصلي بترجمة Google و/أو Groq</string>
     <string name="show_contact_info">إظهار في معلومات جهة الاتصال</string>
     <string name="show_contact_info_menu">إظهار في قائمة معلومات جهة الاتصال</string>
     <string name="block_call">حظر المكالمات</string>

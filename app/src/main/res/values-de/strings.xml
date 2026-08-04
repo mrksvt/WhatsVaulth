@@ -401,8 +401,8 @@
     <string name="assemblyai_key_sum">AssemblyAI API Access Key (Get it at assemblyai.com)</string>
     <string name="groq_api_key">Groq API Schlüssel</string>
     <string name="groq_api_key_sum">Groq API Zugangsschlüssel (Holen Sie ihn unter console.groq.com)</string>
-    <string name="google_translate">Google Translate aktivieren</string>
-    <string name="google_translate_sum">Ersetzt den native Übersetzer von WhatsApp durch Google Translate</string>
+    <string name="google_translate">Benutzerdefinierte Übersetzung aktivieren</string>
+    <string name="google_translate_sum">Ersetzt den nativen WhatsApp-Übersetzer durch Google Translate und/oder Groq</string>
     <string name="show_contact_info">In Kontaktinfo anzeigen</string>
     <string name="show_contact_info_menu">Im Kontaktinformationsmenü anzeigen</string>
     <string name="block_call">Anruf blockieren</string>
