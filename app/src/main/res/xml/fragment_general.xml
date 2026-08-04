@@ -22,6 +22,11 @@
         app:title="@string/translator_menu"
         app:summary="@string/translator_menu_sum" />
 
+    <Preference
+        app:fragment="com.wmods.wppenhacer.ui.fragments.GeneralFragment$DevEngineeringFragment"
+        app:iconSpaceReserved="false"
+        app:title="@string/dev_engineering" />
+
     <PreferenceCategory
         app:iconSpaceReserved="false"
         app:title="@string/status">

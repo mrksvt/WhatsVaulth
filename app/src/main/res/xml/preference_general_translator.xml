@@ -31,6 +31,8 @@
 
         <ListPreference
             app:defaultValue="llama-3.1-8b-instant"
+            app:entries="@array/groq_translator_model_entries"
+            app:entryValues="@array/groq_translator_model_values"
             app:iconSpaceReserved="false"
             app:key="groq_translator_model"
             app:summary="@string/groq_translator_model_sum"

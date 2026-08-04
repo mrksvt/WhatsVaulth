@@ -1,19 +1,32 @@
 package com.wmods.wppenhacer.ui.fragments;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
+import androidx.preference.PreferenceManager;
 
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.wmods.wppenhacer.R;
 import com.wmods.wppenhacer.ui.fragments.base.BaseFragment;
 import com.wmods.wppenhacer.ui.fragments.base.BasePreferenceFragment;
@@ -288,6 +301,112 @@ public class GeneralFragment extends BaseFragment {
                     }
                 }
             });
+        }
+    }
+
+    public static class DevEngineeringFragment extends Fragment {
+
+        private static final String LOG_PATH = "/data/data/com.wmods.wppenhacer/files/wae_dev_log.txt";
+
+        private TextView logTextView;
+        private final Handler handler = new Handler(Looper.getMainLooper());
+        private final Runnable pollRunnable = this::pollLogs;
+
+        @Nullable
+        @Override
+        public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                @Nullable Bundle savedInstanceState) {
+            android.content.res.Resources res = requireContext().getResources();
+            float density = res.getDisplayMetrics().density;
+            int dp1  = (int) (1  * density + 0.5f);
+            int dp8  = (int) (8  * density + 0.5f);
+            int dp16 = (int) (16 * density + 0.5f);
+
+            LinearLayout root = new LinearLayout(requireContext());
+            root.setOrientation(LinearLayout.VERTICAL);
+            root.setPadding(dp16, dp16, dp16, dp16);
+
+            SwitchMaterial toggleSwitch = new SwitchMaterial(requireContext());
+            toggleSwitch.setText("DevEngineering");
+            toggleSwitch.setChecked(getWaePrefs().getBoolean("dev_engineering", false));
+            toggleSwitch.setOnCheckedChangeListener((btn, checked) ->
+                    getWaePrefs().edit().putBoolean("dev_engineering", checked).apply());
+            root.addView(toggleSwitch);
+
+            View divider = new View(requireContext());
+            divider.setBackgroundColor(0x1F000000);
+            root.addView(divider, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp1));
+
+            Button clearBtn = new Button(requireContext());
+            clearBtn.setText("Clear Log");
+            clearBtn.setOnClickListener(v -> {
+                logFile().delete();
+                logTextView.setText("(belum ada log)");
+            });
+
+            Button copyBtn = new Button(requireContext());
+            copyBtn.setText("Copy Log");
+            copyBtn.setOnClickListener(v -> {
+                CharSequence text = logTextView.getText();
+                if (text == null || text.toString().equals("(belum ada log)")) return;
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("wae_dev_log", text));
+                android.widget.Toast.makeText(requireContext(), "Log disalin", android.widget.Toast.LENGTH_SHORT).show();
+            });
+
+            LinearLayout btnRow = new LinearLayout(requireContext());
+            btnRow.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams btnParam = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            btnRow.addView(clearBtn, btnParam);
+            btnRow.addView(copyBtn, btnParam);
+            root.addView(btnRow);
+
+            ScrollView scrollView = new ScrollView(requireContext());
+            logTextView = new TextView(requireContext());
+            logTextView.setTextSize(10f);
+            logTextView.setTypeface(android.graphics.Typeface.MONOSPACE);
+            logTextView.setText("(belum ada log)");
+            logTextView.setPadding(dp8, dp8, dp8, dp8);
+            scrollView.addView(logTextView);
+            root.addView(scrollView, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+            return root;
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+            handler.postDelayed(pollRunnable, 500);
+        }
+
+        @Override
+        public void onPause() {
+            super.onPause();
+            handler.removeCallbacks(pollRunnable);
+        }
+
+        private void pollLogs() {
+            if (logTextView != null) {
+                java.io.File f = logFile();
+                if (f.exists()) {
+                    try {
+                        String content = new String(java.nio.file.Files.readAllBytes(f.toPath()));
+                        logTextView.setText(content.isEmpty() ? "(belum ada log)" : content);
+                    } catch (Exception ignored) {}
+                }
+            }
+            handler.postDelayed(pollRunnable, 500);
+        }
+
+        private SharedPreferences getWaePrefs() {
+            return PreferenceManager.getDefaultSharedPreferences(requireContext());
+        }
+
+        private java.io.File logFile() {
+            return new java.io.File(LOG_PATH);
         }
     }
 

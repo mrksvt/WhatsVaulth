@@ -16,4 +16,4 @@ AlwaysStrong/
 .target/
 *.bak
 *.log
-
+.theme

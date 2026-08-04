@@ -413,7 +413,7 @@
     <string name="groq_api_key">Groq API Key</string>
     <string name="groq_api_key_sum">Groq API access key (Get it at console.groq.com)</string>
     <string name="google_translate">Aktifkan Terjemahan Custom</string>
-    <string name="google_translate_sum">Mengganti translator bawaan WhatsApp dengan translator pilihan</string>
+    <string name="google_translate_sum">Ganti terjemahan asli WhatsApp dengan Terjemahan Custom</string>
     <string name="translator_menu">Translator</string>
     <string name="translator_menu_sum">Pengaturan translator untuk terjemahan pesan</string>
     <string name="translator_provider">Pilih Translator</string>
@@ -570,4 +570,7 @@
     <string name="show_contact_blocked">Show Contact Blocked in Conversation</string>
     <string name="show_contact_blocked_sum">Verifies whether the contact may have blocked you (note: false positives may occur).</string>
     <string name="block_unverified">Block Unverified</string>
+    <string name="dev_engineering">DevEngineering</string>
+    <string name="dev_engineering_sum">Hook semua tap/klik di WhatsApp untuk inspeksi view ID</string>
+    <string name="dev_log_display">Log Klik</string>
 </resources>

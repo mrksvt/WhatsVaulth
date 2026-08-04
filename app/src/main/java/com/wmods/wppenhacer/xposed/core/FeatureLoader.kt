@@ -77,6 +77,7 @@ import com.wmods.wppenhacer.xposed.features.others.DebugFeature
 import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesDebug
 import com.wmods.wppenhacer.xposed.features.others.MarketingMessagesFix
 import com.wmods.wppenhacer.xposed.features.others.PremiumMessageFix
+import com.wmods.wppenhacer.xposed.features.others.DevEngineering
 import com.wmods.wppenhacer.xposed.features.others.GoogleTranslate
 import com.wmods.wppenhacer.xposed.features.others.GroupAdmin
 import com.wmods.wppenhacer.xposed.features.others.JumpFirstMessage
@@ -522,6 +523,7 @@ class FeatureLoader {
                 AntiWa::class.java,
                 CustomPrivacy::class.java,
                 AudioTranscript::class.java,
+                DevEngineering::class.java,
                 GoogleTranslate::class.java,
                 ContactVerify::class.java,
                 LockedChatsEnhancer::class.java,

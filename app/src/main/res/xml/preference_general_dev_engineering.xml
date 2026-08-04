@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <rikka.material.preference.MaterialSwitchPreference
+        app:iconSpaceReserved="false"
+        app:key="dev_engineering"
+        app:summary="@string/dev_engineering_sum"
+        app:title="@string/dev_engineering" />
+
+    <Preference
+        app:iconSpaceReserved="false"
+        app:key="dev_log_display"
+        app:title="@string/dev_log_display"
+        app:selectable="false" />
+
+</PreferenceScreen>
