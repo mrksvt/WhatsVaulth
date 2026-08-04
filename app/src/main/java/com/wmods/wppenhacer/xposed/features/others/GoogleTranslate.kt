@@ -162,7 +162,16 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         }
 
         val messageTextView = rootView.findViewById<TextView>(Utils.getID("message_text", "id")) ?: return
-        val container = messageTextView.parent as? ViewGroup ?: return
+
+        val sb = StringBuilder("WAE hierarchy from message_text:\n")
+        var cur: android.view.View? = messageTextView
+        for (i in 0..6) {
+            sb.append("  [$i] ${cur?.javaClass?.simpleName} id=${cur?.id}\n")
+            cur = (cur?.parent as? android.view.View)
+        }
+        XposedBridge.log(sb.toString())
+
+        val container = (messageTextView.parent as? ViewGroup)?.parent as? ViewGroup ?: return
 
         val bubble = createTranslationBubble(container)
         container.addView(bubble)
