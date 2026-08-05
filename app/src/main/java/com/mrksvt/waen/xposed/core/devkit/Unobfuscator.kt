@@ -2541,18 +2541,15 @@ object Unobfuscator {
     @JvmStatic
     fun loadVoipActivityClass(classLoader: ClassLoader): Class<*> {
         return UnobfuscatorCache.getInstance().getClass(classLoader) {
-            var voipCls = findFirstClassUsingName(
+            val voipCls = findFirstClassUsingName(
                 classLoader,
                 StringMatchType.Contains,
                 "VoipActivityV2"
+            ) ?: findFirstClassUsingName(
+                classLoader,
+                StringMatchType.Contains,
+                "VoipActivity"
             )
-            if (voipCls == null) {
-                voipCls = findFirstClassUsingName(
-                    classLoader,
-                    StringMatchType.Contains,
-                    "VoipActivity"
-                )
-            }
             voipCls!!
         }
     }

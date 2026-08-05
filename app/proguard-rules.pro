@@ -36,6 +36,18 @@
 
 -keepclasseswithmembernames class com.wmods.**
 
+-keep class com.mrksvt.waen.R { *; }
+-keep class com.mrksvt.waen.R$* { *; }
+-keepclassmembers class com.mrksvt.waen.R$* {
+     public static <fields>;
+}
+
+-keepclasseswithmembers class com.mrksvt.** {
+     *;
+}
+
+-keepclasseswithmembernames class com.mrksvt.**
+
 -keepclasseswithmembers class cz.vutbr.** {
      *;
 }

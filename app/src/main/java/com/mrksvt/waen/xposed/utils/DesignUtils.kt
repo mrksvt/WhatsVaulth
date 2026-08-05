@@ -46,6 +46,7 @@ object DesignUtils {
         val id = Utils.getID(name, "drawable")
         if (id == 0) return null
         val icon = getDrawable(id)
+        @Suppress("SENSELESS_COMPARISON")
         if (isTheme && icon != null) {
             return coloredDrawable(icon, if (isNightMode()) Color.WHITE else Color.BLACK)
         }
@@ -57,6 +58,7 @@ object DesignUtils {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             drawable.colorFilter = BlendModeColorFilter(color, BlendMode.SRC_ATOP)
         } else {
+            @Suppress("DEPRECATION")
             drawable.setColorFilter(color, PorterDuff.Mode.SRC_ATOP)
         }
         return drawable

@@ -715,6 +715,7 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
                 } else {
                     val auxFace = (param.method as Method).parameterTypes[0]
                     val method = ReflectionUtils.findMethodUsingFilter(auxFace) { m -> m.returnType == View::class.java }
+                    @Suppress("SENSELESS_COMPARISON")
                     if (method != null) {
                         val currentActivity = WppCore.getCurrentActivity()
                         view = method.invoke(param.args[0], currentActivity) as View?

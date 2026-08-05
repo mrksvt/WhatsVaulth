@@ -19,6 +19,7 @@ object DebugUtils {
                 val name = field.name
                 var value = field[thisObject]
                 if (value != null && value.javaClass.isArray) {
+                    @Suppress("UNCHECKED_CAST")
                     value = Arrays.toString(value as Array<Any>)
                 }
                 XposedBridge.log("FIELD: $name -> TYPE: ${field.type.name} -> VALUE: $value")

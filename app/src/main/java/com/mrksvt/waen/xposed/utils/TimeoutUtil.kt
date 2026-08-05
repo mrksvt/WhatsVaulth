@@ -20,6 +20,7 @@ object TimeoutUtil {
             )
         }, timeout, unit)
 
+        @Suppress("UNCHECKED_CAST")
         return CompletableFuture.anyOf(future, timeoutFuture)
             .thenApply { result -> result as T }
             .exceptionally { ex ->

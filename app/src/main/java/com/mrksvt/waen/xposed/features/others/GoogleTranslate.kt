@@ -265,6 +265,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
             return future
         }
 
+        @Suppress("DEPRECATION")
         val locale = Locale(languageDest)
         val langName = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { languageDest }
 

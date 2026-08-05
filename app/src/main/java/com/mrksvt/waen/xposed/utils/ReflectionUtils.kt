@@ -159,7 +159,7 @@ object ReflectionUtils {
     @JvmStatic
     fun getFieldByExtendType(cls: Class<*>?, className: String?): Field? {
         if (cls == null || className == null) return null
-        return getFieldByExtendType(cls, findClass(className, cls.classLoader))
+        return getFieldByExtendType(cls, findClass(className, cls.classLoader!!))
     }
 
     @JvmStatic
@@ -192,7 +192,7 @@ object ReflectionUtils {
     @JvmStatic
     fun getFieldByType(cls: Class<*>?, className: String?): Field? {
         if (cls == null || className == null) return null
-        return getFieldByType(cls, findClass(className, cls.classLoader))
+        return getFieldByType(cls, findClass(className, cls.classLoader!!))
     }
 
 
@@ -322,7 +322,7 @@ object ReflectionUtils {
     @JvmStatic
     fun isCalledFromStrings(vararg fragments: String): Boolean {
         for (fragment in fragments) {
-            require(fragment != null && fragment.trim().isNotEmpty()) { "Stack trace fragments must not be blank." }
+            require(fragment.trim().isNotEmpty()) { "Stack trace fragments must not be blank." }
         }
 
         val trace = Throwable().stackTrace
@@ -352,7 +352,7 @@ object ReflectionUtils {
                 if (cls!!.simpleName == s) return true
                 if (cls.name.startsWith("android.widget.") || cls.name.startsWith("android.view."))
                     return false
-            } while (cls.also { cls = it.superclass } != null)
+            } while (cls.superclass.also { cls = it } != null)
         } catch (_: Exception) {
         }
         return false

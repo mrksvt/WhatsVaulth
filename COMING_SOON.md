@@ -2,6 +2,26 @@
 
 Fitur-fitur berikut sedang dalam perencanaan atau pengembangan.
 
+## Status Fitur
+
+| Status | Keterangan |
+|---|---|
+| ✅ | Sudah diimplementasikan |
+| ⚠️ | Partial / perlu peningkatan |
+| ❌ | Belum diimplementasikan |
+
+| # | Fitur | Status | Deskripsi Singkat |
+|---|---|---|---|
+| 1 | 🗓️ Message Scheduler | ❌ | Jadwalkan pesan sekali atau berulang dengan antrian terpadu |
+| 2 | ✅ Hide Second Tick (iPhone) | ❌ | Sembunyikan centang kedua saat kirim ke pengguna iPhone |
+| 3 | 💬 Auto Reply | ❌ | Balas otomatis berdasarkan kata kunci, delay, dan jam aktif |
+| 4 | 📞 Call & Video Recording HD | ⚠️ | Rekam panggilan suara/video dasar ada, HD (WAV/OPUS/AAC) belum |
+| 5 | 🎨 Screen UI Theme Builder | ⚠️ | Kustomisasi dasar ada, theme builder + live preview + drag & drop + AI belum |
+| 6 | 🗑️ Trash & Deleted Recovery | ❌ | Pulihkan pesan dan media yang dihapus via hook-based interception |
+| 7 | 🤖 Groq AI Translator (Composer) | ⚠️ | Translate pesan masuk ada (beta), translate di chat composer belum |
+| 8 | ☁️ WhatsVault Backup | ❌ | Backup WA (chat+media) ke multi-GDrive via Ktor server + Cloudflare Tunnel mekanisme menyerupai 9drive |
+| 9 | 🔐 Enhanced KeyBox & Bootloader Spoofer | ⚠️ | KeyBox manual ada, auto-fetch + fingerprint Pixel Canary + hourly refresh belum |
+
 ---
 
 ## 🗓️ Message Scheduler
@@ -118,6 +138,39 @@ HP User (rooted)
 - Enkripsi backup sebelum upload ke GDrive (plain vs AES)
 - Notifikasi persistent 2 foreground service
 - Battery optimization exemption guide
+
+## 🔐 Enhanced KeyBox & Bootloader Spoofer — AlwaysStrong Integration
+Perkuat fitur Custom KeyBox dan Bootloader Spoofer yang sudah ada dengan kemampuan auto-fetch KeyBox + Fingerprint, sehingga TEE valid, bootloader aman, dan Play Integrity diharapkan mencapai STRONG — meskipun untuk Android < 13 STRONG masih sulit.
+
+**Goals:**
+- TEE valid via KeyBox yang selalu fresh dan tidak di-revoke Google
+- Bootloader spoofing aman via fingerprint Pixel Canary terbaru
+- Play Integrity STRONG (best-effort; Android 13+ lebih mudah, Android < 13 terbatas)
+
+**Arsitektur (port dari AlwaysStrong ke Kotlin native):**
+
+| Komponen AlwaysStrong | Port ke WhatsVault |
+|---|---|
+| `keybox_fetch.sh` + `asfetch` | Kotlin HTTP client (OkHttp), fetch `keybox.xml` base64 dari mirror |
+| `pif_native_fetch.sh` | Kotlin crawler: `developer.android.com` → `flash.android.com` → GFlash API → Pixel Canary fingerprint |
+| `service.sh` hourly loop | WorkManager PeriodicWorkRequest (interval default 1 jam, configurable) |
+| `conflict_scan.sh` | Root check: disable conflicting modules (TrickyStore, PlayIntegrityFix) via `libsu` |
+| WebUI toggles | Settings UI: `no_auto_fp`, `no_auto_keybox` toggle |
+
+**Rencana implementasi:**
+1. **KeyBox auto-fetch** — OkHttp GET ke mirror, base64 decode, validate `<Keybox>` XML tag, SHA256 check sebelum write ke `/data/adb/tricky_store/keybox.xml`
+2. **Manual input** — user bisa paste KeyBox XML manual atau upload file dari storage
+3. **Fingerprint auto-fetch** — crawl Pixel Canary build, write `custom.pif.prop` dengan `spoofProvider=0, spoofVendingFinger=1` (wajib untuk STRONG)
+4. **Auto-refresh** — WorkManager periodic, restart `com.google.android.gms.unstable` + Play Store setelah update via `libsu`
+5. **Mirror KeyBox** — host mirror sendiri (tidak bergantung `evoker.qzz.io`)
+6. **UI status** — tampilkan status TEE + Play Integrity verdict di dalam app
+
+**Critical notes:**
+- KeyBox **bisa di-revoke Google** kapan saja — mirror harus rutin diperbarui
+- `spoofProvider=0, spoofVendingFinger=1` **wajib** di `custom.pif.prop` untuk STRONG
+- Android < 13: STRONG sangat sulit, target realistis DEVICE integrity
+- Restart GMS tidak butuh reboot: `kill com.google.android.gms.unstable` via root
+- Xposed/LSPosed manager harus di-exclude dari attestation target
 
 ---
 
