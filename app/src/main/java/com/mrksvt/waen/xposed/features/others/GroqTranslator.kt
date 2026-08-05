@@ -22,6 +22,7 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
 
         ConversationItemListener.conversationListeners.add(object :
             ConversationItemListener.OnConversationItemListener() {
+
             override fun onItemBind(
                 fMessage: FMessageWpp,
                 view: ViewGroup,

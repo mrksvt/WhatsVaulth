@@ -1,9 +1,13 @@
 package com.mrksvt.waen.xposed.features.others
 
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
@@ -36,6 +40,11 @@ import java.util.concurrent.CompletableFuture
 class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) :
     Feature(classLoader, preferences) {
     private var client: OkHttpClient? = null
+
+    companion object {
+        private const val TAG_TRANSLATION_VIEW = "wae_translation_bubble"
+        private const val FIELD_BUBBLE_REF = "wae_translate_bubble_ref"
+    }
 
     override fun doHook() {
         if (!prefs.getBoolean("google_translate", false)) return
@@ -112,7 +121,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                 }
 
                 val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
-                val anchor: View = messageTextView ?: view
+                val anchor = messageTextView ?: view
 
                 view.setOnClickListener {
                     if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return@setOnClickListener
@@ -121,15 +130,15 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                     popup.gravity = if (isFromMe) android.view.Gravity.END else android.view.Gravity.START
                     popup.menu.add(0, 1, 0, "Terjemahkan")
 
-                    val existingBubble = TranslatorWrapperAdapter.hasTranslation(messageId)
-                    if (existingBubble) {
+                    val existingBubble = XposedHelpers.getAdditionalInstanceField(view, FIELD_BUBBLE_REF) as? TextView
+                    if (existingBubble != null) {
                         popup.menu.add(0, 2, 1, "Sembunyikan terjemahan")
                     }
 
                     popup.setOnMenuItemClickListener { item ->
                         when (item.itemId) {
                             1 -> {
-                                triggerTranslate(view, messageText, messageId, isFromMe)
+                                triggerTranslate(view, messageText, messageId)
                                 true
                             }
                             2 -> {
@@ -145,13 +154,28 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         })
     }
 
-    private fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String, isFromMe: Boolean) {
-        if (TranslatorWrapperAdapter.hasTranslation(messageId)) {
-            TranslatorWrapperAdapter.removeTranslation(messageId)
+    private fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String) {
+        val existing = XposedHelpers.getAdditionalInstanceField(rootView, FIELD_BUBBLE_REF) as? TextView
+        if (existing != null) {
+            existing.visibility = if (existing.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             return
         }
 
-        TranslatorWrapperAdapter.updateTranslation(messageId, "🌐 Menerjemahkan...")
+        val messageTextView = rootView.findViewById<TextView>(Utils.getID("message_text", "id")) ?: return
+
+        val sb = StringBuilder("WAE hierarchy from message_text:\n")
+        var cur: android.view.View? = messageTextView
+        for (i in 0..6) {
+            sb.append("  [$i] ${cur?.javaClass?.simpleName} id=${cur?.id}\n")
+            cur = (cur?.parent as? android.view.View)
+        }
+        XposedBridge.log(sb.toString())
+
+        val container = (messageTextView.parent as? ViewGroup)?.parent as? ViewGroup ?: return
+
+        val bubble = createTranslationBubble(container)
+        container.addView(bubble)
+        XposedHelpers.setAdditionalInstanceField(rootView, FIELD_BUBBLE_REF, bubble)
 
         val lang = Locale.getDefault().language
         val provider = prefs.getString("translator_provider", "google") ?: "google"
@@ -160,25 +184,74 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
 
         future.thenAccept { translated ->
             Handler(Looper.getMainLooper()).post {
+                if (!ConversationItemListener.isViewBoundToMessage(rootView, messageId)) {
+                    container.removeView(bubble)
+                    XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
+                    return@post
+                }
                 if (translated.isNullOrBlank()) {
-                    TranslatorWrapperAdapter.removeTranslation(messageId)
+                    container.removeView(bubble)
+                    XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
                 } else {
-                    TranslatorWrapperAdapter.updateTranslation(messageId, translated)
+                    bubble.text = translated
                 }
             }
         }.exceptionally { err ->
             Handler(Looper.getMainLooper()).post {
-                TranslatorWrapperAdapter.removeTranslation(messageId)
-                Toast.makeText(rootView.context, "Gagal: \${err.message}", Toast.LENGTH_SHORT).show()
+                container.removeView(bubble)
+                XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
+                Toast.makeText(rootView.context, "Gagal: ${err.message}", Toast.LENGTH_SHORT).show()
             }
             null
         }
     }
 
+    private fun createTranslationBubble(container: ViewGroup): TextView {
+        val context = container.context
+        val dp8 = Utils.dipToPixels(8)
+        val dp4 = Utils.dipToPixels(4)
+
+        val lp: ViewGroup.LayoutParams = when (container) {
+            is LinearLayout -> LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+            is android.widget.RelativeLayout -> android.widget.RelativeLayout.LayoutParams(
+                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+            else -> android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp4 }
+        }
+
+        return TextView(context).apply {
+            tag = TAG_TRANSLATION_VIEW
+            text = "Menerjemahkan..."
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(Color.parseColor("#E3F2FD"))
+            setBackgroundColor(Color.parseColor("#1565C0"))
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+            setPadding(dp8, dp4, dp8, dp4)
+            layoutParams = lp
+        }
+    }
+
     private fun removeTranslationBubble(rootView: ViewGroup) {
-        val messageId = XposedHelpers.getAdditionalInstanceField(rootView, "wae_bound_id") as? String
-            ?: return
-        TranslatorWrapperAdapter.removeTranslation(messageId)
+        removeBubbleRecursive(rootView)
+        XposedHelpers.removeAdditionalInstanceField(rootView, FIELD_BUBBLE_REF)
+    }
+
+    private fun removeBubbleRecursive(vg: ViewGroup) {
+        for (i in vg.childCount - 1 downTo 0) {
+            val child = vg.getChildAt(i)
+            if (child.tag == TAG_TRANSLATION_VIEW) {
+                vg.removeViewAt(i)
+            } else if (child is ViewGroup) {
+                removeBubbleRecursive(child)
+            }
+        }
     }
 
     fun translateGroq(text: String?, languageDest: String): CompletableFuture<String?> {
