@@ -78,6 +78,7 @@ import com.mrksvt.waen.xposed.features.others.MarketingMessagesDebug
 import com.mrksvt.waen.xposed.features.others.MarketingMessagesFix
 import com.mrksvt.waen.xposed.features.others.PremiumMessageFix
 import com.mrksvt.waen.xposed.features.others.DevEngineering
+import com.mrksvt.waen.xposed.features.others.GroqTranslator
 import com.mrksvt.waen.xposed.features.others.GoogleTranslate
 import com.mrksvt.waen.xposed.features.others.GroupAdmin
 import com.mrksvt.waen.xposed.features.others.JumpFirstMessage
@@ -525,6 +526,7 @@ class FeatureLoader {
                 AudioTranscript::class.java,
                 DevEngineering::class.java,
                 GoogleTranslate::class.java,
+                GroqTranslator::class.java,
                 ContactVerify::class.java,
                 LockedChatsEnhancer::class.java,
                 CallRecording::class.java,

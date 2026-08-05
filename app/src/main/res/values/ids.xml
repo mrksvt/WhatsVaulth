@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="groq_translator_bubble_incoming" type="id" />
+    <item name="groq_translator_bubble_outgoing" type="id" />
+</resources>
