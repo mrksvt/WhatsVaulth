@@ -69,6 +69,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/spacing_medium"
                             android:layout_toEndOf="@id/status_icon"
+                            android:layout_toStartOf="@+id/toggle_wpp_cards_btn"
                             android:text="@string/module_enabled" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -80,6 +81,18 @@
                             android:layout_alignStart="@id/status_title"
                             android:layout_marginTop="@dimen/spacing_xs" />
 
+                        <ImageView
+                            android:id="@+id/toggle_wpp_cards_btn"
+                            android:layout_width="@dimen/icon_size_large"
+                            android:layout_height="@dimen/icon_size_large"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:padding="@dimen/spacing_xs"
+                            android:src="@drawable/ic_arrow_down"
+                            app:tint="@color/text_on_gradient"
+                            tools:ignore="ContentDescription" />
+
                     </RelativeLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -88,6 +101,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="@dimen/spacing_medium"
+                    android:visibility="gone"
                     app:cardCornerRadius="@dimen/card_radius_large"
                     app:cardElevation="@dimen/card_elevation_high"
                     app:cardPreventCornerOverlap="false"
@@ -139,16 +153,6 @@
                             android:orientation="horizontal">
 
                             <ImageView
-                                android:id="@+id/scroll_diag_btn"
-                                android:layout_width="@dimen/icon_size_large"
-                                android:layout_height="@dimen/icon_size_large"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:padding="@dimen/spacing_xs"
-                                android:src="@drawable/ic_arrow_down"
-                                app:tint="@color/text_on_gradient"
-                                tools:ignore="ContentDescription" />
-
-                            <ImageView
                                 android:id="@+id/reboot_btn"
                                 android:layout_width="@dimen/icon_size_large"
                                 android:layout_height="@dimen/icon_size_large"
@@ -168,6 +172,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="@dimen/spacing_medium"
+                    android:visibility="gone"
                     app:cardCornerRadius="@dimen/card_radius_large"
                     app:cardElevation="@dimen/card_elevation_high"
                     app:cardPreventCornerOverlap="false"

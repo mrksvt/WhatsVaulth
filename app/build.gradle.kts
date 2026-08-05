@@ -42,7 +42,7 @@ android {
         create("business") {
             dimension = "version"
             applicationIdSuffix = ".w4b"
-            resValue("string", "app_name", "Wa Enhancer Business")
+            resValue("string", "app_name", "WhatsVault Business")
         }
     }
 
@@ -144,8 +144,8 @@ android {
 
     applicationVariants.all {
         val appName = when (flavorName) {
-            "business" -> "WaEnhancer-Business"
-            else -> "WaEnhancer"
+            "business" -> "WhatsVault-Business"
+            else -> "WhatsVault"
         }
 
         outputs.all {

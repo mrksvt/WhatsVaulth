@@ -75,7 +75,7 @@
             app:title="@string/call_recording_enable" />
 
         <com.mrksvt.waen.preference.FileSelectPreference
-            android:defaultValue="/sdcard/Music/WaEnhancer/Recordings"
+            android:defaultValue="/sdcard/Music/WhatsVault/Recordings"
             app:dependency="call_recording_enable"
             app:directory="true"
             app:key="call_recording_path"

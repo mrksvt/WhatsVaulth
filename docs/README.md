@@ -1,10 +1,10 @@
 | **English** | [Português(Brasil)](README.pt-BR.md)
 
-# WaEnhancer
+# WhatsVault
 <div align="center">
-  <p><strong>WaEnhancer is an Xposed module that enhances your WhatsApp experience.</strong></p>
+  <p><strong>WhatsVault is an Xposed module that enhances your WhatsApp experience.</strong></p>
   <p><strong>Warning:</strong> This module is intended for educational purposes only, you may have problems with your WhatsApp account, risk of banning! Use it at your own risk.</p>
-  <p>Please note that this project is currently in development, so bugs and crashes may occur. If you encounter any issues report them in our group or create an <a href="https://github.com/Dev4Mod/WaEnhancer/issues">issue</a> here.</p>
+  <p>Please note that this project is currently in development, so bugs and crashes may occur. If you encounter any issues report them in our group or create an <a href="https://github.com/mrksvt/WhatsVaulth/issues">issue</a> here.</p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ To avoid any misunderstanding regarding the nature, goals, and scope of this pro
 
 *   **Zero Proprietary Code:** This repository **DOES NOT** contain, host, or distribute any source code belonging to WhatsApp Inc., Meta Platforms, Inc., or any of their affiliates.
 *   **No APK Distribution:** We **DO NOT** distribute, host, or provide links to modified WhatsApp binary files (APKs). The APKs generated in the GitHub Actions tab are strictly the Xposed module itself, not a messaging application.
-*   **No Piracy or Bypasses:** WaEnhancer **DOES NOT** bypass premium accounts or subscriptions, does not unlock paid features illegally, and does not facilitate any form of piracy.
+*   **No Piracy or Bypasses:** WhatsVault **DOES NOT** bypass premium accounts or subscriptions, does not unlock paid features illegally, and does not facilitate any form of piracy.
 *   **Security and Integrity:** This project **DOES NOT** provide tools to break, bypass, or weaken the encryption, security, or server infrastructure of WhatsApp.
 *   **User Responsibility:** This is an educational research project. The use of this tool is entirely at the end user's own risk. We are not responsible for any account bans or violations of third-party Terms of Service that the user may commit when using modifications on their own device.
 
@@ -156,14 +156,13 @@ All modifications are made dynamically in the memory of the user's own device th
 
 ## Installation
 1. Ensure that your device is rooted.
-2. Install the Xposed Framework (recommend [this](https://github.com/JingMatrix/LSPosed) LPosed) on
-   your device.
-3. Download the WaEnhancer from the [Actions](https://github.com/Dev4Mod/WaEnhancer/actions) section.
-4. Install the WaEnhancer APK.
-5. Enable the WaEnhancer module in the Xposed Installer app.
+2. Install the Xposed Framework (recommend [this](https://github.com/JingMatrix/LSPosed) LSPosed) on your device.
+3. Download WhatsVault from the [Actions](https://github.com/mrksvt/WhatsVaulth/actions) section.
+4. Install the WhatsVault APK.
+5. Enable the WhatsVault module in the Xposed Installer app.
 
 ## Support
-If you encounter any issues or have questions about WaEnhancer, please [Visit Telegram](https://t.me/waenhancer).
+If you encounter any issues or have questions about WhatsVault, please [Visit Telegram](https://t.me/wae_mrksvt).
 
 ## License & Copyright Warning
 This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)** - see the [LICENSE](LICENSE) file for details.
@@ -179,4 +178,4 @@ This is a strong copyleft open-source license. Any derivative works, forks, or s
 
 ---
 
-**Note**: Please use WaEnhancer responsibly and in compliance with the terms and conditions of the apps you are modifying. Misuse of this tool may lead to legal consequences.
+**Note**: Please use WhatsVault responsibly and in compliance with the terms and conditions of the apps you are modifying. Misuse of this tool may lead to legal consequences.

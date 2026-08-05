@@ -94,9 +94,16 @@ public class HomeFragment extends BaseFragment {
             disableWpp(requireActivity());
         });
 
-        binding.scrollDiagBtn.setOnClickListener(view -> {
+        binding.toggleWppCardsBtn.setOnClickListener(view -> {
             animateClick(view);
-            binding.nestedScrollView.post(() -> binding.nestedScrollView.smoothScrollTo(0, binding.diagCard.getTop()));
+            boolean isExpanded = binding.status2.getVisibility() == View.VISIBLE;
+            int targetVisibility = isExpanded ? View.GONE : View.VISIBLE;
+            binding.status2.setVisibility(targetVisibility);
+            binding.status3.setVisibility(targetVisibility);
+            binding.toggleWppCardsBtn.animate()
+                .rotation(isExpanded ? 0f : 180f)
+                .setDuration(250)
+                .start();
         });
 
         binding.rebootBtn2.setOnClickListener(view -> {
@@ -142,23 +149,10 @@ public class HomeFragment extends BaseFragment {
 
         binding.status.startAnimation(slideUp);
 
-        binding.status2.postDelayed(() -> {
-            if (!isAdded() || binding == null) return;
-            var anim = AnimationUtils.loadAnimation(requireContext(), R.anim.slide_up);
-            binding.status2.startAnimation(anim);
-        }, 100);
-
-        binding.status3.postDelayed(() -> {
-            if (!isAdded() || binding == null) return;
-            var anim = AnimationUtils.loadAnimation(requireContext(), R.anim.slide_up);
-            binding.status3.startAnimation(anim);
-        }, 200);
-
         binding.infoCard.postDelayed(() -> {
             if (!isAdded() || binding == null) return;
             binding.infoCard.startAnimation(fadeIn);
         }, 300);
-
 
     }
 
@@ -175,7 +169,6 @@ public class HomeFragment extends BaseFragment {
 
     @SuppressLint("StringFormatInvalid")
     private void receiverBroadcastBusiness(Context context, Intent intent) {
-        if (App.isOriginalPackage()) binding.status3.setVisibility(View.VISIBLE);
         binding.statusTitle3.setText(R.string.business_in_background);
         var version = intent.getStringExtra("VERSION");
         var supported_list = Arrays.asList(context.getResources().getStringArray(R.array.supported_versions_business));
@@ -318,11 +311,7 @@ public class HomeFragment extends BaseFragment {
         }
         if (isInstalled(FeatureLoader.PACKAGE_WPP) && App.isOriginalPackage()) {
             disableWpp(activity);
-        } else {
-            binding.status2.setVisibility(View.GONE);
         }
-        if (App.isOriginalPackage())
-            binding.status3.setVisibility(View.GONE);
         checkWpp(activity);
         binding.deviceName.setText(Build.MANUFACTURER);
         binding.sdk.setText(String.valueOf(Build.VERSION.SDK_INT));

@@ -1,4 +1,4 @@
-WaEnhancer 1.5.5 — 098bd4e6
+WhatsVault 1.5.5 — 098bd4e6
 
 [ADDED]
 * Support WhatsApp / Business 2.26.28.xx and 2.26.29.xx (supported_versions lists)
@@ -14,9 +14,9 @@ WaEnhancer 1.5.5 — 098bd4e6
 
 [FIXED]
 * Business crash: no such column scheduled_batch_id on marketing_messages_background_send
-* Home “Update Available” false positive: update check uses mrksvt/WaEnhancer (not Dev4Mod); missing releases treated as up-to-date
+* Home “Update Available” false positive: update check uses mrksvt/WhatsVault (not Dev4Mod); missing releases treated as up-to-date
 * Xposed UpdateChecker popup to upstream Dev4Mod disabled on this fork
-* UpdateChecker / release links pointed at github.com/mrksvt/WaEnhancer
+* UpdateChecker / release links pointed at github.com/mrksvt/WhatsVault
 * Restored default English strings for contact-block resources (AAPT locale warnings)
 
 [NOTES]
