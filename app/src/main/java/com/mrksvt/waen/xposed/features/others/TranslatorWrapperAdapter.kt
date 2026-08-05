@@ -4,19 +4,19 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.util.SparseArray
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListAdapter
 import android.widget.SectionIndexer
 import android.widget.TextView
-import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.utils.Utils
+import de.robv.android.xposed.XposedHelpers
 
 class TranslatorWrapperAdapter(
     private val realAdapter: ListAdapter,
@@ -24,160 +24,175 @@ class TranslatorWrapperAdapter(
 ) : BaseAdapter(), SectionIndexer {
 
     companion object {
-        const val TAG_PLACEHOLDER = "groq_placeholder_view_type"
+        private var instance: TranslatorWrapperAdapter? = null
+
+        fun showTranslation(messageId: String, text: String) {
+            instance?.let { adapter ->
+                adapter.translationMap[messageId] = text
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        fun hideTranslation(messageId: String) {
+            instance?.let { adapter ->
+                adapter.translationMap.remove(messageId)
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        fun hasTranslation(messageId: String): Boolean {
+            return instance?.translationMap?.containsKey(messageId) == true
+        }
     }
 
-    private val isFromMeCache = SparseArray<Boolean>()
-    private val hasTextCache = SparseArray<Boolean>()
+    private val translationMap = HashMap<String, String>()
 
-    private fun isTextMessage(realPos: Int): Boolean {
-        hasTextCache[realPos]?.let { return it }
-        val result = try {
-            val raw = realAdapter.getItem(realPos)
-            if (raw != null) FMessageWpp(raw).messageStr?.isNotBlank() == true else false
+    init {
+        instance = this
+    }
+
+    private fun getMessageId(realPos: Int): String? {
+        return try {
+            val raw = realAdapter.getItem(realPos) ?: return null
+            FMessageWpp(raw).key.messageID
         } catch (e: Exception) {
-            false
+            null
         }
-        hasTextCache.put(realPos, result)
-        return result
     }
 
     private fun isFromMe(realPos: Int): Boolean {
-        isFromMeCache[realPos]?.let { return it }
-        val result = try {
-            val raw = realAdapter.getItem(realPos)
-            if (raw != null) FMessageWpp(raw).key.isFromMe else false
+        return try {
+            val raw = realAdapter.getItem(realPos) ?: return false
+            FMessageWpp(raw).key.isFromMe
         } catch (e: Exception) {
             false
         }
-        isFromMeCache.put(realPos, result)
-        return result
+    }
+
+    private fun isTextMessage(realPos: Int): Boolean {
+        return try {
+            val raw = realAdapter.getItem(realPos) ?: return false
+            FMessageWpp(raw).messageStr?.isNotBlank() == true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun notifyDataSetChanged() {
-        isFromMeCache.clear()
-        hasTextCache.clear()
         super.notifyDataSetChanged()
     }
 
     override fun getCount(): Int = realAdapter.count * 2
 
-    override fun getItem(pos: Int): Any? {
-        return if (pos % 2 == 0) realAdapter.getItem(pos / 2) else null
-    }
+    override fun getItem(pos: Int): Any? =
+        if (pos % 2 == 0) realAdapter.getItem(pos / 2) else null
 
-    override fun getItemId(pos: Int): Long {
-        return if (pos % 2 == 0) {
-            realAdapter.getItemId(pos / 2)
-        } else {
-            Long.MAX_VALUE - (pos / 2).toLong()
-        }
-    }
+    override fun getItemId(pos: Int): Long =
+        if (pos % 2 == 0) realAdapter.getItemId(pos / 2)
+        else Long.MAX_VALUE - (pos / 2).toLong()
 
     override fun hasStableIds(): Boolean = realAdapter.hasStableIds()
 
     override fun getViewTypeCount(): Int = realAdapter.viewTypeCount + 1
 
-    override fun getItemViewType(pos: Int): Int {
-        return if (pos % 2 == 0) {
-            realAdapter.getItemViewType(pos / 2)
-        } else {
-            realAdapter.viewTypeCount
-        }
-    }
+    override fun getItemViewType(pos: Int): Int =
+        if (pos % 2 == 0) realAdapter.getItemViewType(pos / 2)
+        else realAdapter.viewTypeCount
 
-    override fun isEnabled(pos: Int): Boolean {
-        return if (pos % 2 == 0) realAdapter.isEnabled(pos / 2) else false
-    }
+    override fun isEnabled(pos: Int): Boolean =
+        if (pos % 2 == 0) realAdapter.isEnabled(pos / 2) else false
 
     override fun getView(pos: Int, convertView: View?, parent: ViewGroup): View {
-        return if (pos % 2 == 0) {
-            val safeConvert = if (convertView?.tag == TAG_PLACEHOLDER) null else convertView
-            realAdapter.getView(pos / 2, safeConvert, parent)
-        } else {
-            val realPos = pos / 2
-            if (!isTextMessage(realPos)) {
-                val empty = View(parent.context)
-                empty.layoutParams = ViewGroup.LayoutParams(0, 0)
-                return empty
-            }
-            createOrRecyclePlaceholderView(convertView, parent, isFromMe(realPos))
+        if (pos % 2 == 0) {
+            return realAdapter.getView(pos / 2, convertView, parent)
         }
-    }
 
-    private fun createOrRecyclePlaceholderView(
-        convertView: View?,
-        parent: ViewGroup,
-        isFromMe: Boolean
-    ): View {
+        val realPos = pos / 2
         val context = parent.context
+        val messageId = getMessageId(realPos)
+        val translation = messageId?.let { translationMap[it] }
+
+        if (translation.isNullOrBlank() || !isTextMessage(realPos)) {
+            return View(context).apply {
+                layoutParams = ViewGroup.LayoutParams(0, 0)
+                visibility = View.GONE
+            }
+        }
+
+        val fromMe = isFromMe(realPos)
         val dp8 = Utils.dipToPixels(8)
         val dp4 = Utils.dipToPixels(4)
-        val dp2 = Utils.dipToPixels(2)
-        val dp16 = Utils.dipToPixels(16)
+        val dp12 = Utils.dipToPixels(12)
 
-        val bgColor = if (isFromMe) "#E3F2FD" else "#E8F5E9"
-        val textColor = if (isFromMe) "#0D47A1" else "#1B5E20"
-        val gravity = if (isFromMe) Gravity.END else Gravity.START
-        val bubbleId = if (isFromMe) R.id.groq_translator_bubble_outgoing else R.id.groq_translator_bubble_incoming
+        val rawBubbleColor = if (fromMe) prefs.getInt("bubble_right", 0)
+                             else prefs.getInt("bubble_left", 0)
 
-        if (convertView is LinearLayout && convertView.tag == TAG_PLACEHOLDER) {
-            val tv = convertView.getChildAt(0) as? TextView
-            if (tv != null) {
-                val bgDrawable = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.parseColor(bgColor))
-                    cornerRadius = Utils.dipToPixels(8).toFloat()
-                }
-                tv.background = bgDrawable
-                tv.setTextColor(Color.parseColor(textColor))
+        val bubbleBgColor: Int
+        val bubbleTextColor: Int
+        if (rawBubbleColor != 0) {
+            val hsv = FloatArray(3)
+            Color.colorToHSV(rawBubbleColor, hsv)
+            hsv[2] = (hsv[2] * 0.75f).coerceIn(0.1f, 1.0f)
+            bubbleBgColor = Color.HSVToColor(hsv)
+            bubbleTextColor = if (hsv[2] < 0.5f) Color.WHITE else Color.BLACK
+        } else {
+            if (fromMe) {
+                bubbleBgColor = Color.parseColor("#1A237E")
+                bubbleTextColor = Color.parseColor("#E8EAF6")
+            } else {
+                bubbleBgColor = Color.parseColor("#1B5E20")
+                bubbleTextColor = Color.parseColor("#E8F5E9")
             }
-            convertView.gravity = gravity
-            convertView.id = bubbleId
-            return convertView
         }
 
-        // Create new
-        val root = LinearLayout(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(dp16, dp2, dp16, dp2)
-            this.gravity = gravity
-            tag = TAG_PLACEHOLDER
-            id = bubbleId
+        val bgDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(bubbleBgColor)
+            cornerRadius = dp12.toFloat()
         }
 
-        val bgDrawable = android.graphics.drawable.GradientDrawable().apply {
-            setColor(Color.parseColor(bgColor))
-            cornerRadius = Utils.dipToPixels(8).toFloat()
-        }
+        val gravity = if (fromMe) Gravity.END else Gravity.START
+
+        val bubbleResId = if (fromMe)
+            Utils.getIDFromModule("groq_translator_bubble_outgoing")
+        else
+            Utils.getIDFromModule("groq_translator_bubble_incoming")
 
         val tv = TextView(context).apply {
-            text = "🌐 [Translation Placeholder]"
+            if (bubbleResId > 0) id = bubbleResId
+            text = "🌐 $translation"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTextColor(Color.parseColor(textColor))
+            setTextColor(bubbleTextColor)
             background = bgDrawable
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
             setPadding(dp8, dp4, dp8, dp4)
         }
 
-        root.addView(tv)
-        return root
+        val tvLp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { this.gravity = gravity }
+        tv.layoutParams = tvLp
+
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp8, dp4, dp8, dp4)
+            addView(tv)
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
     }
 
-    // SectionIndexer delegation — remap positions with *2
-
-    override fun getSections(): Array<Any> {
-        return (realAdapter as? SectionIndexer)?.sections ?: emptyArray()
-    }
+    override fun getSections(): Array<Any> =
+        (realAdapter as? SectionIndexer)?.sections ?: emptyArray()
 
     override fun getPositionForSection(sectionIndex: Int): Int {
         val realPos = (realAdapter as? SectionIndexer)?.getPositionForSection(sectionIndex) ?: 0
         return realPos * 2
     }
 
-    override fun getSectionForPosition(position: Int): Int {
-        return (realAdapter as? SectionIndexer)?.getSectionForPosition(position / 2) ?: 0
-    }
+    override fun getSectionForPosition(position: Int): Int =
+        (realAdapter as? SectionIndexer)?.getSectionForPosition(position / 2) ?: 0
 }

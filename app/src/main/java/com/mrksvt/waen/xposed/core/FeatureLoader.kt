@@ -78,8 +78,8 @@ import com.mrksvt.waen.xposed.features.others.MarketingMessagesDebug
 import com.mrksvt.waen.xposed.features.others.MarketingMessagesFix
 import com.mrksvt.waen.xposed.features.others.PremiumMessageFix
 import com.mrksvt.waen.xposed.features.others.DevEngineering
-import com.mrksvt.waen.xposed.features.others.GoogleTranslate
 import com.mrksvt.waen.xposed.features.others.GroqTranslator
+import com.mrksvt.waen.xposed.features.others.GoogleTranslate
 import com.mrksvt.waen.xposed.features.others.GroupAdmin
 import com.mrksvt.waen.xposed.features.others.JumpFirstMessage
 import com.mrksvt.waen.xposed.features.others.MenuHome
