@@ -120,6 +120,18 @@ object Utils {
     }
 
     @JvmStatic
+    @SuppressLint("DiscouragedApi")
+    fun getIDFromModule(name: String?): Int {
+        if (name.isNullOrEmpty()) return -1
+        return try {
+            val ctx = FeatureLoader.moduleContext
+            ctx.resources.getIdentifier(name, "id", ctx.packageName)
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
+    @JvmStatic
     fun dipToPixels(dipValue: Int): Int {
         val metrics = FeatureLoader.mApp!!.resources.displayMetrics
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dipValue.toFloat(), metrics)

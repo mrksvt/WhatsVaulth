@@ -3,6 +3,7 @@ package com.mrksvt.waen.xposed.features.others
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.Gravity
@@ -13,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.ListAdapter
 import android.widget.SectionIndexer
 import android.widget.TextView
+import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.utils.Utils
 
@@ -114,17 +116,23 @@ class TranslatorWrapperAdapter(
         val dp2 = Utils.dipToPixels(2)
         val dp16 = Utils.dipToPixels(16)
 
-        val bgColor = if (isFromMe) "#1A237E" else "#1B5E20"
-        val textColor = if (isFromMe) "#E8EAF6" else "#E8F5E9"
+        val bgColor = if (isFromMe) "#E3F2FD" else "#E8F5E9"
+        val textColor = if (isFromMe) "#0D47A1" else "#1B5E20"
         val gravity = if (isFromMe) Gravity.END else Gravity.START
+        val bubbleId = if (isFromMe) R.id.groq_translator_bubble_outgoing else R.id.groq_translator_bubble_incoming
 
         if (convertView is LinearLayout && convertView.tag == TAG_PLACEHOLDER) {
             val tv = convertView.getChildAt(0) as? TextView
             if (tv != null) {
-                tv.setBackgroundColor(Color.parseColor(bgColor))
+                val bgDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.parseColor(bgColor))
+                    cornerRadius = Utils.dipToPixels(8).toFloat()
+                }
+                tv.background = bgDrawable
                 tv.setTextColor(Color.parseColor(textColor))
             }
             convertView.gravity = gravity
+            convertView.id = bubbleId
             return convertView
         }
 
@@ -137,13 +145,19 @@ class TranslatorWrapperAdapter(
             setPadding(dp16, dp2, dp16, dp2)
             this.gravity = gravity
             tag = TAG_PLACEHOLDER
+            id = bubbleId
+        }
+
+        val bgDrawable = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Color.parseColor(bgColor))
+            cornerRadius = Utils.dipToPixels(8).toFloat()
         }
 
         val tv = TextView(context).apply {
-            text = "[Translation Placeholder]"
+            text = "🌐 [Translation Placeholder]"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(Color.parseColor(textColor))
-            setBackgroundColor(Color.parseColor(bgColor))
+            background = bgDrawable
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
             setPadding(dp8, dp4, dp8, dp4)
         }

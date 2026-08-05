@@ -194,7 +194,8 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                             } catch (_: IllegalAccessException) {
                             }
                         } else {
-                            part.resolvedId = Utils.getID(part.idName!!, "id")
+                            val waId = Utils.getID(part.idName!!, "id")
+                            part.resolvedId = if (waId > 0) waId else Utils.getIDFromModule(part.idName)
                         }
                     } else {
                         val typeStr = item.toString()
