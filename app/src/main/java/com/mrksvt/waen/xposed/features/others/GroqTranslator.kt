@@ -1,6 +1,8 @@
 package com.mrksvt.waen.xposed.features.others
 
 import android.content.SharedPreferences
+import android.widget.AbsListView
+import android.widget.HeaderViewListAdapter
 import android.widget.ListAdapter
 import android.widget.ListView
 import com.mrksvt.waen.xposed.core.Feature
@@ -12,6 +14,15 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
     Feature(classLoader, preferences) {
 
     private var isWrapping = false
+
+    private fun resolveWrapper(adapter: ListAdapter?): TranslatorWrapperAdapter? {
+        if (adapter is TranslatorWrapperAdapter) return adapter
+        if (adapter is HeaderViewListAdapter) {
+            val wrapped = adapter.wrappedAdapter
+            if (wrapped is TranslatorWrapperAdapter) return wrapped
+        }
+        return null
+    }
 
     override fun doHook() {
         if (!prefs.getBoolean("google_translate", false)) return
@@ -39,6 +50,26 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
                     isWrapping = true
                     param.args[0] = wrapper
                     isWrapping = false
+                }
+            }
+        )
+
+        XposedHelpers.findAndHookMethod(
+            AbsListView::class.java,
+            "setSelectionFromTop",
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val lv = param.thisObject as? AbsListView ?: return
+                    val wrapper = resolveWrapper(lv.adapter) ?: return
+                    val pos = param.args[0] as Int
+                    if (pos == wrapper.count - 1) {
+                        val (isTranslation, _) = wrapper.resolve(pos)
+                        if (isTranslation) {
+                            param.args[0] = pos - 1
+                        }
+                    }
                 }
             }
         )

@@ -111,13 +111,6 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                 val messageId = fMessage.key.messageID
                 val isFromMe = fMessage.key.isFromMe
 
-                val previousId = XposedHelpers.getAdditionalInstanceField(view, "wae_bound_id") as? String
-                if (previousId != messageId) {
-                    val prevMessageId = previousId
-                    if (prevMessageId != null) TranslatorWrapperAdapter.hideTranslation(prevMessageId)
-                    XposedHelpers.setAdditionalInstanceField(view, "wae_bound_id", messageId)
-                }
-
                 val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
                 val anchor = messageTextView ?: view
 
