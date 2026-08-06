@@ -32,7 +32,7 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
             "setAdapter",
             ListAdapter::class.java,
             object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
+                override fun afterHookedMethod(param: MethodHookParam) {
                     if (isWrapping) return
 
                     val currentActivity = WppCore.getCurrentActivity()
@@ -40,16 +40,15 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
                         currentActivity.javaClass.simpleName != "Conversation"
                     ) return
 
-                    val listView = param.thisObject as? ListView ?: run {
-                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: not ListView, class=${param.thisObject.javaClass.simpleName}")
-                        return
-                    }
-                    if (listView.id != android.R.id.list && listView.id != -1) {
-                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrong id=${listView.id} expected=${android.R.id.list}")
-                        return
-                    }
+                    val listView = param.thisObject as? ListView ?: return
+                    if (listView.id != android.R.id.list && listView.id != -1) return
 
-                    val incoming = param.args[0] as? ListAdapter ?: return
+                    val current = listView.adapter
+                    val incoming = when (current) {
+                        is TranslatorWrapperAdapter -> return
+                        is HeaderViewListAdapter -> current.wrappedAdapter
+                        else -> current
+                    } as? ListAdapter ?: return
                     if (incoming is TranslatorWrapperAdapter) return
 
                     val incomingClass = incoming.javaClass.name
@@ -60,10 +59,10 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
 
                     de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrapping ${incoming.javaClass.simpleName}")
                     val wrapper = TranslatorWrapperAdapter(incoming, prefs)
-                    wrapper.listViewRef = java.lang.ref.WeakReference(listView)
                     isWrapping = true
-                    param.args[0] = wrapper
+                    listView.adapter = wrapper
                     isWrapping = false
+                    wrapper.listViewRef = java.lang.ref.WeakReference(listView)
                 }
             }
         )

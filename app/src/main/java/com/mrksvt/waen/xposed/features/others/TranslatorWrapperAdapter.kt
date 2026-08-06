@@ -1,6 +1,7 @@
 package com.mrksvt.waen.xposed.features.others
 
 import android.content.SharedPreferences
+import android.database.DataSetObserver
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -10,6 +11,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AbsListView
 import android.widget.BaseAdapter
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -22,7 +24,7 @@ import com.mrksvt.waen.xposed.utils.Utils
 import java.lang.ref.WeakReference
 
 class TranslatorWrapperAdapter(
-    private val realAdapter: ListAdapter,
+    val realAdapter: ListAdapter,
     private val prefs: SharedPreferences
 ) : BaseAdapter(), SectionIndexer {
 
@@ -31,26 +33,35 @@ class TranslatorWrapperAdapter(
 
         fun showTranslation(messageId: String, text: String) {
             de.robv.android.xposed.XposedBridge.log("WAE_TRANS: showTranslation id=$messageId instance=${instance != null}")
-            instance?.let {
-                it.translationMap[messageId] = text
-                it.rebuildIndex()
-                val targetRealPos = it.messageIdToRealPos[messageId]
-                de.robv.android.xposed.XposedBridge.log("WAE_TRANS: rebuiltIndex sorted=${it.realPositionsSorted.size} count=${it.count} targetRealPos=$targetRealPos")
-                it.notifyDataSetChanged()
+            val adapter = instance ?: return
+            Handler(Looper.getMainLooper()).post {
+                adapter.translationMap[messageId] = text
+                adapter.rebuildIndex()
+                val targetRealPos = adapter.messageIdToRealPos[messageId]
+                de.robv.android.xposed.XposedBridge.log("WAE_TRANS: rebuiltIndex sorted=${adapter.realPositionsSorted.size} count=${adapter.count} targetRealPos=$targetRealPos")
+                adapter.notifyDataSetChanged()
                 if (targetRealPos != null) {
-                    val translationWrappedPos = targetRealPos + it.realPositionsSorted.indexOfFirst { rp -> rp == targetRealPos } + 1
-                    Handler(Looper.getMainLooper()).post {
-                        it.listViewRef?.get()?.smoothScrollToPosition(translationWrappedPos)
+                    val translationWrappedPos = targetRealPos +
+                        adapter.realPositionsSorted.indexOfFirst { rp -> rp == targetRealPos } + 1
+                    val lv = adapter.listViewRef?.get()
+                    val headerCount = lv?.headerViewsCount ?: 0
+                    val scrollPos = translationWrappedPos + headerCount
+                    de.robv.android.xposed.XposedBridge.log("WAE_SCROLL: translationWrappedPos=$translationWrappedPos headerCount=$headerCount scrollPos=$scrollPos")
+                    if (lv != null) {
+                        lv.post {
+                            lv.smoothScrollToPosition(translationWrappedPos)
+                        }
                     }
                 }
             }
         }
 
         fun hideTranslation(messageId: String) {
-            instance?.let {
-                it.translationMap.remove(messageId)
-                it.rebuildIndex()
-                it.notifyDataSetChanged()
+            val adapter = instance ?: return
+            Handler(Looper.getMainLooper()).post {
+                adapter.translationMap.remove(messageId)
+                adapter.rebuildIndex()
+                adapter.notifyDataSetChanged()
             }
         }
 
@@ -59,6 +70,27 @@ class TranslatorWrapperAdapter(
     }
 
     var listViewRef: WeakReference<ListView>? = null
+    private var listViewObserver: DataSetObserver? = null
+
+    fun attachListViewObserver(lv: ListView) {
+        listViewRef = WeakReference(lv)
+        try {
+            val field = AbsListView::class.java.getDeclaredField("mDataSetObserver")
+            field.isAccessible = true
+            val observer = field.get(lv) as? DataSetObserver ?: return
+            listViewObserver?.let { unregisterDataSetObserver(it) }
+            listViewObserver = observer
+            registerDataSetObserver(observer)
+            de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver ok")
+        } catch (e: Exception) {
+            de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver fail ${e.message}")
+        }
+    }
+
+    fun detachListViewObserver() {
+        listViewObserver?.let { unregisterDataSetObserver(it) }
+        listViewObserver = null
+    }
 
     private val translationMap = HashMap<String, String>()
 
@@ -70,6 +102,7 @@ class TranslatorWrapperAdapter(
     private val realAdapterObserver = object : android.database.DataSetObserver() {
         override fun onChanged() {
             if (isNotifying) return
+            de.robv.android.xposed.XposedBridge.log("WAE_OBS: realAdapter.onChanged slots=${realPositionsSorted.size}")
             notifyDataSetChanged()
         }
         override fun onInvalidated() {
@@ -123,10 +156,18 @@ class TranslatorWrapperAdapter(
 
     val realCount: Int get() = realAdapter.count
 
-    override fun getCount(): Int = realCount + realPositionsSorted.size
+    override fun getCount(): Int {
+        val c = realCount + realPositionsSorted.size
+        if (realPositionsSorted.isNotEmpty()) {
+            de.robv.android.xposed.XposedBridge.log("WAE_COUNT: count=$c real=$realCount slots=${realPositionsSorted.size}")
+        }
+        return c
+    }
 
     override fun notifyDataSetChanged() {
+        isNotifying = true
         super.notifyDataSetChanged()
+        isNotifying = false
     }
 
     override fun getItem(pos: Int): Any? {
@@ -157,6 +198,8 @@ class TranslatorWrapperAdapter(
 
     override fun getView(pos: Int, convertView: View?, parent: ViewGroup): View {
         val (isTranslation, realPos) = resolve(pos)
+
+        de.robv.android.xposed.XposedBridge.log("WAE_VIEW: pos=$pos isTranslation=$isTranslation realPos=$realPos slots=${realPositionsSorted.size}")
 
         if (!isTranslation) {
             return realAdapter.getView(realPos, convertView, parent)

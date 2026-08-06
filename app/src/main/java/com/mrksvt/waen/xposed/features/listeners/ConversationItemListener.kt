@@ -12,6 +12,7 @@ import android.widget.ListView
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
+import com.mrksvt.waen.xposed.features.others.TranslatorWrapperAdapter
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
 import de.robv.android.xposed.XposedBridge
@@ -96,6 +97,9 @@ class ConversationItemListener(
                     var currentAdapter = param.args[0] as? ListAdapter
                     if (currentAdapter is HeaderViewListAdapter) {
                         currentAdapter = currentAdapter.wrappedAdapter
+                    }
+                    if (currentAdapter is TranslatorWrapperAdapter) {
+                        currentAdapter = currentAdapter.realAdapter
                     }
 
                     if (currentAdapter == null) {
