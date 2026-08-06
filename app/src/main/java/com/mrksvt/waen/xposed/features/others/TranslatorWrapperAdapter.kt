@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -12,10 +14,12 @@ import android.widget.BaseAdapter
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListAdapter
+import android.widget.ListView
 import android.widget.SectionIndexer
 import android.widget.TextView
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.utils.Utils
+import java.lang.ref.WeakReference
 
 class TranslatorWrapperAdapter(
     private val realAdapter: ListAdapter,
@@ -26,10 +30,19 @@ class TranslatorWrapperAdapter(
         private var instance: TranslatorWrapperAdapter? = null
 
         fun showTranslation(messageId: String, text: String) {
+            de.robv.android.xposed.XposedBridge.log("WAE_TRANS: showTranslation id=$messageId instance=${instance != null}")
             instance?.let {
                 it.translationMap[messageId] = text
                 it.rebuildIndex()
+                val targetRealPos = it.messageIdToRealPos[messageId]
+                de.robv.android.xposed.XposedBridge.log("WAE_TRANS: rebuiltIndex sorted=${it.realPositionsSorted.size} count=${it.count} targetRealPos=$targetRealPos")
                 it.notifyDataSetChanged()
+                if (targetRealPos != null) {
+                    val translationWrappedPos = targetRealPos + it.realPositionsSorted.indexOfFirst { rp -> rp == targetRealPos } + 1
+                    Handler(Looper.getMainLooper()).post {
+                        it.listViewRef?.get()?.smoothScrollToPosition(translationWrappedPos)
+                    }
+                }
             }
         }
 
@@ -45,9 +58,12 @@ class TranslatorWrapperAdapter(
             instance?.translationMap?.containsKey(messageId) == true
     }
 
+    var listViewRef: WeakReference<ListView>? = null
+
     private val translationMap = HashMap<String, String>()
 
     private var messageIdToRealPos = HashMap<String, Int>()
+    private var realPosToMessageId = HashMap<Int, String>()
     private var realPositionsSorted = IntArray(0)
     private var isNotifying = false
 
@@ -85,6 +101,11 @@ class TranslatorWrapperAdapter(
             .mapNotNull { messageIdToRealPos[it] }
             .sorted()
             .toIntArray()
+        realPosToMessageId = HashMap<Int, String>().also { map ->
+            translationMap.keys.forEach { msgId ->
+                messageIdToRealPos[msgId]?.let { pos -> map[pos] = msgId }
+            }
+        }
     }
 
     fun resolve(wrappedPos: Int): Pair<Boolean, Int> {
@@ -142,13 +163,15 @@ class TranslatorWrapperAdapter(
         }
 
         val context = parent.context
-        val messageId = realPositionsSorted
-            .getOrNull(realPositionsSorted.indexOfFirst { rp -> rp == realPos })
-            ?.let { rp -> translationMap.keys.firstOrNull { messageIdToRealPos[it] == rp } }
-        val translation = messageId?.let { translationMap[it] } ?: return View(context).apply {
-            layoutParams = ViewGroup.LayoutParams(0, 0)
-            visibility = View.GONE
+        val messageId = realPosToMessageId[realPos]
+        val translation = messageId?.let { translationMap[it] } ?: run {
+            de.robv.android.xposed.XposedBridge.log("WAE_VIEW: miss realPos=$realPos map=${realPosToMessageId.keys} transMap=${translationMap.keys}")
+            return View(context).apply {
+                layoutParams = ViewGroup.LayoutParams(0, 0)
+                visibility = View.GONE
+            }
         }
+        de.robv.android.xposed.XposedBridge.log("WAE_VIEW: hit realPos=$realPos translation=${translation.take(20)}")
 
         val isFromMe = try {
             val raw = realAdapter.getItem(realPos) ?: return View(context)

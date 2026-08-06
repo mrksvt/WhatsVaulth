@@ -28,7 +28,7 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
         if (!prefs.getBoolean("google_translate", false)) return
 
         XposedHelpers.findAndHookMethod(
-            ListView::class.java,
+            AbsListView::class.java,
             "setAdapter",
             ListAdapter::class.java,
             object : XC_MethodHook() {
@@ -40,13 +40,27 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
                         currentActivity.javaClass.simpleName != "Conversation"
                     ) return
 
-                    val listView = param.thisObject as ListView
-                    if (listView.id != android.R.id.list) return
+                    val listView = param.thisObject as? ListView ?: run {
+                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: not ListView, class=${param.thisObject.javaClass.simpleName}")
+                        return
+                    }
+                    if (listView.id != android.R.id.list && listView.id != -1) {
+                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrong id=${listView.id} expected=${android.R.id.list}")
+                        return
+                    }
 
                     val incoming = param.args[0] as? ListAdapter ?: return
                     if (incoming is TranslatorWrapperAdapter) return
 
+                    val incomingClass = incoming.javaClass.name
+                    if (!incomingClass.contains("AiF") && !incomingClass.contains("APT")) {
+                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: skip ${incoming.javaClass.simpleName}")
+                        return
+                    }
+
+                    de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrapping ${incoming.javaClass.simpleName}")
                     val wrapper = TranslatorWrapperAdapter(incoming, prefs)
+                    wrapper.listViewRef = java.lang.ref.WeakReference(listView)
                     isWrapping = true
                     param.args[0] = wrapper
                     isWrapping = false
