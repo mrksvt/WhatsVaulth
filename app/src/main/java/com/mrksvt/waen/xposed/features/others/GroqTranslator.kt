@@ -21,7 +21,7 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
             "setAdapter",
             ListAdapter::class.java,
             object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
+                override fun beforeHookedMethod(param: MethodHookParam) {
                     if (isWrapping) return
 
                     val currentActivity = WppCore.getCurrentActivity()
@@ -37,7 +37,7 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
 
                     val wrapper = TranslatorWrapperAdapter(incoming, prefs)
                     isWrapping = true
-                    listView.adapter = wrapper
+                    param.args[0] = wrapper
                     isWrapping = false
                 }
             }

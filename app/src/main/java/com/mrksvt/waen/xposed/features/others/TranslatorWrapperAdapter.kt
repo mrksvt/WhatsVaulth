@@ -93,11 +93,11 @@ class TranslatorWrapperAdapter(
 
     override fun hasStableIds(): Boolean = realAdapter.hasStableIds()
 
-    override fun getViewTypeCount(): Int = realAdapter.viewTypeCount + 1
+    override fun getViewTypeCount(): Int = realAdapter.viewTypeCount
 
     override fun getItemViewType(pos: Int): Int =
         if (pos % 2 == 0) realAdapter.getItemViewType(pos / 2)
-        else realAdapter.viewTypeCount
+        else android.widget.Adapter.IGNORE_ITEM_VIEW_TYPE
 
     override fun isEnabled(pos: Int): Boolean =
         if (pos % 2 == 0) realAdapter.isEnabled(pos / 2) else false
