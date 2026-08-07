@@ -23,4 +23,10 @@ object TranslationCacheStore {
             dao().delete(jid, messageId)
         } catch (_: Exception) {}
     }
+
+    fun deleteByJid(jid: String) {
+        try {
+            dao().deleteByJid(jid)
+        } catch (_: Exception) {}
+    }
 }

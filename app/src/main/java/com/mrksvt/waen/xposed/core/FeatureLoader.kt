@@ -69,6 +69,7 @@ import com.mrksvt.waen.xposed.features.media.StatusDownload
 import com.mrksvt.waen.xposed.features.others.ActivityController
 import com.mrksvt.waen.xposed.features.others.AudioTranscript
 import com.mrksvt.waen.xposed.features.others.BackupRestore
+import com.mrksvt.waen.xposed.features.others.ComposerTranslator
 import com.mrksvt.waen.xposed.features.others.Channels
 import com.mrksvt.waen.xposed.features.others.ChatFilters
 import com.mrksvt.waen.xposed.features.others.CopySelectionMessage
@@ -527,6 +528,7 @@ class FeatureLoader {
                 DevEngineering::class.java,
                 GoogleTranslate::class.java,
                 GroqTranslator::class.java,
+                ComposerTranslator::class.java,
                 ContactVerify::class.java,
                 LockedChatsEnhancer::class.java,
                 CallRecording::class.java,

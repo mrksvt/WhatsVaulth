@@ -215,6 +215,7 @@ dependencies {
     annotationProcessor(libs.lombok)
     implementation(libs.markwon.core)
     implementation(libs.remote.preferences)
+    implementation(libs.mlkit.translate)
 }
 
 

@@ -46,6 +46,12 @@
             app:title="@string/groq_custom_system_prompt"
             app:useSimpleSummaryProvider="false" />
 
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="translator_reset_system_prompt"
+            app:summary="@string/translator_reset_system_prompt_sum"
+            app:title="@string/translator_reset_system_prompt" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -75,6 +81,27 @@
             app:key="groq_fetch_models"
             app:summary="@string/groq_translator_fetch_models_sum"
             app:title="@string/groq_translator_fetch_models" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:key="offline_translator_category"
+        app:title="@string/offline_translator_title">
+
+        <MultiSelectListPreference
+            app:iconSpaceReserved="false"
+            app:key="offline_translator_languages"
+            app:entries="@array/translator_target_lang_entries"
+            app:entryValues="@array/translator_target_lang_values"
+            app:summary="@string/offline_translator_languages_sum"
+            app:title="@string/offline_translator_languages" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="offline_translator_download"
+            app:summary="@string/offline_translator_download_sum"
+            app:title="@string/offline_translator_download" />
 
     </PreferenceCategory>
 

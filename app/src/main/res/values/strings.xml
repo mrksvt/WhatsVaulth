@@ -577,7 +577,20 @@
     <string name="translator_action_hide">Sembunyikan terjemahan</string>
     <string name="translator_loading">⏳ Menerjemahkan...</string>
     <string name="translator_failed">Terjemahan gagal</string>
+    <string name="groq_fallback_google">Groq tidak tersedia, beralih ke Google Translate</string>
+    <string name="translator_dismiss">Tutup</string>
     <string name="translator_retry">Coba Lagi</string>
+    <string name="offline_translator_title">Kamus Offline (MLKit)</string>
+    <string name="offline_translator_languages">Bahasa yang Diunduh</string>
+    <string name="offline_translator_languages_sum">Pilih bahasa untuk diunduh sebagai kamus offline</string>
+    <string name="offline_translator_download">Unduh Model Bahasa</string>
+    <string name="offline_translator_download_sum">Unduh model terjemahan offline MLKit untuk bahasa terpilih</string>
+    <string name="offline_translator_no_lang_selected">Pilih minimal satu bahasa terlebih dahulu</string>
+    <string name="offline_translator_downloading">Mengunduh model...</string>
+    <string name="offline_translator_download_success">Semua model berhasil diunduh</string>
+    <string name="offline_translator_download_partial">Beberapa model gagal: %s</string>
+    <string name="composer_translator_enabled">Composer Translator</string>
+    <string name="composer_translator_enabled_sum">Inject globe icon di input chat untuk terjemahkan pesan</string>
     <string name="translator_target_lang">Bahasa Tujuan</string>
     <string name="translator_target_lang_sum">Pilih bahasa hasil terjemahan</string>
     <string name="google_translate_endpoint">Google Translate Endpoint</string>
@@ -586,4 +599,9 @@
     <string name="groq_custom_slang_sum">Tambah kamus slang kustom (format: kata=arti, satu per baris)</string>
     <string name="groq_custom_system_prompt">System Prompt Kustom</string>
     <string name="groq_custom_system_prompt_sum">Override system prompt Groq (kosongkan untuk pakai default)</string>
+    <string name="groq_custom_system_prompt_error">System prompt tidak boleh hanya spasi</string>
+    <string name="translator_reset_system_prompt">Reset ke Default</string>
+    <string name="translator_reset_system_prompt_sum">Hapus custom prompt, kembali ke prompt bawaan</string>
+    <string name="translator_reset_system_prompt_confirm_title">Reset System Prompt?</string>
+    <string name="translator_reset_system_prompt_confirm_message">Custom prompt akan dihapus dan diganti dengan prompt bawaan.</string>
 </resources>

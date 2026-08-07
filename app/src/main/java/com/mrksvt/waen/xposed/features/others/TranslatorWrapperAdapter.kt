@@ -23,6 +23,7 @@ import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.db.TranslationCacheStore
 import com.mrksvt.waen.xposed.utils.Utils
 import java.lang.ref.WeakReference
+import java.util.Collections
 
 class TranslatorWrapperAdapter(
     val realAdapter: ListAdapter,
@@ -34,12 +35,32 @@ class TranslatorWrapperAdapter(
         private val instances = HashMap<String, WeakReference<TranslatorWrapperAdapter>>()
         private var lastCreated: WeakReference<TranslatorWrapperAdapter>? = null
 
+        private val fallbackNotifiedJids = Collections.newSetFromMap(
+            java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+        )
+
+        fun showGroqFallbackNotification(conversationJid: String, rootView: View) {
+            if (conversationJid.isBlank()) return
+            if (!fallbackNotifiedJids.add(conversationJid)) return
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        rootView,
+                        rootView.context.getString(com.mrksvt.waen.R.string.groq_fallback_google),
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).setAction(rootView.context.getString(com.mrksvt.waen.R.string.translator_dismiss)) {
+                    }.show()
+                } catch (_: Exception) {
+                }
+            }
+        }
+
         private fun getInstance(conversationJid: String): TranslatorWrapperAdapter? =
             instances[conversationJid]?.get()
 
         fun showTranslation(conversationJid: String, messageId: String, text: String) {
             de.robv.android.xposed.XposedBridge.log("WAE_TRANS: showTranslation id=$messageId jid=$conversationJid instance=${getInstance(conversationJid) != null}")
-            val adapter = getInstance(conversationJid) ?: return
+            val adapter = getOrRegister(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.translationMap[messageId] = text
                 adapter.saveCacheToDb(messageId, text)
@@ -64,7 +85,7 @@ class TranslatorWrapperAdapter(
         }
 
         fun hideTranslation(conversationJid: String, messageId: String) {
-            val adapter = getInstance(conversationJid) ?: return
+            val adapter = getOrRegister(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.translationMap.remove(messageId)
                 adapter.deleteCacheFromDb(messageId)
@@ -74,10 +95,10 @@ class TranslatorWrapperAdapter(
         }
 
         fun hasTranslation(conversationJid: String, messageId: String): Boolean =
-            getInstance(conversationJid)?.translationMap?.containsKey(messageId) == true
+            getOrRegister(conversationJid)?.translationMap?.containsKey(messageId) == true
 
         fun startLoading(conversationJid: String, messageId: String) {
-            val adapter = getInstance(conversationJid) ?: return
+            val adapter = getOrRegister(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.loadingSet.add(messageId)
                 adapter.rebuildIndex()
@@ -86,7 +107,7 @@ class TranslatorWrapperAdapter(
         }
 
         fun clearLoading(conversationJid: String, messageId: String) {
-            val adapter = getInstance(conversationJid) ?: return
+            val adapter = getOrRegister(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.loadingSet.remove(messageId)
                 adapter.notifyDataSetChanged()
@@ -103,6 +124,15 @@ class TranslatorWrapperAdapter(
             val adapter = lastCreated?.get() ?: return
             if (instances[jid]?.get() == adapter) return
             adapter.setConversationJid(jid)
+        }
+
+        private fun getOrRegister(jid: String): TranslatorWrapperAdapter? {
+            val existing = instances[jid]?.get()
+            if (existing != null) return existing
+            val fallback = lastCreated?.get() ?: return null
+            if (fallback.jid.isNotBlank() && fallback.jid != jid) return null
+            fallback.setConversationJid(jid)
+            return fallback
         }
     }
 
@@ -140,6 +170,18 @@ class TranslatorWrapperAdapter(
     fun detachListViewObserver() {
         listViewObserver?.let { unregisterDataSetObserver(it) }
         listViewObserver = null
+        destroy()
+    }
+
+    fun destroy() {
+        if (jid.isBlank()) return
+        instances.remove(jid)
+        Utils.executor.execute {
+            try {
+                TranslationCacheStore.deleteByJid(jid)
+                de.robv.android.xposed.XposedBridge.log("WAE_WRAP: destroy cleaned orphan cache jid=$jid")
+            } catch (_: Exception) {}
+        }
     }
 
     private val translationMap = HashMap<String, String>()

@@ -172,6 +172,10 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         val provider = prefs.getString("translator_provider", "google") ?: "google"
         val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
 
+        if (provider == "groq" && groqKey.isBlank()) {
+            TranslatorWrapperAdapter.showGroqFallbackNotification(conversationJid, rootView)
+        }
+
         TranslatorWrapperAdapter.startLoading(conversationJid, messageId)
 
         val future = if (provider == "groq" && groqKey.isNotBlank()) translateGroq(messageText, lang)

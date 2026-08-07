@@ -3414,4 +3414,17 @@ object Unobfuscator {
         }
     }
 
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadComposerInputFieldMethod(classLoader: ClassLoader): Method {
+        return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            val clazz = classLoader.loadClass("com.whatsapp.conversation.ConversationFragment")
+            ReflectionUtils.findMethodUsingFilter(clazz) { m ->
+                m.parameterCount == 2 &&
+                        m.parameterTypes[0] == android.os.Bundle::class.java &&
+                        m.parameterTypes[1] == android.view.View::class.java
+            }
+        }
+    }
+
 }

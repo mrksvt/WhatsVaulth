@@ -1,7 +1,7 @@
 # PLAN & TODO — Groq/Google Translator Patch
 
 **Tanggal:** 07 Agustus 2026
-**Status:** Planning
+**Status:** ✅ Completed
 **File utama:**
 - `GoogleTranslate.kt` — logika translate, popup, error handling
 - `TranslatorWrapperAdapter.kt` — display bubble, in-memory cache
@@ -54,8 +54,8 @@ val future = if (provider == "groq" && groqKey.isNotBlank()) {
 **Pref keys:** `translator_provider`, `groq_translator_api_key`
 
 **TODO:**
-- [ ] Tambah cek key sebelum dispatch ke Groq
-- [ ] Log warning kalau fallback terjadi
+- [x] Tambah cek key sebelum dispatch ke Groq
+- [x] Log warning kalau fallback terjadi
 
 ---
 
@@ -111,9 +111,9 @@ val lang = if (prefLang == "auto") Locale.getDefault().language else prefLang
 **Pref keys baru:** `translator_target_lang`
 
 **TODO:**
-- [ ] Tambah `ListPreference` di `preference_general_translator.xml`
-- [ ] Tambah arrays bahasa di `res/values/arrays.xml`
-- [ ] Update `GoogleTranslate.kt` baca pref, fallback ke locale kalau "auto"
+- [x] Tambah `ListPreference` di `preference_general_translator.xml`
+- [x] Tambah arrays bahasa di `res/values/arrays.xml`
+- [x] Update `GoogleTranslate.kt` baca pref, fallback ke locale kalau "auto"
 
 ---
 
@@ -167,11 +167,13 @@ private fun saveCacheToPrefs() {
 
 Panggil `saveCacheToPrefs()` di `showTranslation()` dan `hideTranslation()` setelah update map.
 
+**Implementasi:** Menggunakan Room DB (`TranslationCache` entity) sebagai pengganti SharedPreferences JSON — lebih robust untuk data besar, query lebih efisien.
+
 **TODO:**
-- [ ] Tambah `prefs: SharedPreferences` ke constructor `TranslatorWrapperAdapter` (sudah ada)
-- [ ] Tambah `loadCacheFromPrefs()` di `init`
-- [ ] Tambah `saveCacheToPrefs()`, panggil setelah setiap update `translationMap`
-- [ ] Clear cache ketika user force-close conversation (opsional — bisa skip untuk MVP)
+- [x] Tambah `prefs: SharedPreferences` ke constructor `TranslatorWrapperAdapter` (sudah ada)
+- [x] Tambah `loadCacheFromPrefs()` di `init`
+- [x] Tambah `saveCacheToPrefs()`, panggil setelah setiap update `translationMap`
+- [x] Clear cache ketika user force-close conversation (opsional — bisa skip untuk MVP)
 
 ---
 
@@ -215,11 +217,13 @@ init {
 
 **Perlu investigasi:** Cara ambil conversation ID yang stable di WA (bisa JID atau internal ID).
 
+**Implementasi:** Menggunakan `HashMap<String, WeakReference<TranslatorWrapperAdapter>>` — singleton statis diganti map per conversation.
+
 **TODO:**
-- [ ] Investigasi cara ambil `conversationId` yang reliable dari WppCore atau context
-- [ ] Refactor `instance` → `instances: HashMap<String, WeakReference<>>`
-- [ ] Update `showTranslation()`, `hideTranslation()`, `hasTranslation()` terima `conversationId`
-- [ ] Update pemanggil di `GoogleTranslate.kt` pass conversation ID
+- [x] Investigasi cara ambil `conversationId` yang reliable dari WppCore atau context
+- [x] Refactor `instance` → `instances: HashMap<String, WeakReference<>>`
+- [x] Update `showTranslation()`, `hideTranslation()`, `hasTranslation()` terima `conversationId`
+- [x] Update pemanggil di `GoogleTranslate.kt` pass conversation ID
 
 ---
 
@@ -253,9 +257,9 @@ popup.menu.add(0, 2, 1, ctx.getString(R.string.translator_action_hide))
 ```
 
 **TODO:**
-- [ ] Tambah string resources ke `strings.xml`
-- [ ] Buat `values-en/strings.xml` kalau belum ada
-- [ ] Update `GoogleTranslate.kt` pakai `R.string.*`
+- [x] Tambah string resources ke `strings.xml`
+- [x] Buat `values-en/strings.xml` kalau belum ada
+- [x] Update `GoogleTranslate.kt` pakai `R.string.*`
 
 ---
 
@@ -290,8 +294,8 @@ val url = String.format(baseUrl, languageDest, URLEncoder.encode(text, "UTF-8"))
 **Pref keys baru:** `google_translate_endpoint`
 
 **TODO:**
-- [ ] Tambah `EditTextPreference` di `preference_general_translator.xml`
-- [ ] Update `translateGoogle()` baca endpoint dari pref
+- [x] Tambah `EditTextPreference` di `preference_general_translator.xml`
+- [x] Update `translateGoogle()` baca endpoint dari pref
 
 ---
 
@@ -333,10 +337,10 @@ tv.text = if (isLoading) "⏳ Menerjemahkan..." else translationMap[msgId] ?: ""
 Di `GoogleTranslate.kt`, panggil `TranslatorWrapperAdapter.startLoading(messageId)` sebelum request, clear loading di `thenAccept` dan `exceptionally`.
 
 **TODO:**
-- [ ] Tambah `loadingSet: HashSet<String>` di `TranslatorWrapperAdapter`
-- [ ] Tambah `startLoading()` di companion object
-- [ ] Update `getView()` cek loading state
-- [ ] Update `GoogleTranslate.kt` call `startLoading()` sebelum request, clear setelah selesai
+- [x] Tambah `loadingSet: HashSet<String>` di `TranslatorWrapperAdapter`
+- [x] Tambah `startLoading()` di companion object
+- [x] Update `getView()` cek loading state
+- [x] Update `GoogleTranslate.kt` call `startLoading()` sebelum request, clear setelah selesai
 
 ---
 
@@ -373,9 +377,9 @@ Ganti Toast dengan Snackbar + action Retry:
 **Catatan:** Perlu ekstrak logic translate ke fungsi `doTranslate()` agar bisa dipanggil ulang untuk retry.
 
 **TODO:**
-- [ ] Ekstrak translate logic ke `doTranslate(rootView, fMessage, provider, prefs)`
-- [ ] Ganti Toast error dengan Snackbar + action "Coba Lagi"
-- [ ] Pastikan Snackbar dismiss setelah retry berhasil
+- [x] Ekstrak translate logic ke `doTranslate(rootView, fMessage, provider, prefs)`
+- [x] Ganti Toast error dengan Snackbar + action "Coba Lagi"
+- [x] Pastikan Snackbar dismiss setelah retry berhasil
 
 ---
 
@@ -419,8 +423,8 @@ Common Indonesian slang reference:
 ```
 
 **TODO:**
-- [ ] Update `translateGroq()` di `GoogleTranslate.kt` dengan system prompt baru
-- [ ] Tambah pref opsional `groq_custom_system_prompt` untuk override manual (advanced user)
+- [x] Update `translateGroq()` di `GoogleTranslate.kt` dengan system prompt baru
+- [x] Tambah pref opsional `groq_custom_system_prompt` untuk override manual (advanced user)
 
 ---
 
@@ -458,15 +462,15 @@ Common Indonesian slang reference:
 
 ## Checklist Final
 
-- [ ] Issue 1 — Fallback ke Google jika Groq key kosong
-- [ ] Issue 2 — Bahasa target bisa dipilih manual
-- [ ] Issue 3 — Cache persisten via SharedPreferences JSON
-- [ ] Issue 4 — Multi-conversation singleton fix
-- [ ] Issue 5 — Label popup localization
-- [ ] Issue 6 — Google endpoint bisa diatur
-- [ ] Issue 7 — Loading indicator (bubble placeholder)
-- [ ] Issue 8 — Error dengan Snackbar + retry
-- [ ] Issue 9 — System prompt kuat untuk slang/bahasa daerah
+- [x] Issue 1 — Fallback ke Google jika Groq key kosong
+- [x] Issue 2 — Bahasa target bisa dipilih manual
+- [x] Issue 3 — Cache persisten _(impl: Room DB `TranslationCache`, bukan SharedPreferences JSON)_
+- [x] Issue 4 — Multi-conversation singleton fix _(impl: `HashMap<String, WeakReference<>>`)_
+- [x] Issue 5 — Label popup localization
+- [x] Issue 6 — Google endpoint bisa diatur
+- [x] Issue 7 — Loading indicator (bubble placeholder)
+- [x] Issue 8 — Error dengan Snackbar + retry
+- [x] Issue 9 — System prompt kuat untuk slang/bahasa daerah
 - [ ] Build pass `./gradlew assembleWhatsappDebug`
 - [ ] Flash + test semua skenario
 - [ ] Update `COMING_SOON.md` mark issues resolved
