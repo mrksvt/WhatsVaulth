@@ -20,22 +20,29 @@ import android.widget.ListView
 import android.widget.SectionIndexer
 import android.widget.TextView
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
+import com.mrksvt.waen.xposed.core.db.TranslationCacheStore
 import com.mrksvt.waen.xposed.utils.Utils
 import java.lang.ref.WeakReference
 
 class TranslatorWrapperAdapter(
     val realAdapter: ListAdapter,
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    val conversationJid: String = ""
 ) : BaseAdapter(), SectionIndexer {
 
     companion object {
-        private var instance: TranslatorWrapperAdapter? = null
+        private val instances = HashMap<String, WeakReference<TranslatorWrapperAdapter>>()
+        private var lastCreated: WeakReference<TranslatorWrapperAdapter>? = null
 
-        fun showTranslation(messageId: String, text: String) {
-            de.robv.android.xposed.XposedBridge.log("WAE_TRANS: showTranslation id=$messageId instance=${instance != null}")
-            val adapter = instance ?: return
+        private fun getInstance(conversationJid: String): TranslatorWrapperAdapter? =
+            instances[conversationJid]?.get()
+
+        fun showTranslation(conversationJid: String, messageId: String, text: String) {
+            de.robv.android.xposed.XposedBridge.log("WAE_TRANS: showTranslation id=$messageId jid=$conversationJid instance=${getInstance(conversationJid) != null}")
+            val adapter = getInstance(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.translationMap[messageId] = text
+                adapter.saveCacheToDb(messageId, text)
                 adapter.rebuildIndex()
                 val targetRealPos = adapter.messageIdToRealPos[messageId]
                 de.robv.android.xposed.XposedBridge.log("WAE_TRANS: rebuiltIndex sorted=${adapter.realPositionsSorted.size} count=${adapter.count} targetRealPos=$targetRealPos")
@@ -56,21 +63,64 @@ class TranslatorWrapperAdapter(
             }
         }
 
-        fun hideTranslation(messageId: String) {
-            val adapter = instance ?: return
+        fun hideTranslation(conversationJid: String, messageId: String) {
+            val adapter = getInstance(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.translationMap.remove(messageId)
+                adapter.deleteCacheFromDb(messageId)
                 adapter.rebuildIndex()
                 adapter.notifyDataSetChanged()
             }
         }
 
-        fun hasTranslation(messageId: String): Boolean =
-            instance?.translationMap?.containsKey(messageId) == true
+        fun hasTranslation(conversationJid: String, messageId: String): Boolean =
+            getInstance(conversationJid)?.translationMap?.containsKey(messageId) == true
+
+        fun startLoading(conversationJid: String, messageId: String) {
+            val adapter = getInstance(conversationJid) ?: return
+            Handler(Looper.getMainLooper()).post {
+                adapter.loadingSet.add(messageId)
+                adapter.rebuildIndex()
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        fun clearLoading(conversationJid: String, messageId: String) {
+            val adapter = getInstance(conversationJid) ?: return
+            Handler(Looper.getMainLooper()).post {
+                adapter.loadingSet.remove(messageId)
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        fun registerJid(jid: String, adapter: TranslatorWrapperAdapter) {
+            if (jid.isBlank()) return
+            instances[jid] = WeakReference(adapter)
+        }
+
+        fun registerJidForCurrentAdapter(jid: String) {
+            if (jid.isBlank()) return
+            val adapter = lastCreated?.get() ?: return
+            if (instances[jid]?.get() == adapter) return
+            adapter.setConversationJid(jid)
+        }
     }
 
     var listViewRef: WeakReference<ListView>? = null
     private var listViewObserver: DataSetObserver? = null
+    private var jid: String = conversationJid
+
+    fun setConversationJid(newJid: String) {
+        if (newJid.isBlank() || jid == newJid) return
+        instances.values.removeAll { it.get() == this }
+        jid = newJid
+        instances[newJid] = WeakReference(this)
+        loadCacheFromDb()
+        if (translationMap.isNotEmpty()) {
+            rebuildIndex()
+            notifyDataSetChanged()
+        }
+    }
 
     fun attachListViewObserver(lv: ListView) {
         listViewRef = WeakReference(lv)
@@ -93,6 +143,7 @@ class TranslatorWrapperAdapter(
     }
 
     private val translationMap = HashMap<String, String>()
+    private val loadingSet = HashSet<String>()
 
     private var messageIdToRealPos = HashMap<String, Int>()
     private var realPosToMessageId = HashMap<Int, String>()
@@ -111,8 +162,34 @@ class TranslatorWrapperAdapter(
     }
 
     init {
-        instance = this
+        lastCreated = WeakReference(this)
+        if (jid.isNotBlank()) {
+            instances[jid] = WeakReference(this)
+            loadCacheFromDb()
+        }
         try { realAdapter.registerDataSetObserver(realAdapterObserver) } catch (_: Exception) {}
+    }
+
+    private fun loadCacheFromDb() {
+        if (jid.isBlank()) return
+        try {
+            val cached = TranslationCacheStore.getByJid(jid)
+            translationMap.putAll(cached)
+        } catch (_: Exception) {}
+    }
+
+    private fun saveCacheToDb(messageId: String, translation: String) {
+        if (jid.isBlank()) return
+        try {
+            TranslationCacheStore.upsert(jid, messageId, translation)
+        } catch (_: Exception) {}
+    }
+
+    private fun deleteCacheFromDb(messageId: String) {
+        if (jid.isBlank()) return
+        try {
+            TranslationCacheStore.delete(jid, messageId)
+        } catch (_: Exception) {}
     }
 
     private fun rebuildMessageIndex() {
@@ -130,12 +207,13 @@ class TranslatorWrapperAdapter(
 
     fun rebuildIndex() {
         rebuildMessageIndex()
-        realPositionsSorted = translationMap.keys
+        val allKeys = (translationMap.keys + loadingSet).distinct()
+        realPositionsSorted = allKeys
             .mapNotNull { messageIdToRealPos[it] }
             .sorted()
             .toIntArray()
         realPosToMessageId = HashMap<Int, String>().also { map ->
-            translationMap.keys.forEach { msgId ->
+            allKeys.forEach { msgId ->
                 messageIdToRealPos[msgId]?.let { pos -> map[pos] = msgId }
             }
         }
@@ -183,7 +261,7 @@ class TranslatorWrapperAdapter(
 
     override fun hasStableIds(): Boolean = realAdapter.hasStableIds()
 
-    override fun getViewTypeCount(): Int = realAdapter.viewTypeCount
+    override fun getViewTypeCount(): Int = realAdapter.viewTypeCount + 1
 
     override fun getItemViewType(pos: Int): Int {
         val (isTranslation, realPos) = resolve(pos)
@@ -207,6 +285,15 @@ class TranslatorWrapperAdapter(
 
         val context = parent.context
         val messageId = realPosToMessageId[realPos]
+
+        if (messageId != null && loadingSet.contains(messageId)) {
+            val isFromMe = try {
+                val raw = realAdapter.getItem(realPos) ?: return View(context)
+                FMessageWpp(raw).key.isFromMe
+            } catch (_: Exception) { false }
+            return buildBubbleView(context, "⏳ Menerjemahkan...", isFromMe, realPos)
+        }
+
         val translation = messageId?.let { translationMap[it] } ?: run {
             de.robv.android.xposed.XposedBridge.log("WAE_VIEW: miss realPos=$realPos map=${realPosToMessageId.keys} transMap=${translationMap.keys}")
             return View(context).apply {
@@ -282,6 +369,7 @@ class TranslatorWrapperAdapter(
 
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
+            this.gravity = gravity
             setPadding(dp8, dp4, dp8, dp4)
             addView(tv)
             layoutParams = FrameLayout.LayoutParams(
@@ -303,7 +391,6 @@ class TranslatorWrapperAdapter(
         }
         return realPos + offset
     }
-
     override fun getSectionForPosition(position: Int): Int {
         val (_, realPos) = resolve(position)
         return (realAdapter as? SectionIndexer)?.getSectionForPosition(realPos) ?: 0

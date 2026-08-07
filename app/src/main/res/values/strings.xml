@@ -573,4 +573,17 @@
     <string name="dev_engineering">DevEngineering</string>
     <string name="dev_engineering_sum">Hook semua tap/klik di WhatsApp untuk inspeksi view ID</string>
     <string name="dev_log_display">Log Klik</string>
+    <string name="translator_action_translate">Terjemahkan</string>
+    <string name="translator_action_hide">Sembunyikan terjemahan</string>
+    <string name="translator_loading">⏳ Menerjemahkan...</string>
+    <string name="translator_failed">Terjemahan gagal</string>
+    <string name="translator_retry">Coba Lagi</string>
+    <string name="translator_target_lang">Bahasa Tujuan</string>
+    <string name="translator_target_lang_sum">Pilih bahasa hasil terjemahan</string>
+    <string name="google_translate_endpoint">Google Translate Endpoint</string>
+    <string name="google_translate_endpoint_sum">URL endpoint kustom (kosongkan untuk default)</string>
+    <string name="groq_custom_slang">Kamus Slang Tambahan</string>
+    <string name="groq_custom_slang_sum">Tambah kamus slang kustom (format: kata=arti, satu per baris)</string>
+    <string name="groq_custom_system_prompt">System Prompt Kustom</string>
+    <string name="groq_custom_system_prompt_sum">Override system prompt Groq (kosongkan untuk pakai default)</string>
 </resources>

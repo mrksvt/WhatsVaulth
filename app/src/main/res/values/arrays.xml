@@ -250,4 +250,34 @@
         <item>llama-3.1-8b-instant</item>
     </string-array>
 
+    <string-array name="translator_target_lang_entries">
+        <item>Otomatis (Locale sistem)</item>
+        <item>Indonesia</item>
+        <item>English</item>
+        <item>Jawa (Javanese)</item>
+        <item>Sunda (Sundanese)</item>
+        <item>Melayu (Malay)</item>
+        <item>日本語 (Japanese)</item>
+        <item>한국어 (Korean)</item>
+        <item>中文 (Chinese Simplified)</item>
+        <item>Español (Spanish)</item>
+        <item>Français (French)</item>
+        <item>العربية (Arabic)</item>
+    </string-array>
+
+    <string-array name="translator_target_lang_values">
+        <item>auto</item>
+        <item>id</item>
+        <item>en</item>
+        <item>jv</item>
+        <item>su</item>
+        <item>ms</item>
+        <item>ja</item>
+        <item>ko</item>
+        <item>zh-CN</item>
+        <item>es</item>
+        <item>fr</item>
+        <item>ar</item>
+    </string-array>
+
 </resources>

@@ -91,6 +91,17 @@ Terjemahan berbasis AI langsung di chat composer sebelum pesan dikirim.
 - Translate teks di input field sebelum kirim
 - Dukungan multi-bahasa via Groq AI
 
+**Known Issues (inline translator — perlu diperbaiki):**
+- Groq butuh API key manual — tidak ada fallback ke Google jika key kosong
+- Bahasa target tidak bisa dipilih manual — selalu ikut locale sistem
+- Terjemahan tidak persisten — hilang saat conversation di-close atau WA restart, tidak ada cache ke DB
+- `TranslatorWrapperAdapter.instance` static singleton — buka dua conversation sekaligus, instance lama tertimpa, terjemahan conversation sebelumnya hilang
+- Label popup hardcoded Bahasa Indonesia ("Terjemahkan" / "Sembunyikan terjemahan") — tidak ikut locale
+- Google Translate pakai endpoint tidak resmi (`client=gtx`) — rawan rate-limit atau breaking change
+- Tidak ada loading indicator saat menunggu hasil terjemahan
+- Error hanya tampil Toast tanpa opsi retry
+- Groq kadang salah interpretasi slang/bahasa daerah — alih-alih terjemahkan, malah balik bertanya (contoh: "wis maem yank?" → harusnya "sudah makan sayang?" tapi Groq jawab "apa yang kamu maksud dengan yank?"); perlu system prompt yang lebih kuat + contoh konteks bahasa Indonesia/Jawa/slang
+
 ---
 
 ## ☁️ WhatsVault Backup — Native Cloud Storage
