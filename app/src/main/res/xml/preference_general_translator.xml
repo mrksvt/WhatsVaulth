@@ -84,25 +84,5 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory
-        app:iconSpaceReserved="false"
-        app:key="offline_translator_category"
-        app:title="@string/offline_translator_title">
-
-        <MultiSelectListPreference
-            app:iconSpaceReserved="false"
-            app:key="offline_translator_languages"
-            app:entries="@array/translator_target_lang_entries"
-            app:entryValues="@array/translator_target_lang_values"
-            app:summary="@string/offline_translator_languages_sum"
-            app:title="@string/offline_translator_languages" />
-
-        <Preference
-            app:iconSpaceReserved="false"
-            app:key="offline_translator_download"
-            app:summary="@string/offline_translator_download_sum"
-            app:title="@string/offline_translator_download" />
-
-    </PreferenceCategory>
 
 </PreferenceScreen>

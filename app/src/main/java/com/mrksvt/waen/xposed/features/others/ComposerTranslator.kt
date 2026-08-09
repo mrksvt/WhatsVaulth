@@ -301,24 +301,6 @@ class ComposerTranslator(
             }
         }
 
-        XposedHelpers.findAndHookMethod(
-            android.view.ViewGroup::class.java,
-            "onInterceptTouchEvent",
-            android.view.MotionEvent::class.java,
-            object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val vg = param.thisObject as? ViewGroup ?: return
-                    val globe = vg.findViewWithTag<View>(BUTTON_TAG) ?: return
-                    val ev = param.args[0] as? android.view.MotionEvent ?: return
-                    val rect = android.graphics.Rect()
-                    globe.getHitRect(rect)
-                    if (rect.contains(ev.x.toInt(), ev.y.toInt())) {
-                        param.result = false
-                    }
-                }
-            }
-        )
-
         val insertIndex: Int = if (attachBtn != null) {
             val directIdx = container.indexOfChild(attachBtn)
             if (directIdx >= 0) {

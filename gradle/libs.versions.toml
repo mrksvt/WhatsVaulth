@@ -48,7 +48,6 @@ rikkax-widget-borderview = { module = "dev.rikka.rikkax.widget:borderview", vers
 material = { module = "com.google.android.material:material", version = "1.13.0" }
 markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
 remote-preferences = { module = "com.crossbowffs.remotepreferences:remotepreferences", version.ref = "remotePreferences" }
-mlkit-translate = { group = "com.google.mlkit", name = "translate", version = "17.0.3" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
