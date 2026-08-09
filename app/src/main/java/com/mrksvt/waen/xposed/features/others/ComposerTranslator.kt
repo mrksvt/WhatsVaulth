@@ -7,6 +7,8 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Selection
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
@@ -71,6 +73,12 @@ class ComposerTranslator(
     @Volatile
     private var pendingTranslation: String? = null
 
+    @Volatile
+    private var waSendListener: View.OnClickListener? = null
+
+    @Volatile
+    private var isSendingTranslation = false
+
     fun getInputField(): EditText? = inputFieldRef?.get()
 
     @Throws(Throwable::class)
@@ -89,17 +97,124 @@ class ComposerTranslator(
 
     private fun setupComposer(activity: Activity) {
         val entryId = Utils.getID("entry", "id")
-        val editText = activity.findViewById<EditText>(entryId) ?: return
+        val editText = activity.findViewById<EditText>(entryId)
+        if (editText == null) {
+            XposedBridge.log("[Composer Translator] entry EditText NOT FOUND pkg=${activity.packageName} entryId=$entryId")
+            return
+        }
 
         inputFieldRef = WeakReference(editText)
+        waSendListener = null
 
         val rootView = activity.window.decorView
 
-        if (rootView.findViewWithTag<View>(BUTTON_TAG) != null) return
+        if (rootView.findViewWithTag<View>(BUTTON_TAG) != null) {
+            hookSendButtonWithRetry(rootView, editText, activity)
+            return
+        }
 
         injectGlobeIcon(rootView, editText)
         attachTextWatcher(editText, rootView)
-        hookSendButton(rootView, editText)
+        hookSendButtonWithRetry(rootView, editText, activity)
+    }
+
+    private fun hookSendButtonWithRetry(rootView: View, editText: EditText, activity: Activity, attempt: Int = 0) {
+        val rawBtn = findSendButton(rootView, editText)
+        if (rawBtn == null) {
+            if (attempt < 10) {
+                mainHandler.postDelayed({ hookSendButtonWithRetry(rootView, editText, activity, attempt + 1) }, 300)
+            } else {
+                XposedBridge.log("[Composer Translator] send button NOT FOUND after 10 retries pkg=${activity.packageName}")
+            }
+            return
+        }
+
+        if (rawBtn is android.view.ViewStub) {
+            rootView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    val sendBtnId = Utils.getID("send", "id")
+                    val inflated: View? = if (sendBtnId != 0) rootView.findViewById(sendBtnId) else null
+                    if (inflated == null || inflated is android.view.ViewStub) return
+                    rootView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    tryHookSendButton(inflated, activity.packageName)
+                }
+            })
+            return
+        }
+
+        tryHookSendButton(rawBtn, activity.packageName)
+    }
+
+    private fun tryHookSendButton(sendBtn: View, pkg: String) {
+        if (sendBtn.getTag(android.R.id.text1) == BUTTON_TAG) return
+        val listenerInfoField = try {
+            val f = View::class.java.getDeclaredField("mListenerInfo")
+            f.isAccessible = true
+            f
+        } catch (_: Exception) { null }
+
+        fun getListener(): View.OnClickListener? = try {
+            val info = listenerInfoField?.get(sendBtn)
+            val lf = info?.javaClass?.getDeclaredField("mOnClickListener")
+            lf?.isAccessible = true
+            lf?.get(info) as? View.OnClickListener
+        } catch (_: Exception) { null }
+
+        val candidate = getListener()
+        if (candidate != null && candidate.javaClass.name.contains("ComposerTranslator")) return
+        if (candidate != null) waSendListener = candidate
+        attachSendHook(sendBtn)
+        sendBtn.setTag(android.R.id.text1, BUTTON_TAG)
+    }
+
+    private fun replaceComposerText(field: EditText, translation: String) {
+        try {
+            val editable = field.text ?: return
+            logDebug("replaceComposerText: before='${editable}' len=${editable.length} -> translation='$translation' len=${translation.length}")
+            editable.replace(0, editable.length, translation)
+            logDebug("replaceComposerText: after replace, field.text='${field.text}'")
+            try {
+                Selection.setSelection(editable, translation.length)
+            } catch (e: Exception) {
+                logDebug("selection update failed: ${e.message}")
+            }
+        } catch (e: Exception) {
+            logDebug("replaceComposerText editable.replace failed: ${e.message}, fallback setText")
+            field.setText(translation)
+            field.setSelection(translation.length)
+        }
+    }
+
+    private fun attachSendHook(sendBtn: View) {
+        sendBtn.setOnClickListener { v ->
+            val translation = pendingTranslation
+            if (!translation.isNullOrBlank()) {
+                val field = inputFieldRef?.get()
+                if (field != null) {
+                    logDebug("send hook: replacing text with translation: $translation")
+                    isSendingTranslation = true
+                    replaceComposerText(field, translation)
+                    pendingTranslation = null
+                    dismissActivePopup()
+                    val listener = waSendListener
+                    if (listener != null) {
+                        logDebug("send hook: firing WA listener=$listener")
+                        listener.onClick(v)
+                        isSendingTranslation = false
+                    } else {
+                        logDebug("send hook: null listener, remove hook then performClick")
+                        sendBtn.setOnClickListener(null)
+                        isSendingTranslation = false
+                        sendBtn.performClick()
+                        sendBtn.postDelayed({ attachSendHook(sendBtn) }, 200)
+                    }
+                    return@setOnClickListener
+                }
+                dismissActivePopup()
+            }
+            waSendListener?.onClick(v)
+        }
+        logDebug("send button hooked in composer")
     }
 
     // ── Globe icon injection ──────────────────────────────────────────────────
@@ -241,15 +356,16 @@ class ComposerTranslator(
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 val text = s?.toString()?.trim() ?: ""
-                // Cancel previous debounce
                 debounceRunnable?.let { mainHandler.removeCallbacks(it) }
-                // Dismiss popup if text cleared
+                if (isSendingTranslation) return
                 if (text.isEmpty()) {
                     dismissActivePopup()
                     pendingTranslation = null
                     return
                 }
-                // Debounce: only fetch after user pauses
+                if (waSendListener == null) {
+                    tryCaptureListenerFromInflatedButton(rootView, editText)
+                }
                 val run = Runnable {
                     fetchAndShowPopup(text, editText, rootView)
                 }
@@ -257,6 +373,26 @@ class ComposerTranslator(
                 mainHandler.postDelayed(run, DEBOUNCE_MS)
             }
         })
+    }
+
+    private fun tryCaptureListenerFromInflatedButton(rootView: View, editText: EditText) {
+        val sendBtnId = Utils.getID("send", "id")
+        val btn: View? = if (sendBtnId != 0) rootView.findViewById(sendBtnId) else null
+        val target = btn ?: findSendButton(rootView, editText) ?: return
+        if (target is android.view.ViewStub) return
+        if (target.tag == BUTTON_TAG) return
+        try {
+            val f = View::class.java.getDeclaredField("mListenerInfo")
+            f.isAccessible = true
+            val info = f.get(target) ?: return
+            val lf = info.javaClass.getDeclaredField("mOnClickListener")
+            lf.isAccessible = true
+            val listener = lf.get(info) as? View.OnClickListener ?: return
+            XposedBridge.log("[Composer Translator] lazy-captured WA send listener=$listener pkg=${target.context.packageName}")
+            waSendListener = listener
+            target.tag = BUTTON_TAG
+            attachSendHook(target)
+        } catch (_: Exception) {}
     }
 
     private fun fetchAndShowPopup(text: String, editText: EditText, rootView: View) {
@@ -347,8 +483,9 @@ class ComposerTranslator(
         }
 
         try {
-            // Show below the input field
-            popup.showAsDropDown(anchor, 0, Utils.dipToPixels(4))
+            val popupHeight = container.measuredHeight.takeIf { it > 0 }
+                ?: Utils.dipToPixels(64)
+            popup.showAsDropDown(anchor, 0, -(anchor.height + popupHeight + Utils.dipToPixels(4)))
             activePopupRef = WeakReference(popup)
         } catch (e: Exception) {
             logDebug("popup show error: ${e.message}")
@@ -362,46 +499,47 @@ class ComposerTranslator(
         activePopupRef = null
     }
 
-    // ── Send button hook — send translated text ───────────────────────────────
-
-    private fun hookSendButton(rootView: View, editText: EditText) {
+    private fun findSendButton(rootView: View, editText: EditText): View? {
         val sendBtnId = Utils.getID("send", "id")
-        val sendBtn: View? = if (sendBtnId != 0) rootView.findViewById(sendBtnId) else null
-
-        if (sendBtn == null) {
-            logDebug("send button not found, skip send hook")
-            return
+        if (sendBtnId != 0) {
+            val v = rootView.findViewById<View>(sendBtnId)
+            if (v != null) return v
         }
-
-        val listenerInfoField = try {
-            val f = View::class.java.getDeclaredField("mListenerInfo")
-            f.isAccessible = true
-            f
-        } catch (_: Exception) { null }
-
-        val originalListener: View.OnClickListener? = try {
-            val info = listenerInfoField?.get(sendBtn)
-            val listenerField = info?.javaClass?.getDeclaredField("mOnClickListener")
-            listenerField?.isAccessible = true
-            listenerField?.get(info) as? View.OnClickListener
-        } catch (_: Exception) { null }
-
-        sendBtn.setOnClickListener { v ->
-            val translation = pendingTranslation
-            if (!translation.isNullOrBlank()) {
-                val field = inputFieldRef?.get()
-                if (field != null) {
-                    logDebug("send hook: replacing text with translation: $translation")
-                    field.setText(translation)
-                    field.setSelection(translation.length)
-                    pendingTranslation = null
+        val candidateIds = listOf("send_btn", "send_button", "btn_send", "compose_send", "conversation_send")
+        for (name in candidateIds) {
+            val id = Utils.getID(name, "id")
+            if (id != 0) {
+                val v = rootView.findViewById<View>(id)
+                if (v != null) {
+                    logDebug("send button found via id: $name")
+                    return v
                 }
-                dismissActivePopup()
             }
-            originalListener?.onClick(v)
         }
-
-        logDebug("send button hooked in composer")
+        val container = editText.parent as? ViewGroup ?: return null
+        val editIndex = container.indexOfChild(editText)
+        for (i in editIndex + 1 until container.childCount) {
+            val child = container.getChildAt(i)
+            if (child.isClickable && child.visibility == View.VISIBLE &&
+                (child is android.widget.ImageButton || child is android.widget.ImageView || child is android.widget.Button)) {
+                logDebug("send button found via traversal at index $i")
+                return child
+            }
+        }
+        val parent = container.parent as? ViewGroup
+        if (parent != null) {
+            val containerIndex = parent.indexOfChild(container)
+            for (i in 0 until parent.childCount) {
+                if (i == containerIndex) continue
+                val sibling = parent.getChildAt(i)
+                if (sibling.isClickable && sibling.visibility == View.VISIBLE &&
+                    (sibling is android.widget.ImageButton || sibling is android.widget.ImageView)) {
+                    logDebug("send button found via sibling traversal at index $i")
+                    return sibling
+                }
+            }
+        }
+        return null
     }
 
     // ── On-demand translate (globe button click) ──────────────────────────────
@@ -571,12 +709,13 @@ class ComposerTranslator(
         )
         val values = arrayOf("auto", "id", "en", "jv", "su", "ms", "ja", "ko", "zh-CN", "es", "fr", "ar")
 
-        val checkedItem = values.indexOfFirst { it == currentLang }.coerceAtLeast(0)
+        val checkedItem = values.indexOfFirst { it == selectedLang.ifBlank { currentLang } }.coerceAtLeast(0)
         android.app.AlertDialog.Builder(activity)
             .setTitle("Pilih Bahasa Tujuan")
             .setSingleChoiceItems(entries, checkedItem) { dialog, which ->
                 val langValue = values.getOrNull(which) ?: return@setSingleChoiceItems
                 selectedLang = langValue
+                prefs.edit().putString("translator_target_lang", langValue).apply()
                 val field = inputFieldRef?.get()
                 val text = field?.text?.toString()?.trim() ?: ""
                 if (text.isNotEmpty()) {
