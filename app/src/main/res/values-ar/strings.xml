@@ -339,6 +339,7 @@
     <string name="error_image_name">الاسم يجب أن ينتهي بـ .png</string>
     <string name="imported_as">"مستورد كـ "</string>
     <string name="save">حفظ</string>
+    <string name="composer_translator_enable_for_chat">تفعيل لهذه المحادثة</string>
     <string name="import_image">استيراد صورة</string>
     <string name="export_as_zip">تصدير كـ zip</string>
     <string name="clear">مسح</string>

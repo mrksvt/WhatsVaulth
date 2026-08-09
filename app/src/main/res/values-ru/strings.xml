@@ -339,6 +339,7 @@
     <string name="error_image_name">Имя должно заканчиваться на .png</string>
     <string name="imported_as">"Импортировано как "</string>
     <string name="save">Сохранено</string>
+    <string name="composer_translator_enable_for_chat">Включить для этого чата</string>
     <string name="import_image">Импорт изображения</string>
     <string name="export_as_zip">Экспорт в zip</string>
     <string name="clear">Очистить</string>

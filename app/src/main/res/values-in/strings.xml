@@ -347,6 +347,7 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="error_image_name">Nama harus diakhiri dengan .png</string>
     <string name="imported_as">"Pulihkan sebagai "</string>
     <string name="save">Simpan</string>
+    <string name="composer_translator_enable_for_chat">Aktifkan untuk chat ini</string>
     <string name="import_image">Pulihkan Gambar</string>
     <string name="export_as_zip">Cadangkan sebagai zip</string>
     <string name="clear">Hapus</string>

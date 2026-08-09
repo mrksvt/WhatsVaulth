@@ -339,6 +339,7 @@
     <string name="error_image_name">名称必须以 .png 结尾</string>
     <string name="imported_as">"导入为 "</string>
     <string name="save">保存</string>
+    <string name="composer_translator_enable_for_chat">为此聊天启用</string>
     <string name="import_image">导入图片</string>
     <string name="export_as_zip">导出为zip</string>
     <string name="clear">清除</string>

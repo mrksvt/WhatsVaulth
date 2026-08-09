@@ -20,7 +20,6 @@ import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
 import android.app.Activity
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.FeatureLoader
@@ -52,16 +51,12 @@ class ComposerTranslator(
 
     private val BUTTON_TAG = "wae_composer_translate_btn"
     private val POPUP_TAG = "wae_composer_translate_popup"
-    private val CACHE_JID = "composer_outgoing"
 
     @Volatile
     private var inputFieldRef: WeakReference<EditText>? = null
 
     @Volatile
     private var client: OkHttpClient? = null
-
-    @Volatile
-    private var selectedLang: String = "auto"
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var debounceRunnable: Runnable? = null
@@ -81,9 +76,25 @@ class ComposerTranslator(
 
     fun getInputField(): EditText? = inputFieldRef?.get()
 
+    // ── Per-chat config helpers ───────────────────────────────────────────────
+
+    private fun getPerChatConfig(jid: String): Pair<Boolean, String> {
+        val privPrefs = WppCore.getPrivPrefs()
+        val enabled = privPrefs.getBoolean("ct_enabled_$jid", false)
+        val lang = privPrefs.getString("ct_lang_$jid", "auto") ?: "auto"
+        return Pair(enabled, lang)
+    }
+
+    private fun savePerChatConfig(jid: String, enabled: Boolean, lang: String) {
+        WppCore.getPrivPrefs().edit().apply {
+            putBoolean("ct_enabled_$jid", enabled)
+            putString("ct_lang_$jid", lang)
+            apply()
+        }
+    }
+
     @Throws(Throwable::class)
     override fun doHook() {
-        if (!prefs.getBoolean("composer_translator_enabled", true)) return
         WppCore.addListenerActivity { activity, state ->
             if (activity.javaClass.simpleName == "Conversation" &&
                 state == WppCore.ActivityChangeState.ChangeType.STARTED
@@ -396,15 +407,32 @@ class ComposerTranslator(
     }
 
     private fun fetchAndShowPopup(text: String, editText: EditText, rootView: View) {
+        val jid = WppCore.getCurrentUserJid()?.phoneRawString ?: run {
+            XposedBridge.log("[ComposerTranslator] config=not_found defaulting to disabled")
+            return
+        }
+        if (jid.isBlank()) {
+            XposedBridge.log("[ComposerTranslator] config=not_found defaulting to disabled")
+            return
+        }
+        val (enabled, rawLang) = getPerChatConfig(jid)
+        XposedBridge.log("[ComposerTranslator] conversation=$jid")
+        XposedBridge.log("[ComposerTranslator] enabled=$enabled")
+        XposedBridge.log("[ComposerTranslator] language=$rawLang")
+        if (!enabled) {
+            XposedBridge.log("[ComposerTranslator] bypass")
+            return
+        }
+        XposedBridge.log("[ComposerTranslator] translating")
         val cacheKey = text.hashCode().toString()
-        val cached = TranslationCacheStore.getByJid(CACHE_JID)[cacheKey]
+        val cached = TranslationCacheStore.getByJid(jid)[cacheKey]
         if (!cached.isNullOrBlank()) {
             showTranslationPopup(editText, rootView, cached)
             pendingTranslation = cached
             return
         }
 
-        val lang = if (selectedLang == "auto") Locale.getDefault().language else selectedLang
+        val lang = if (rawLang == "auto") Locale.getDefault().language else rawLang
         val provider = prefs.getString("translator_provider", "google") ?: "google"
         val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
 
@@ -417,7 +445,7 @@ class ComposerTranslator(
         future.thenAccept { translated ->
             mainHandler.post {
                 if (translated.isNullOrBlank()) return@post
-                TranslationCacheStore.upsert(CACHE_JID, cacheKey, translated)
+                TranslationCacheStore.upsert(jid, cacheKey, translated)
                 pendingTranslation = translated
                 showTranslationPopup(editText, editText, translated)
                 logDebug("real-time popup: $translated")
@@ -545,8 +573,25 @@ class ComposerTranslator(
     // ── On-demand translate (globe button click) ──────────────────────────────
 
     private fun translateAndApply(text: String, editText: EditText, rootView: View) {
+        val jid = WppCore.getCurrentUserJid()?.phoneRawString ?: run {
+            XposedBridge.log("[ComposerTranslator] config=not_found defaulting to disabled")
+            return
+        }
+        if (jid.isBlank()) {
+            XposedBridge.log("[ComposerTranslator] config=not_found defaulting to disabled")
+            return
+        }
+        val (enabled, rawLang) = getPerChatConfig(jid)
+        XposedBridge.log("[ComposerTranslator] conversation=$jid")
+        XposedBridge.log("[ComposerTranslator] enabled=$enabled")
+        XposedBridge.log("[ComposerTranslator] language=$rawLang")
+        if (!enabled) {
+            XposedBridge.log("[ComposerTranslator] bypass")
+            return
+        }
+        XposedBridge.log("[ComposerTranslator] translating")
         val cacheKey = text.hashCode().toString()
-        val cached = TranslationCacheStore.getByJid(CACHE_JID)[cacheKey]
+        val cached = TranslationCacheStore.getByJid(jid)[cacheKey]
         if (!cached.isNullOrBlank()) {
             logDebug("cache hit for composer translation")
             mainHandler.post {
@@ -558,7 +603,7 @@ class ComposerTranslator(
             return
         }
 
-        val lang = if (selectedLang == "auto") Locale.getDefault().language else selectedLang
+        val lang = if (rawLang == "auto") Locale.getDefault().language else rawLang
         val provider = prefs.getString("translator_provider", "google") ?: "google"
         val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
 
@@ -571,7 +616,7 @@ class ComposerTranslator(
         future.thenAccept { translated ->
             mainHandler.post {
                 if (translated.isNullOrBlank()) return@post
-                TranslationCacheStore.upsert(CACHE_JID, cacheKey, translated)
+                TranslationCacheStore.upsert(jid, cacheKey, translated)
                 editText.setText(translated)
                 editText.setSelection(translated.length)
                 pendingTranslation = null
@@ -700,7 +745,13 @@ class ComposerTranslator(
 
     private fun showLanguagePicker(context: android.content.Context, rootView: View) {
         val activity = context as? Activity ?: WppCore.getCurrentActivity() ?: return
-        val currentLang = prefs.getString("translator_target_lang", "auto") ?: "auto"
+
+        val jid = WppCore.getCurrentUserJid()?.phoneRawString
+        if (jid.isNullOrBlank()) {
+            XposedBridge.log("[ComposerTranslator] config=not_found defaulting to disabled")
+            return
+        }
+        val (currentEnabled, currentLang) = getPerChatConfig(jid)
 
         val entries = arrayOf(
             "Otomatis (Locale sistem)", "Indonesia", "English", "Jawa (Javanese)",
@@ -709,37 +760,122 @@ class ComposerTranslator(
         )
         val values = arrayOf("auto", "id", "en", "jv", "su", "ms", "ja", "ko", "zh-CN", "es", "fr", "ar")
 
-        val checkedItem = values.indexOfFirst { it == selectedLang.ifBlank { currentLang } }.coerceAtLeast(0)
-        android.app.AlertDialog.Builder(activity)
-            .setTitle("Pilih Bahasa Tujuan")
-            .setSingleChoiceItems(entries, checkedItem) { dialog, which ->
-                val langValue = values.getOrNull(which) ?: return@setSingleChoiceItems
-                selectedLang = langValue
-                prefs.edit().putString("translator_target_lang", langValue).apply()
-                val field = inputFieldRef?.get()
-                val text = field?.text?.toString()?.trim() ?: ""
-                if (text.isNotEmpty()) {
-                    val prefLang = if (langValue == "auto") Locale.getDefault().language else langValue
-                    val provider = prefs.getString("translator_provider", "google") ?: "google"
-                    val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
-                    val future = if (provider == "groq" && groqKey.isNotBlank()) {
-                        translateGroq(text, prefLang)
-                    } else {
-                        translateGoogle(text, prefLang)
-                    }
-                    future.thenAccept { translated ->
-                        mainHandler.post {
-                            if (!translated.isNullOrBlank() && field != null) {
-                                pendingTranslation = translated
-                                showTranslationPopup(field, rootView, translated)
-                            }
-                        }
-                    }
-                }
-                dialog.dismiss()
+        val sheet = android.app.Dialog(activity, android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar)
+
+        val dp16 = Utils.dipToPixels(16)
+        val dp8 = Utils.dipToPixels(8)
+        val dp4 = Utils.dipToPixels(4)
+
+        val sheetLayout = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp16, dp16, dp16, dp16)
+            setBackgroundColor(Color.WHITE)
+        }
+
+        val title = TextView(activity).apply {
+            text = activity.getString(R.string.composer_translator_enabled)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.BLACK)
+            setPadding(0, 0, 0, dp16)
+        }
+        sheetLayout.addView(title)
+
+        val divider1 = View(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(1))
+                .also { it.bottomMargin = dp8 }
+            setBackgroundColor(Color.parseColor("#E0E0E0"))
+        }
+        sheetLayout.addView(divider1)
+
+        val toggleRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp8, 0, dp8)
+        }
+        val toggleLabel = TextView(activity).apply {
+            text = activity.getString(R.string.composer_translator_enable_for_chat)
+            textSize = 15f
+            setTextColor(Color.BLACK)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val toggleSwitch = android.widget.Switch(activity).apply {
+            isChecked = currentEnabled
+        }
+        toggleRow.addView(toggleLabel)
+        toggleRow.addView(toggleSwitch)
+        sheetLayout.addView(toggleRow)
+
+        val divider2 = View(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(1))
+                .also { it.topMargin = dp4; it.bottomMargin = dp8 }
+            setBackgroundColor(Color.parseColor("#E0E0E0"))
+        }
+        sheetLayout.addView(divider2)
+
+        val langLabel = TextView(activity).apply {
+            text = activity.getString(R.string.translator_target_lang)
+            textSize = 14f
+            setTextColor(Color.parseColor("#757575"))
+            setPadding(0, 0, 0, dp8)
+        }
+        sheetLayout.addView(langLabel)
+
+        var selectedIndex = values.indexOfFirst { it == currentLang }.coerceAtLeast(0)
+
+        val radioGroup = android.widget.RadioGroup(activity).apply {
+            orientation = android.widget.RadioGroup.VERTICAL
+        }
+        entries.forEachIndexed { idx, label ->
+            val rb = android.widget.RadioButton(activity).apply {
+                text = label
+                id = idx
+                isChecked = idx == selectedIndex
+                setTextColor(Color.BLACK)
+                textSize = 14f
+                setPadding(dp4, dp4, dp4, dp4)
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            radioGroup.addView(rb)
+        }
+        radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            selectedIndex = checkedId
+        }
+
+        val scrollView = android.widget.ScrollView(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                Utils.dipToPixels(280)
+            )
+        }
+        scrollView.addView(radioGroup)
+        sheetLayout.addView(scrollView)
+
+        val saveBtn = android.widget.Button(activity).apply {
+            text = activity.getString(R.string.save)
+            setTextColor(Color.WHITE)
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#25D366"))
+                cornerRadius = Utils.dipToPixels(6).toFloat()
+            }
+            background = bg
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp16 }
+        }
+        saveBtn.setOnClickListener {
+            val chosenLang = values.getOrElse(selectedIndex) { "auto" }
+            val chosenEnabled = toggleSwitch.isChecked
+            savePerChatConfig(jid, chosenEnabled, chosenLang)
+            XposedBridge.log("[ComposerTranslator] conversation=$jid")
+            XposedBridge.log("[ComposerTranslator] enabled=$chosenEnabled")
+            XposedBridge.log("[ComposerTranslator] language=$chosenLang")
+            sheet.dismiss()
+        }
+        sheetLayout.addView(saveBtn)
+
+        sheet.setContentView(sheetLayout)
+        sheet.show()
     }
 
     override fun getPluginName(): String = "Composer Translator"

@@ -339,6 +339,7 @@
     <string name="error_image_name">Name muss mit .png enden</string>
     <string name="imported_as">"Importiert als "</string>
     <string name="save">Speichern</string>
+    <string name="composer_translator_enable_for_chat">Für diesen Chat aktivieren</string>
     <string name="import_image">Bild importieren</string>
     <string name="export_as_zip">Als Zip-Datei exportieren</string>
     <string name="clear">Löschen</string>

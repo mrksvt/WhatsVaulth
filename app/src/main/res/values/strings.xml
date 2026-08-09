@@ -589,8 +589,10 @@
     <string name="offline_translator_downloading">Mengunduh model...</string>
     <string name="offline_translator_download_success">Semua model berhasil diunduh</string>
     <string name="offline_translator_download_partial">Beberapa model gagal: %s</string>
+    <string name="offline_translator_unsupported">Tidak didukung offline (hanya cloud): %s</string>
     <string name="composer_translator_enabled">Composer Translator</string>
     <string name="composer_translator_enabled_sum">Inject globe icon di input chat untuk terjemahkan pesan</string>
+    <string name="composer_translator_enable_for_chat">Enable for this chat</string>
     <string name="translator_target_lang">Bahasa Tujuan</string>
     <string name="translator_target_lang_sum">Pilih bahasa hasil terjemahan</string>
     <string name="google_translate_endpoint">Google Translate Endpoint</string>

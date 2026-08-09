@@ -339,6 +339,7 @@
     <string name="error_image_name">Ad .png ile bitmelidir</string>
     <string name="imported_as">"İçe aktarıldı "</string>
     <string name="save">Kaydet</string>
+    <string name="composer_translator_enable_for_chat">Bu sohbet için etkinleştir</string>
     <string name="import_image">Resim İçe Aktar</string>
     <string name="export_as_zip">Zip olarak dışa aktar</string>
     <string name="clear">Temizle</string>
