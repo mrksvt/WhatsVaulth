@@ -2,6 +2,12 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <Preference
+        app:key="dev_engineering_screen"
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$DevEngineeringFragment"
+        app:iconSpaceReserved="false"
+        app:title="@string/dev_engineering" />
+
+    <Preference
         app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$HomeGeneralPreference"
         app:iconSpaceReserved="false"
         app:title="@string/general" />
@@ -17,16 +23,16 @@
         app:title="@string/conversation" />
 
     <Preference
+        app:key="trash_recovery_screen"
+        app:iconSpaceReserved="false"
+        app:title="@string/trash_recovery"
+        app:summary="@string/trash_recovery_sum" />
+
+    <Preference
         app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
         app:iconSpaceReserved="false"
         app:title="@string/translator_menu"
         app:summary="@string/translator_menu_sum" />
-
-    <Preference
-        app:key="dev_engineering_screen"
-        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$DevEngineeringFragment"
-        app:iconSpaceReserved="false"
-        app:title="@string/dev_engineering" />
 
     <PreferenceCategory
         app:iconSpaceReserved="false"

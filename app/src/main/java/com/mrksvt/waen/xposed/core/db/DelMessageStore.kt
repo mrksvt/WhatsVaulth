@@ -34,4 +34,53 @@ class DelMessageStore private constructor(context: Context) {
         return dao.getTimestampByMessageId(msgid) ?: 0L
     }
 
+    fun insertFullMessage(
+        jid: String,
+        msgid: String,
+        timestamp: Long,
+        text: String?,
+        mediaPath: String?,
+        mediaType: Int,
+        senderName: String?,
+        wa: String? = null,
+        contact: String? = null,
+        intime: Long? = null,
+        deltime: Long? = null,
+        voiceFileName: String? = null,
+        fileId: String? = null
+    ) {
+        val message = DelMessage(
+            jid = jid,
+            msgid = msgid,
+            timestamp = timestamp,
+            text = text,
+            mediaPath = mediaPath,
+            mediaType = mediaType,
+            senderName = senderName,
+            wa = wa,
+            contact = contact,
+            intime = intime,
+            deltime = deltime,
+            voiceFileName = voiceFileName,
+            fileId = fileId
+        )
+        dao.insertMessage(message)
+    }
+
+    fun getFullMessagesByJid(jid: String): List<DelMessage> {
+        return dao.getFullMessagesByJid(jid)
+    }
+
+    fun getAllMessages(): List<DelMessage> {
+        return dao.getAllMessages()
+    }
+
+    fun deleteByJid(jid: String) {
+        dao.deleteByJid(jid)
+    }
+
+    fun deleteAll() {
+        dao.deleteAll()
+    }
+
 }

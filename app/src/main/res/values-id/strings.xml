@@ -521,4 +521,26 @@ Saat Anda mengaktifkan bekukan \"terakhir dilihat dan online\", Anda tidak dapat
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Log Pesan Terhapus</string>
+    <string name="trash_recovery_sum">Lihat pesan yang dihapus per kontak</string>
+    <string name="trash_recovery_empty">Tidak ada pesan yang dihapus</string>
+    <string name="trash_recovery_media">[Media]</string>
+    <string name="trash_recovery_clear_all">Hapus Semua</string>
+    <string name="trash_recovery_cleared">Pesan yang dihapus telah dibersihkan</string>
+    <string name="trash_recovery_export">Ekspor JSON</string>
+    <string name="trash_recovery_export_success">Berhasil diekspor ke Downloads</string>
+    <string name="trash_recovery_export_failed">Ekspor gagal</string>
+    <string name="trash_recovery_hook">Simpan Pesan Terhapus</string>
+    <string name="trash_recovery_hook_sum">Tangkap konten pesan saat dihapus (Anti Revoke harus aktif)</string>
+
+    <!-- Pesan error humanized (khusus build donatur) -->
+    <string name="err_human_unknown_plugin">Fitur Tidak Diketahui</string>
+    <string name="err_human_template">⚠️ %1$s gagal dimuat.\n\n%2$s</string>
+    <string name="err_human_illegal_arg_resource_id">Tombol kirim WhatsApp tidak ditemukan. Coba tambahkan ID resource yang benar di pengaturan Hook Override.</string>
+    <string name="err_human_class_not_found">Kelas WhatsApp tidak ditemukan. Versi WhatsApp ini mungkin tidak kompatibel dengan modul ini.</string>
+    <string name="err_human_no_such_method">Method WhatsApp berubah. Perlu patch baru atau override manual.</string>
+    <string name="err_human_null_pointer">Inisialisasi gagal. Coba restart WhatsApp.</string>
+    <string name="err_human_not_found">Fitur \"%1$s\" tidak bisa dimuat. WhatsApp mungkin sudah update.</string>
+    <string name="err_human_version_mismatch">Struktur kelas WhatsApp berubah. Versi ini mungkin belum sepenuhnya didukung.</string>
+    <string name="err_human_generic">Fitur \"%1$s\" mengalami error tak terduga. Coba restart WhatsApp atau laporkan ke developer.</string>
 </resources>

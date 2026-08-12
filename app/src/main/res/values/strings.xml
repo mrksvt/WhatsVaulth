@@ -606,4 +606,29 @@
     <string name="translator_reset_system_prompt_sum">Hapus custom prompt, kembali ke prompt bawaan</string>
     <string name="translator_reset_system_prompt_confirm_title">Reset System Prompt?</string>
     <string name="translator_reset_system_prompt_confirm_message">Custom prompt akan dihapus dan diganti dengan prompt bawaan.</string>
+    <string name="trash_recovery">Deleted Log</string>
+    <string name="trash_recovery_sum">View deleted messages by contacts</string>
+    <string name="trash_recovery_hook">Save Deleted Messages</string>
+    <string name="trash_recovery_hook_sum">Capture message content when contacts delete them (requires Anti Revoke enabled)</string>
+    <string name="trash_recovery_empty">No deleted messages</string>
+    <string name="trash_recovery_empty_sub">Deleted messages captured by Anti-Revoke will appear here</string>
+    <string name="trash_recovery_load_failed">Failed to load messages: %1$s</string>
+    <string name="trash_recovery_wa_not_running">WhatsApp not running</string>
+    <string name="trash_recovery_media">[Media]</string>
+    <string name="trash_recovery_clear_all">Clear All</string>
+    <string name="trash_recovery_cleared">Deleted messages cleared</string>
+    <string name="trash_recovery_export">Export JSON</string>
+    <string name="trash_recovery_export_success">Exported to Downloads</string>
+    <string name="trash_recovery_export_failed">Export failed</string>
+
+    <!-- Human-readable error messages (donatur build only) -->
+    <string name="err_human_unknown_plugin">Unknown Feature</string>
+    <string name="err_human_template">⚠️ %1$s failed to load.\n\n%2$s</string>
+    <string name="err_human_illegal_arg_resource_id">WhatsApp send button not found. Try adding the correct resource ID in Hook Override settings.</string>
+    <string name="err_human_class_not_found">A WhatsApp class was not found. This WhatsApp version may be incompatible with this module.</string>
+    <string name="err_human_no_such_method">A WhatsApp method has changed. A new patch or manual override may be needed.</string>
+    <string name="err_human_null_pointer">Initialization failed. Try restarting WhatsApp.</string>
+    <string name="err_human_not_found">Feature "%1$s" could not be loaded. WhatsApp may have updated.</string>
+    <string name="err_human_version_mismatch">WhatsApp class structure changed. This version may not be fully supported yet.</string>
+    <string name="err_human_generic">Feature "%1$s" encountered an unexpected error. Try restarting WhatsApp or report this to the developer.</string>
 </resources>

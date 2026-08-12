@@ -17,8 +17,8 @@ Fitur-fitur berikut sedang dalam perencanaan atau pengembangan.
 | 3 | 💬 Auto Reply                           | ❌     | Balas otomatis berdasarkan kata kunci, delay, dan jam aktif                                            |
 | 4 | 📞 Call & Video Recording HD            | ⚠️   | Rekam panggilan suara/video dasar ada, HD (WAV/OPUS/AAC) belum                                         |
 | 5 | 🎨 Screen UI Theme Builder              | ⚠️   | Kustomisasi dasar ada, theme builder + live preview + drag & drop + AI belum                           |
-| 6 | 🗑️ Trash & Deleted Recovery           | ❌     | Pulihkan pesan dan media yang dihapus via hook-based interception                                      |
-| 7 | 🤖 Groq AI Translator (Composer)        | ⚠️   | Translate pesan masuk stable, translate di chat composer belum                                         |
+| 6 | 🗑️ Deleted Log                        | ✅     | Log pesan yang dihapus dengan export JSON ke Downloads                                                 |
+| 7 | 🤖 Groq AI Translator (Composer)        | ✅     | Translate pesan masuk stable, translate di chat composer per-chat sudah selesai                        |
 | 8 | ☁️ WhatsVault Backup                  | ❌     | Backup WA (chat+media) ke multi-GDrive via Ktor server + Cloudflare Tunnel mekanisme menyerupai 9drive |
 | 9 | 🔐 Enhanced KeyBox & Bootloader Spoofer | ⚠️   | KeyBox manual ada, auto-fetch + fingerprint Pixel Canary + hourly refresh belum                        |
 
@@ -97,12 +97,18 @@ Pulihkan pesan dan media yang telah dihapus sepenuhnya.
 
 Terjemahan berbasis AI langsung di chat composer sebelum pesan dikirim.
 
-**Status:** Integrasi Groq/Google Translate untuk terjemahan pesan masuk sudah ada (stable). Translate di composer belum.
+**Status:** ✅ Selesai diimplementasikan — per-chat config (enabled + language), dialog UI, logging diagnostik, multi-variant (com.whatsapp + com.whatsapp.w4b).
 
-**Rencana:**
+**Implemented:**
 
-- Translate teks di input field sebelum kirim
-- Dukungan multi-bahasa via Groq AI
+- ✅ Translate teks di input field sebelum kirim
+- ✅ Dukungan multi-bahasa via Groq AI / Google Translate
+- ✅ Per-chat toggle (ON/OFF per conversation)
+- ✅ Per-chat target language (setiap chat bisa beda bahasa)
+- ✅ Config persisten via `WppCore.getPrivPrefs()` keyed by JID
+- ✅ Dialog UI: BottomSheet → plain Dialog (fix WhatsApp context crash)
+- ✅ String localization (id, en, ar, de, es, fr, it, pt, ru, tr, zh)
+- ✅ Fail-safe: jika JID tidak bisa di-resolve, translator bypass
 
 **Known Issues (inline translator — perlu diperbaiki):**
 
@@ -115,8 +121,8 @@ Terjemahan berbasis AI langsung di chat composer sebelum pesan dikirim.
 - ~~Tidak ada loading indicator saat menunggu hasil terjemahan~~ ✅ Fixed — bubble `⏳ Menerjemahkan...`
 - ~~Error hanya tampil Toast tanpa opsi retry~~ ✅ Fixed — Snackbar + "Coba Lagi"
 - ~~Groq kadang salah interpretasi slang/bahasa daerah — malah balik bertanya~~ ✅ Fixed — system prompt kuat + few-shot disambiguation + user-editable prompt & slang kamus
-- Multi-conversation: JID registration via `registerJidForCurrentAdapter()` — kadang adapter terdaftar setelah pertama kali `onItemBind` → terjemahan mungkin tidak tampil pada buka pertama conversation baru (refresh conversation fix ini)
-- Translate di composer belum diimplementasi
+- ~~Multi-conversation: JID registration via `registerJidForCurrentAdapter()` — kadang adapter terdaftar setelah pertama kali `onItemBind` → terjemahan mungkin tidak tampil pada buka pertama conversation baru (refresh conversation fix ini)~~ ✅ Fixed — per-chat config baca on-demand by JID, tidak bergantung adapter registration timing
+- ~~Translate di composer belum diimplementasi~~ ✅ Fixed — per-chat enabled + per-chat language, config persisten via JID
 
 ---
 

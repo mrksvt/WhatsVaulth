@@ -131,7 +131,7 @@ public class HomeFragment extends BaseFragment {
 
         binding.diagBtn.setOnClickListener(view -> {
             animateClick(view);
-
+            showDiagnosticsDialog();
         });
 
         // Always hide update card (AntiUpdater removed)
@@ -200,6 +200,39 @@ public class HomeFragment extends BaseFragment {
         binding.rebootBtn.setVisibility(View.VISIBLE);
         binding.statusSummary1.setVisibility(View.VISIBLE);
         binding.statusIcon2.setImageResource(R.drawable.ic_round_check_circle_24);
+    }
+
+    private void showDiagnosticsDialog() {
+        var context = getContext();
+        if (context == null) return;
+
+        var diagBinding = DialogDiagnosticsLogBinding.inflate(LayoutInflater.from(context));
+        var adapter = new LogLineAdapter();
+        diagBinding.logRecycler.setLayoutManager(new LinearLayoutManager(context));
+        diagBinding.logRecycler.setAdapter(adapter);
+
+        var dialog = new MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.diag_dialog_title)
+            .setView(diagBinding.getRoot())
+            .setPositiveButton(android.R.string.ok, null)
+            .create();
+        dialog.show();
+
+        Log.d("WhatsVault", "[WhatsVault] Analyze Device clicked");
+        Log.d("WhatsVault", "[WhatsVault] Starting device analysis");
+
+        RootDiagnostics.INSTANCE.runDiagnostics(context, entry -> {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (!isAdded()) return;
+                adapter.add(entry);
+                diagBinding.logRecycler.scrollToPosition(adapter.getItemCount() - 1);
+                if (entry.getType() == RootDiagnostics.LogType.ERROR) {
+                    Log.d("WhatsVault", "[WhatsVault] Analyze Device failed: " + entry.getMessage());
+                }
+            });
+        });
+
+        Log.d("WhatsVault", "[WhatsVault] Device analysis completed");
     }
 
     private void resetConfigs(Context context) {

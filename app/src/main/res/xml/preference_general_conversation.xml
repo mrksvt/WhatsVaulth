@@ -36,6 +36,12 @@
             app:title="@string/antirevokestatus" />
 
         <rikka.material.preference.MaterialSwitchPreference
+            app:key="trash_recovery"
+            app:iconSpaceReserved="false"
+            app:summary="@string/trash_recovery_hook_sum"
+            app:title="@string/trash_recovery_hook" />
+
+        <rikka.material.preference.MaterialSwitchPreference
             app:key="antidisappearing"
             app:summary="@string/antidisappearing_sum"
             app:title="@string/antidisappearing" />

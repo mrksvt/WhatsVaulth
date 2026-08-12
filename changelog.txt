@@ -1,3 +1,32 @@
+WhatsVault 1.5.5 — dc1b0195
+
+[ADDED]
+* ComposerTranslator: per-chat enabled toggle setiap conversation punya ON/OFF sendiri
+* ComposerTranslator: per-chat target language setiap conversation bisa beda bahasa tujuan
+* ComposerTranslator: config dialog baru ON/OFF toggle + language picker dalam satu dialog per conversation yang sedang dibuka
+* ComposerTranslator: string localization dialog id, en, ar, de, es, fr, it, pt, ru, tr, zh
+* ComposerTranslator: diagnostic logging conversation JID, enabled state, language, translate/bypass di setiap decision point
+
+[IMPROVED]
+* ComposerTranslator: config storage pindah ke WppCore.getPrivPrefs() keyed by JID (ct_enabled_{jid}, ct_lang_{jid}) tidak lagi global SharedPreferences
+* ComposerTranslator: send hook resolve JID via WppCore.getCurrentUserJid() sebelum translate tidak ada config leakage antar conversation
+* ComposerTranslator: TranslationCacheStore pakai JID aktual per-chat, bukan hardcoded "composer_outgoing"
+* ComposerTranslator: dialog ganti BottomSheetDialog → android.app.Dialog fix crash AppCompat drawable di WhatsApp context
+* ComposerTranslator: hapus hook ViewGroup.onInterceptTouchEvent global fix incoming bubble warna hijau + margin kiri pada chat screen
+* GeneralFragment + TranslatorSettingsFragment: hapus semua ML Kit code (setupOfflineTranslator, downloadOfflineModels, finishDownload, refreshDownloadedModelLabels)
+
+[FIXED]
+* ComposerTranslator: translator tidak lagi aktif otomatis di semua chat default OFF untuk conversation baru
+* ComposerTranslator: pindah chat tidak membawa config conversation sebelumnya (configuration leakage)
+* ComposerTranslator: crash saat buka dialog bahasa di WhatsApp Business (Resources$NotFoundException: $m3_avd_hide_password)
+* ComposerTranslator: teks radio button tidak terbaca di dialog fix warna teks + background putih eksplisit
+* Offline Translator: hapus fitur (ML Kit dependency penyebab APK inflate 29MB)
+
+[NOTES]
+* Per-chat config persisten tetap tersimpan setelah WhatsApp restart atau module reload
+* Conversation baru tanpa config default ke Composer OFF tidak mewarisi config chat lain
+* Rebuild + re-enable di LSPosed; force-stop WhatsApp / WhatsApp Business setelah install
+
 WhatsVault 1.5.5 — 098bd4e6
 
 [ADDED]
@@ -14,7 +43,7 @@ WhatsVault 1.5.5 — 098bd4e6
 
 [FIXED]
 * Business crash: no such column scheduled_batch_id on marketing_messages_background_send
-* Home “Update Available” false positive: update check uses mrksvt/WhatsVault (not Dev4Mod); missing releases treated as up-to-date
+* Home "Update Available" false positive: update check uses mrksvt/WhatsVault (not Dev4Mod); missing releases treated as up-to-date
 * Xposed UpdateChecker popup to upstream Dev4Mod disabled on this fork
 * UpdateChecker / release links pointed at github.com/mrksvt/WhatsVault
 * Restored default English strings for contact-block resources (AAPT locale warnings)
@@ -22,3 +51,4 @@ WhatsVault 1.5.5 — 098bd4e6
 [NOTES]
 * Rebuild + re-enable in LSPosed; force-stop WhatsApp Business after install
 * Prefer reboot once if hooks still show old hash in crash dialog
+

@@ -520,4 +520,15 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="remove_sticker_white_outline_sum">Hapus garis tepi putih saat membuat stiker</string>
     <string name="remove_sticker_white_outline">Hapus garis tepi putih stiker</string>
     <string name="stickers">Stiker</string>
+    <string name="trash_recovery">Log Pesan Terhapus</string>
+    <string name="trash_recovery_sum">Lihat pesan yang dihapus per kontak</string>
+    <string name="trash_recovery_empty">Tidak ada pesan yang dihapus</string>
+    <string name="trash_recovery_media">[Media]</string>
+    <string name="trash_recovery_clear_all">Hapus Semua</string>
+    <string name="trash_recovery_cleared">Pesan yang dihapus telah dibersihkan</string>
+    <string name="trash_recovery_export">Ekspor JSON</string>
+    <string name="trash_recovery_export_success">Berhasil diekspor ke Downloads</string>
+    <string name="trash_recovery_export_failed">Ekspor gagal</string>
+    <string name="trash_recovery_hook">Simpan Pesan Terhapus</string>
+    <string name="trash_recovery_hook_sum">Tangkap konten pesan saat dihapus (Anti Revoke harus aktif)</string>
 </resources>

@@ -23,11 +23,12 @@ import android.app.Activity
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.FeatureLoader
+import com.mrksvt.waen.xposed.core.HookOverrideStore
 import com.mrksvt.waen.xposed.core.WppCore
-import com.mrksvt.waen.xposed.core.db.TranslationCacheStore
+import de.robv.android.xposed.XC_MethodHook
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.utils.Utils
-import de.robv.android.xposed.XC_MethodHook
+import com.mrksvt.waen.xposed.core.db.TranslationCacheStore
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.Call
@@ -157,7 +158,7 @@ class ComposerTranslator(
     }
 
     private fun tryHookSendButton(sendBtn: View, pkg: String) {
-        if (sendBtn.getTag(android.R.id.text1) == BUTTON_TAG) return
+        if (sendBtn.getTag(R.id.wae_composer_send_btn_tag) == BUTTON_TAG) return
         val listenerInfoField = try {
             val f = View::class.java.getDeclaredField("mListenerInfo")
             f.isAccessible = true
@@ -175,7 +176,12 @@ class ComposerTranslator(
         if (candidate != null && candidate.javaClass.name.contains("ComposerTranslator")) return
         if (candidate != null) waSendListener = candidate
         attachSendHook(sendBtn)
-        sendBtn.setTag(android.R.id.text1, BUTTON_TAG)
+        val id = Utils.getIDFromModule("wae_composer_send_btn_tag")
+        if (id != 0) {
+            sendBtn.setTag(id, BUTTON_TAG)
+        } else {
+            sendBtn.setTag(R.id.wae_composer_send_btn_tag, BUTTON_TAG)
+        }
     }
 
     private fun replaceComposerText(field: EditText, translation: String) {
@@ -510,11 +516,19 @@ class ComposerTranslator(
     }
 
     private fun findSendButton(rootView: View, editText: EditText): View? {
-        val sendBtnId = Utils.getID("send", "id")
+        val context = rootView.context
+        val overrideName = HookOverrideStore.getResourceOverride(context, "composer_send_btn") as? String
+        val sendBtnId = if (!overrideName.isNullOrBlank()) {
+            Utils.getID(overrideName, "id").takeIf { it != 0 } ?: Utils.getID("send", "id")
+        } else {
+            Utils.getID("send", "id")
+        }
+        
         if (sendBtnId != 0) {
             val v = rootView.findViewById<View>(sendBtnId)
             if (v != null) return v
         }
+        
         val candidateIds = listOf("send_btn", "send_button", "btn_send", "compose_send", "conversation_send")
         for (name in candidateIds) {
             val id = Utils.getID(name, "id")
@@ -526,6 +540,7 @@ class ComposerTranslator(
                 }
             }
         }
+        
         val container = editText.parent as? ViewGroup ?: return null
         val editIndex = container.indexOfChild(editText)
         for (i in editIndex + 1 until container.childCount) {
@@ -536,6 +551,7 @@ class ComposerTranslator(
                 return child
             }
         }
+        
         val parent = container.parent as? ViewGroup
         if (parent != null) {
             val containerIndex = parent.indexOfChild(container)
@@ -549,6 +565,7 @@ class ComposerTranslator(
                 }
             }
         }
+        
         return null
     }
 

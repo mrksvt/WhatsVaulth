@@ -53,11 +53,11 @@ class GroqTranslator(classLoader: ClassLoader, preferences: SharedPreferences) :
 
                     val incomingClass = incoming.javaClass.name
                     if (!incomingClass.contains("AiF") && !incomingClass.contains("APT")) {
-                        de.robv.android.xposed.XposedBridge.log("WAE_WRAP: skip ${incoming.javaClass.simpleName}")
+                        if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_WRAP: skip ${incoming.javaClass.simpleName}")
                         return
                     }
 
-                    de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrapping ${incoming.javaClass.simpleName}")
+                    if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_WRAP: wrapping ${incoming.javaClass.simpleName}")
                     val wrapper = TranslatorWrapperAdapter(incoming, prefs)
                     isWrapping = true
                     listView.adapter = wrapper

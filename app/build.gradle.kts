@@ -25,6 +25,11 @@ fun getGitHashCommit(): String {
 val gitHash: String = getGitHashCommit().uppercase(Locale.getDefault())
 val versionSuffix: String = if (project.hasProperty("versionSuffix")) "-${project.property("versionSuffix")}" else ""
 
+fun getBuildTypeSuffix(buildType: String): String = when (buildType) {
+    "debug" -> "-beta"
+    else -> "-stable"
+}
+
 android {
     namespace = "com.mrksvt.waen"
     //noinspection GradleDependency
@@ -53,6 +58,7 @@ android {
         targetSdk = 34
         versionCode = 155
         versionName = "1.5.5$versionSuffix ($gitHash)_mrksvt"
+        // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -110,6 +116,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("Boolean", "DONATUR", "false")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-beta ($gitHash)_mrksvt\"")
+            buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"\"")
+            buildConfigField("String", "TELEGRAM_CHAT_ID", "\"\"")
             // buildConfigField("Boolean", "DISABLE_ANTI_UPDATER", "true")  // Nonaktifkan jika tidak diperlukan
         }
 
@@ -123,6 +133,27 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("Boolean", "DONATUR", "false")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-stable ($gitHash)_mrksvt\"")
+            buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"\"")
+            buildConfigField("String", "TELEGRAM_CHAT_ID", "\"\"")
+        }
+
+        create("donatur") {
+            initWith(buildTypes["release"])
+            isMinifyEnabled = true
+            isShrinkResources = false
+            signingConfig =
+                if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            buildConfigField("Boolean", "DONATUR", "true")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-stable ($gitHash)_mrksvt\"")
+            buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"8606885580:AAGsf-ZYqH9G1dZSHJFTsINBRiR6Cl0TSnQ\"")
+            buildConfigField("String", "TELEGRAM_CHAT_ID", "\"-1003908646610\"")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {
@@ -147,9 +178,11 @@ android {
             "business" -> "WhatsVault-Business"
             else -> "WhatsVault"
         }
+        val buildSuffix = getBuildTypeSuffix(buildType.name)
+        val baseVersion = "1.5.5$versionSuffix$buildSuffix ($gitHash)_mrksvt"
 
         outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "$appName-$versionName.apk"
+            (this as BaseVariantOutputImpl).outputFileName = "$appName-$baseVersion.apk"
         }
     }
 
@@ -236,7 +269,7 @@ interface InjectedExecOps {
 
 
 afterEvaluate {
-    listOf("installWhatsappDebug", "installBusinessDebug").forEach { taskName ->
+    listOf("installWhatsappDebug", "installBusinessDebug", "installWhatsappDonatur", "installBusinessDonatur").forEach { taskName ->
         tasks.findByName(taskName)?.doLast {
             runCatching {
                 val injected  = project.objects.newInstance<InjectedExecOps>()

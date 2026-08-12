@@ -510,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remova a borda branca ao criar figurinhas</string>
     <string name="remove_sticker_white_outline">Remover contorno das figurinhas</string>
     <string name="stickers">Figurinhas</string>
+    <string name="trash_recovery">Registro de excluídos</string>
+    <string name="trash_recovery_sum">Ver mensagens excluídas por contato</string>
+    <string name="trash_recovery_empty">Nenhuma mensagem excluída</string>
+    <string name="trash_recovery_media">[Mídia]</string>
+    <string name="trash_recovery_clear_all">Limpar tudo</string>
+    <string name="trash_recovery_cleared">Mensagens excluídas limpas</string>
+    <string name="trash_recovery_export">Exportar JSON</string>
+    <string name="trash_recovery_export_success">Exportado para Downloads</string>
+    <string name="trash_recovery_export_failed">Falha ao exportar</string>
+    <string name="trash_recovery_hook">Salvar mensagens excluídas</string>
+    <string name="trash_recovery_hook_sum">Captura o conteúdo ao excluir (requer Anti Revoke ativo)</string>
 </resources>

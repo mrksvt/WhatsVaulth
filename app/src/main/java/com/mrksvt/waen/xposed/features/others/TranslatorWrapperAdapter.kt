@@ -161,9 +161,9 @@ class TranslatorWrapperAdapter(
             listViewObserver?.let { unregisterDataSetObserver(it) }
             listViewObserver = observer
             registerDataSetObserver(observer)
-            de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver ok")
+            if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver ok")
         } catch (e: Exception) {
-            de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver fail ${e.message}")
+            if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_WRAP: attachListViewObserver fail ${e.message}")
         }
     }
 
@@ -179,7 +179,7 @@ class TranslatorWrapperAdapter(
         Utils.executor.execute {
             try {
                 TranslationCacheStore.deleteByJid(jid)
-                de.robv.android.xposed.XposedBridge.log("WAE_WRAP: destroy cleaned orphan cache jid=$jid")
+                if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_WRAP: destroy cleaned orphan cache jid=$jid")
             } catch (_: Exception) {}
         }
     }
@@ -195,7 +195,7 @@ class TranslatorWrapperAdapter(
     private val realAdapterObserver = object : android.database.DataSetObserver() {
         override fun onChanged() {
             if (isNotifying) return
-            de.robv.android.xposed.XposedBridge.log("WAE_OBS: realAdapter.onChanged slots=${realPositionsSorted.size}")
+            if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_OBS: realAdapter.onChanged slots=${realPositionsSorted.size}")
             notifyDataSetChanged()
         }
         override fun onInvalidated() {
@@ -279,7 +279,7 @@ class TranslatorWrapperAdapter(
     override fun getCount(): Int {
         val c = realCount + realPositionsSorted.size
         if (realPositionsSorted.isNotEmpty()) {
-            de.robv.android.xposed.XposedBridge.log("WAE_COUNT: count=$c real=$realCount slots=${realPositionsSorted.size}")
+            if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_COUNT: count=$c real=$realCount slots=${realPositionsSorted.size}")
         }
         return c
     }
@@ -319,7 +319,7 @@ class TranslatorWrapperAdapter(
     override fun getView(pos: Int, convertView: View?, parent: ViewGroup): View {
         val (isTranslation, realPos) = resolve(pos)
 
-        de.robv.android.xposed.XposedBridge.log("WAE_VIEW: pos=$pos isTranslation=$isTranslation realPos=$realPos slots=${realPositionsSorted.size}")
+        if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_VIEW: pos=$pos isTranslation=$isTranslation realPos=$realPos slots=${realPositionsSorted.size}")
 
         if (!isTranslation) {
             return realAdapter.getView(realPos, convertView, parent)
@@ -337,13 +337,13 @@ class TranslatorWrapperAdapter(
         }
 
         val translation = messageId?.let { translationMap[it] } ?: run {
-            de.robv.android.xposed.XposedBridge.log("WAE_VIEW: miss realPos=$realPos map=${realPosToMessageId.keys} transMap=${translationMap.keys}")
+            if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_VIEW: miss realPos=$realPos map=${realPosToMessageId.keys} transMap=${translationMap.keys}")
             return View(context).apply {
                 layoutParams = ViewGroup.LayoutParams(0, 0)
                 visibility = View.GONE
             }
         }
-        de.robv.android.xposed.XposedBridge.log("WAE_VIEW: hit realPos=$realPos translation=${translation.take(20)}")
+        if (com.mrksvt.waen.BuildConfig.DEBUG) de.robv.android.xposed.XposedBridge.log("WAE_VIEW: hit realPos=$realPos translation=${translation.take(20)}")
 
         val isFromMe = try {
             val raw = realAdapter.getItem(realPos) ?: return View(context)

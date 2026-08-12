@@ -510,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Silinen Günlük</string>
+    <string name="trash_recovery_sum">Kişiye göre silinen mesajları görüntüle</string>
+    <string name="trash_recovery_empty">Silinmiş mesaj yok</string>
+    <string name="trash_recovery_media">[Medya]</string>
+    <string name="trash_recovery_clear_all">Tümünü temizle</string>
+    <string name="trash_recovery_cleared">Silinen mesajlar temizlendi</string>
+    <string name="trash_recovery_export">JSON dışa aktar</string>
+    <string name="trash_recovery_export_success">İndirilenler klasörüne aktarıldı</string>
+    <string name="trash_recovery_export_failed">Dışa aktarma başarısız</string>
+    <string name="trash_recovery_hook">Silinen mesajları kaydet</string>
+    <string name="trash_recovery_hook_sum">Silinirken mesaj içeriğini yakala (Anti Revoke aktif olmalı)</string>
 </resources>

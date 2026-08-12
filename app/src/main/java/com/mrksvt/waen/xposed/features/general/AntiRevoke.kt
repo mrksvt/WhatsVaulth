@@ -20,6 +20,7 @@ import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
+import com.mrksvt.waen.BuildConfig
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import java.text.DateFormat
@@ -33,6 +34,8 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
 
     companion object {
         private val messageRevokedMap = ConcurrentHashMap<String, MutableSet<String>>()
+
+        private val savedMediaPaths = ConcurrentHashMap<String, String>()
 
         private val dateFormatThreadLocal = ThreadLocal.withInitial {
             DateFormat.getDateTimeInstance(
@@ -78,6 +81,10 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         val unknownStatusPlaybackMethod = Unobfuscator.loadUnknownStatusPlaybackMethod(classLoader)
         val statusPlaybackClass = Unobfuscator.loadStatusPlaybackViewClass(classLoader)
         val antiRevokeFStatusMethod = Unobfuscator.loadAntiRevokeFStatusMethod(classLoader)
+
+        if (prefs.getBoolean("trash_recovery", false)) {
+            hookNewMessageForMedia()
+        }
 
         XposedBridge.hookMethod(antiRevokeFStatusMethod, object : XC_MethodHook() {
 
@@ -255,6 +262,48 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
             "0"
         )?.toIntOrNull() ?: 0
 
+        val trashEnabled = prefs.getBoolean("trash_recovery", false)
+        logDebug("[TrashRecovery] revoke event: msgId=$messageId trashEnabled=$trashEnabled")
+        if (trashEnabled) {
+            CompletableFuture.runAsync {
+                try {
+                    val waPackage = Utils.application.packageName
+                    val contact = fMessage.key.remoteJid.phoneNumber
+                    val intime = fMessage.timeStamp.takeIf { it > 0 }
+                    val deltime = System.currentTimeMillis()
+                    val mediaType = fMessage.mediaType ?: -1
+                    val isVoice = mediaType == 2 || mediaType == 82
+                    val voiceFileName = if (isVoice) fMessage.mediaFile?.name else null
+                    val fileId = if (!isVoice && mediaType > 0) fMessage.mediaFile?.name else null
+                    val text = fMessage.messageStr
+                    val savedPath = savedMediaPaths.remove(messageId)
+                    val mediaPath = savedPath ?: fMessage.mediaFile?.absolutePath
+                    val jidAuthor = fMessage.key.remoteJid
+                    val actualAuthor = if (jidAuthor.isStatus) fMessage.userJid else jidAuthor
+                    val senderName = WaContactWpp.getWaContactFromJid(actualAuthor)?.displayName
+                    val jid = fMessage.key.remoteJid.phoneNumber ?: return@runAsync
+                    DelMessageStore.getInstance(Utils.application).insertFullMessage(
+                        jid = jid,
+                        msgid = messageId,
+                        timestamp = System.currentTimeMillis(),
+                        text = text,
+                        mediaPath = mediaPath,
+                        mediaType = mediaType,
+                        senderName = senderName,
+                        wa = waPackage,
+                        contact = contact,
+                        intime = intime,
+                        deltime = deltime,
+                        voiceFileName = voiceFileName,
+                        fileId = fileId
+                    )
+                    writeTrashCache()
+                } catch (e: Exception) {
+                    logDebug(e.message)
+                }
+            }
+        }
+
         if (revokeBoolean == 0) return 0
 
         val messageRevokedList = getRevokedMessagesForJid(fMessage)
@@ -262,6 +311,39 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
             CompletableFuture.runAsync {
                 try {
                     persistRevokedMessage(fMessage, messageId)
+                    val waPackage = Utils.application.packageName
+                    val contact = fMessage.key.remoteJid.phoneNumber
+                    val intime = fMessage.timeStamp.takeIf { it > 0 }
+                    val deltime = System.currentTimeMillis()
+                    val mediaType = fMessage.mediaType ?: -1
+                    val isVoice = mediaType == 2 || mediaType == 82
+                    val voiceFileName = if (isVoice) fMessage.mediaFile?.name else null
+                    val fileId = if (!isVoice && mediaType > 0) fMessage.mediaFile?.name else null
+                    val jid = fMessage.key.remoteJid.phoneNumber ?: ""
+                    val text = fMessage.messageStr
+                    val savedPath = savedMediaPaths.remove(messageId)
+                    val mediaPath = savedPath ?: fMessage.mediaFile?.absolutePath
+                    val senderName = run {
+                        val jidAuthor = fMessage.key.remoteJid
+                        val actualAuthor = if (jidAuthor.isStatus) fMessage.userJid else jidAuthor
+                        WaContactWpp.getWaContactFromJid(actualAuthor)?.displayName ?: actualAuthor.phoneNumber
+                    }
+                    DelMessageStore.getInstance(Utils.application).insertFullMessage(
+                        jid = jid,
+                        msgid = messageId,
+                        timestamp = System.currentTimeMillis(),
+                        text = text,
+                        mediaPath = mediaPath,
+                        mediaType = mediaType,
+                        senderName = senderName,
+                        wa = waPackage,
+                        contact = contact,
+                        intime = intime,
+                        deltime = deltime,
+                        voiceFileName = voiceFileName,
+                        fileId = fileId
+                    )
+                    writeTrashCache()
                     val mConversation = WppCore.getCurrentConversation()
                     if (mConversation != null && fMessage.key.remoteJid.phoneNumber == WppCore.getCurrentUserJid()?.phoneNumber) {
                         mConversation.runOnUiThread {
@@ -309,8 +391,7 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
     }
 
-    private fun handleRevocationAlert(fMessage: FMessageWpp) {
-        val message = formatRevocationMessage(fMessage) ?: return
+    private fun handleRevocationAlert(fMessage: FMessageWpp) {        val message = formatRevocationMessage(fMessage) ?: return
 
         val jidAuthor = fMessage.key.remoteJid
         val actualAuthor = if (jidAuthor.isStatus) fMessage.userJid else jidAuthor
@@ -325,6 +406,78 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
 
         Tasker.sendTaskerEvent(name, jidAuthor.phoneNumber, taskerAction)
+    }
+
+    private fun writeTrashCache() {
+        try {
+            val messages = DelMessageStore.getInstance(Utils.application).getAllMessages()
+            val arr = org.json.JSONArray()
+            for (msg in messages) {
+                val obj = org.json.JSONObject()
+                obj.put("id", msg.id)
+                obj.put("jid", msg.jid ?: "")
+                obj.put("msgid", msg.msgid ?: "")
+                obj.put("timestamp", msg.timestamp ?: 0L)
+                obj.put("text", msg.text ?: org.json.JSONObject.NULL)
+                obj.put("mediaPath", msg.mediaPath ?: org.json.JSONObject.NULL)
+                obj.put("mediaType", msg.mediaType ?: -1)
+                obj.put("senderName", msg.senderName ?: org.json.JSONObject.NULL)
+                obj.put("wa", msg.wa ?: org.json.JSONObject.NULL)
+                obj.put("contact", msg.contact ?: org.json.JSONObject.NULL)
+                obj.put("intime", msg.intime ?: 0L)
+                obj.put("deltime", msg.deltime ?: 0L)
+                obj.put("voiceFileName", msg.voiceFileName ?: org.json.JSONObject.NULL)
+                obj.put("fileId", msg.fileId ?: org.json.JSONObject.NULL)
+                arr.put(obj)
+            }
+            val json = arr.toString()
+            val path = "/data/data/${BuildConfig.APPLICATION_ID}/files/trash_cache.json"
+            val pfd = WppCore.getClientBridge()?.openFile(path, true) ?: return
+            pfd.use {
+                java.io.FileOutputStream(it.fileDescriptor).use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                    out.flush()
+                }
+            }
+        } catch (e: Throwable) {
+            logDebug("writeTrashCache failed: ${e.message}")
+        }
+    }
+
+    private fun hookNewMessageForMedia() {
+        try {
+            val newMsgMethod = Unobfuscator.loadNewMessageWithMediaMethod(classLoader)
+            log("[TrashRecovery] hookNewMessageForMedia: hooked ${newMsgMethod?.name}")
+            XposedBridge.hookMethod(newMsgMethod, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    try {
+                        val fMessageObj = if (FMessageWpp.TYPE.isInstance(param.thisObject)) {
+                            param.thisObject
+                        } else {
+                            ReflectionUtils.getArg(param.args, FMessageWpp.TYPE, 0)
+                        } ?: return
+                        val fMessage = FMessageWpp(fMessageObj)
+                        if (!fMessage.isMediaFile) return
+                        val file = fMessage.mediaFile ?: return
+                        val msgId = fMessage.key.messageID
+                        val ext = file.absolutePath.substringAfterLast('.', "")
+                        val dest = Utils.getDestination("Trash Recovery")
+                        val name = Utils.generateName(fMessage.userJid, ext)
+                        val error = Utils.copyFile(file, dest, name)
+                        if (error.isNullOrEmpty()) {
+                            savedMediaPaths[msgId] = dest + name
+                            log("[TrashRecovery] media saved: $name for msgId=$msgId")
+                        } else {
+                            log("[TrashRecovery] media copy error: $error")
+                        }
+                    } catch (e: Exception) {
+                        log("[TrashRecovery] hookNewMessageForMedia error: ${e.message}")
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            log("[TrashRecovery] hookNewMessageForMedia setup error: ${e.message}")
+        }
     }
 
     override fun getPluginName(): String = "Anti Revoke"

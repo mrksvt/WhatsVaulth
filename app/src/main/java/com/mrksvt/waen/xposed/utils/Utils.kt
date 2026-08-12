@@ -22,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.mrksvt.waen.App
 import com.mrksvt.waen.xposed.core.FeatureLoader
+import com.mrksvt.waen.xposed.core.HookOverrideStore
 import com.mrksvt.waen.xposed.core.WppCore.getClientBridge
 import com.mrksvt.waen.xposed.core.WppCore.getContactName
 import com.mrksvt.waen.xposed.core.components.FMessageWpp.UserJid
@@ -96,6 +97,20 @@ object Utils {
 
         val key = type + "_" + name
 
+        val context = application.applicationContext
+        val overrideName = HookOverrideStore.getResourceOverride(context, name!!)
+        if (!overrideName.isNullOrBlank() && overrideName != name) {
+            try {
+                val overrideId = context.resources.getIdentifier(overrideName, type, context.packageName)
+                if (overrideId != 0) {
+                    synchronized(ids) { ids.put(key, overrideId) }
+                    return overrideId
+                }
+            } catch (e: Exception) {
+                XposedBridge.log("Error getting resource ID from override: type=$type, name=$name, error: ${e.message}")
+            }
+        }
+
         synchronized(ids) {
             if (ids.containsKey(key)) {
                 val cachedId = ids[key]
@@ -104,9 +119,7 @@ object Utils {
         }
 
         try {
-            val app: Application = application
-            val context = app.applicationContext
-            val id = context.resources.getIdentifier(name, type, app.packageName)
+            val id = context.resources.getIdentifier(name, type, application.packageName)
 
             synchronized(ids) {
                 ids.put(key, id)

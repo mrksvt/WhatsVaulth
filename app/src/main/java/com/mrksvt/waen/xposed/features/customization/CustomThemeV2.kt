@@ -254,8 +254,9 @@ class CustomThemeV2(loader: ClassLoader, preferences:SharedPreferences) :
             filterItemClass,
             object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    val view = param.args[0] as View
-                    val textView = view.findViewById<TextView>(Utils.getID("text_view", "id"))
+                    val arg = param.args[0]
+                    if (arg !is View) return
+                    val textView = arg.findViewById<TextView>(Utils.getID("text_view", "id"))
                     if (textView != null) {
                         textView.setTextColor(DesignUtils.getPrimaryTextColor())
                     }
