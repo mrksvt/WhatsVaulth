@@ -108,7 +108,6 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         ConversationItemListener.conversationListeners.add(object :
             ConversationItemListener.OnConversationItemListener() {
             override fun onItemBind(fMessage: FMessageWpp, view: ViewGroup, position: Int, convertView: View?) {
-                XposedBridge.log("[WAE_GT] onItemBind pos=$position msgStr=${fMessage.messageStr?.take(20)} viewClass=${view.javaClass.simpleName}")
                 val messageText = fMessage.messageStr ?: return
                 if (messageText.isBlank()) return
 
@@ -120,7 +119,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                     ) as? String ?: ""
                 } catch (_: Exception) { "" }
 
-                TranslatorWrapperAdapter.registerJidForCurrentAdapter(conversationJid)
+                TranslatorWrapperAdapter.getOrCreateForJid(conversationJid, prefs)
 
                 val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
                 XposedBridge.log("[WAE_GT] onItemBind pos=$position msgId=$messageId textViewNull=${messageTextView == null} jid=$conversationJid")
@@ -201,7 +200,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> {
-                    triggerTranslate(rootView, messageText, messageId, conversationJid)
+                    triggerTranslate(rootView, messageText, messageId, conversationJid, isFromMe)
                     true
                 }
                 2 -> {
@@ -219,6 +218,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         val lang = if (prefLang == "auto") Locale.getDefault().language else prefLang
         val provider = prefs.getString("translator_provider", "google") ?: "google"
         val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
+        XposedBridge.log("[WAE_GT] triggerTranslate provider=$provider lang=$lang groqBlank=${groqKey.isBlank()} msg='${messageText.take(20)}'")
 
         if (provider == "groq" && groqKey.isBlank()) {
             TranslatorWrapperAdapter.showGroqFallbackNotification(conversationJid, rootView)
@@ -231,13 +231,16 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
 
         future.thenAccept { translated ->
             Handler(Looper.getMainLooper()).post {
+                XposedBridge.log("[WAE_GT] translate done: '${translated?.take(30)}' jid=$conversationJid id=$messageId")
                 TranslatorWrapperAdapter.clearLoading(conversationJid, messageId)
-                if (translated.isNullOrBlank()) return@post
-                TranslatorWrapperAdapter.showTranslation(conversationJid, messageId, translated)
-                injectTranslationView(rootView, messageId, translated, isFromMe)
-            }
+                if (translated.isNullOrBlank()) {
+                    XposedBridge.log("[WAE_GT] translated blank, skip inject")
+                    return@post
+                }
+                TranslatorWrapperAdapter.showTranslation(conversationJid, messageId, translated)            }
         }.exceptionally { err ->
             Handler(Looper.getMainLooper()).post {
+                XposedBridge.log("[WAE_GT] translate error: ${err.cause?.message ?: err.message}")
                 TranslatorWrapperAdapter.clearLoading(conversationJid, messageId)
                 try {
                     com.google.android.material.snackbar.Snackbar.make(
@@ -253,61 +256,6 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
             }
             null
         }
-    }
-
-    private fun injectTranslationView(rootView: ViewGroup, messageId: String, text: String, isFromMe: Boolean) {
-        val tag = "wae_translation_$messageId"
-        val existing = rootView.findViewWithTag<View>(tag)
-        if (existing != null) {
-            (existing.findViewWithTag<android.widget.TextView>("wae_tv_$messageId"))?.text = "🌐 $text"
-            existing.visibility = View.VISIBLE
-            return
-        }
-        val ctx = rootView.context
-        val dp8 = Utils.dipToPixels(8)
-        val dp4 = Utils.dipToPixels(4)
-        val dp12 = Utils.dipToPixels(12)
-        val bubbleBgColor = if (isFromMe) android.graphics.Color.parseColor("#1A237E") else android.graphics.Color.parseColor("#1B5E20")
-        val bubbleTextColor = if (isFromMe) android.graphics.Color.parseColor("#E8EAF6") else android.graphics.Color.parseColor("#E8F5E9")
-        val bg = android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            setColor(bubbleBgColor)
-            cornerRadius = dp12.toFloat()
-        }
-        val gravity = if (isFromMe) android.view.Gravity.END else android.view.Gravity.START
-        val tv = android.widget.TextView(ctx).apply {
-            this.tag = "wae_tv_$messageId"
-            this.text = "🌐 $text"
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTextColor(bubbleTextColor)
-            background = bg
-            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
-            setPadding(dp8, dp4, dp8, dp4)
-            this.gravity = gravity
-        }
-        val tvLp = android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { this.gravity = gravity }
-        tv.layoutParams = tvLp
-        val container = android.widget.LinearLayout(ctx).apply {
-            this.tag = tag
-            orientation = android.widget.LinearLayout.VERTICAL
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            addView(tv)
-        }
-        try {
-            if (rootView is android.widget.LinearLayout) {
-                rootView.addView(container)
-            } else {
-                val parent = rootView.parent as? ViewGroup ?: rootView
-                val idx = (parent.indexOfChild(rootView) + 1).coerceAtMost(parent.childCount)
-                parent.addView(container, idx)
-            }
-        } catch (_: Exception) { rootView.addView(container) }
     }
 
     fun translateGroq(text: String?, languageDest: String): CompletableFuture<String?> {

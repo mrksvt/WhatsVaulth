@@ -67,7 +67,9 @@ class TranslatorWrapperAdapter(
                 adapter.rebuildIndex()
                 val targetRealPos = adapter.messageIdToRealPos[messageId]
                 de.robv.android.xposed.XposedBridge.log("WAE_TRANS: rebuiltIndex sorted=${adapter.realPositionsSorted.size} count=${adapter.count} targetRealPos=$targetRealPos")
-                adapter.notifyDataSetChanged()
+                if (adapter.realCount > 0) {
+                    adapter.notifyDataSetChanged()
+                }
                 if (targetRealPos != null) {
                     val translationWrappedPos = targetRealPos +
                         adapter.realPositionsSorted.indexOfFirst { rp -> rp == targetRealPos } + 1
@@ -102,7 +104,9 @@ class TranslatorWrapperAdapter(
             Handler(Looper.getMainLooper()).post {
                 adapter.loadingSet.add(messageId)
                 adapter.rebuildIndex()
-                adapter.notifyDataSetChanged()
+                if (adapter.realCount > 0) {
+                    adapter.notifyDataSetChanged()
+                }
             }
         }
 
@@ -110,7 +114,9 @@ class TranslatorWrapperAdapter(
             val adapter = getOrRegister(conversationJid) ?: return
             Handler(Looper.getMainLooper()).post {
                 adapter.loadingSet.remove(messageId)
-                adapter.notifyDataSetChanged()
+                if (adapter.realCount > 0) {
+                    adapter.notifyDataSetChanged()
+                }
             }
         }
 
@@ -135,6 +141,16 @@ class TranslatorWrapperAdapter(
             return fallback
         }
 
+        private val stubAdapters = HashMap<String, TranslatorWrapperAdapter>()
+
+        fun getOrCreateForRealAdapter(realAdapter: ListAdapter, prefs: android.content.SharedPreferences): TranslatorWrapperAdapter {
+            val existing = instances.values.mapNotNull { it.get() }.firstOrNull { it.realAdapter === realAdapter }
+            if (existing != null) return existing
+            val fallback = lastCreated?.get()
+            if (fallback != null && fallback.realAdapter === realAdapter) return fallback
+            return TranslatorWrapperAdapter(realAdapter, prefs)
+        }
+
         fun getOrCreateForJid(jid: String, prefs: android.content.SharedPreferences): TranslatorWrapperAdapter {
             val existing = instances[jid]?.get()
             if (existing != null) return existing
@@ -143,13 +159,17 @@ class TranslatorWrapperAdapter(
                 fallback.setConversationJid(jid)
                 return fallback
             }
+            val cached = stubAdapters[jid]
+            if (cached != null) return cached
             val stub = object : android.widget.BaseAdapter() {
                 override fun getCount() = 0
                 override fun getItem(pos: Int) = null
                 override fun getItemId(pos: Int) = 0L
                 override fun getView(pos: Int, v: android.view.View?, p: android.view.ViewGroup) = v ?: android.view.View(p.context)
             }
-            return TranslatorWrapperAdapter(stub, prefs, jid)
+            val adapter = TranslatorWrapperAdapter(stub, prefs, jid)
+            stubAdapters[jid] = adapter
+            return adapter
         }
     }
 

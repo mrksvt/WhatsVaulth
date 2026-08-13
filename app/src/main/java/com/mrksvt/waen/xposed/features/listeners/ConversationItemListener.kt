@@ -104,7 +104,14 @@ class ConversationItemListener(
                     listener.onAttachAdapter(adapter)
                 }
 
+                val wrapperAdapter = TranslatorWrapperAdapter.getOrCreateForRealAdapter(currentAdapter, prefs)
+                param.args[0] = wrapperAdapter
+
                 hooked?.unhook()
+
+                Handler(Looper.getMainLooper()).post {
+                    wrapperAdapter.attachListViewObserver(listView)
+                }
 
                 val method = try {
                     adapter!!.javaClass.getDeclaredMethod(
