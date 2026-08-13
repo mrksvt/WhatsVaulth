@@ -339,6 +339,7 @@
     <string name="error_image_name">Le nom doit se terminer par .png</string>
     <string name="imported_as">"Importé comme "</string>
     <string name="save">Sauvegarder</string>
+    <string name="composer_translator_enable_for_chat">Activer pour cette discussion</string>
     <string name="import_image">Importer une image</string>
     <string name="export_as_zip">Exporter au format zip</string>
     <string name="clear">Nette</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Journal des supprimés</string>
+    <string name="trash_recovery_sum">Voir les messages supprimés par contact</string>
+    <string name="trash_recovery_empty">Aucun message supprimé</string>
+    <string name="trash_recovery_media">[Média]</string>
+    <string name="trash_recovery_clear_all">Tout effacer</string>
+    <string name="trash_recovery_cleared">Messages supprimés effacés</string>
+    <string name="trash_recovery_export">Exporter JSON</string>
+    <string name="trash_recovery_export_success">Exporté dans Téléchargements</string>
+    <string name="trash_recovery_export_failed">&#201;chec export</string>
+    <string name="trash_recovery_hook">Sauvegarder les messages supprimés</string>
+    <string name="trash_recovery_hook_sum">Capture le contenu lors de la suppression (nécessite Anti Revoke actif)</string>
 </resources>

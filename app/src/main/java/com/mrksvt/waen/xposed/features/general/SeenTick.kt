@@ -187,8 +187,6 @@ class SeenTick(
                 }
             })
 
-        hookOnSendMessages()
-
         val ticktype = prefs.getString("seentick", "0")?.toIntOrNull() ?: 0
         if (ticktype == 0) return
 

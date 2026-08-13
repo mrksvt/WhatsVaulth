@@ -65,6 +65,7 @@ class MessageHistoryStore private constructor(context: Context) {
 
     private val messageDao = db.messageDao()
     private val hideSeenDao = db.hideSeenDao()
+    internal val translationCacheDao = db.translationCacheDao()
 
     companion object {
         private const val MESSAGE_CACHE_SIZE = 100

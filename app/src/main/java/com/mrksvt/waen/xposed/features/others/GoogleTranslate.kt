@@ -2,14 +2,13 @@ package com.mrksvt.waen.xposed.features.others
 
 import android.os.Handler
 import android.os.Looper
-import android.view.GestureDetector
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.findFirstClassUsingName
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadCheckSupportLanguage
@@ -18,6 +17,7 @@ import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodReplacement
 import android.content.SharedPreferences
+import com.mrksvt.waen.R
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.Call
@@ -64,12 +64,15 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                     val currentMethod = param.method as Method
                     val unityTranslationResultClass = currentMethod.returnType
                     val provider = prefs.getString("translator_provider", "google") ?: "google"
+                    val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
+                    val prefLang = prefs.getString("translator_target_lang", "auto") ?: "auto"
+                    val lang = if (prefLang == "auto") Locale.getDefault().language else prefLang
                     if (currentMethod.parameterTypes[0] == String::class.java) {
                         val text = param.args[0] as String?
-                        val translation = if (provider == "groq") {
-                            translateGroq(text, Locale.getDefault().language).get()
+                        val translation = if (provider == "groq" && groqKey.isNotBlank()) {
+                            translateGroq(text, lang).get()
                         } else {
-                            translateGoogle(text, Locale.getDefault().language).get()
+                            translateGoogle(text, lang).get()
                         }
                         return unityTranslationResultClass.getConstructor(
                             String::class.java,
@@ -80,10 +83,10 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                         val list = param.args[0] as List<*>
                         val translations = list.map { item ->
                             val text2 = item as String?
-                            if (provider == "groq") {
-                                translateGroq(text2, Locale.getDefault().language).get()
+                            if (provider == "groq" && groqKey.isNotBlank()) {
+                                translateGroq(text2, lang).get()
                             } else {
-                                translateGoogle(text2, Locale.getDefault().language).get()
+                                translateGoogle(text2, lang).get()
                             }
                         }
                         return unityTranslationResultClass.getConstructor(
@@ -110,50 +113,98 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
 
                 val messageId = fMessage.key.messageID
                 val isFromMe = fMessage.key.isFromMe
+                val conversationJid = try {
+                    de.robv.android.xposed.XposedHelpers.callMethod(
+                        fMessage.key.remoteJid.userJid, "getRawString"
+                    ) as? String ?: ""
+                } catch (_: Exception) { "" }
 
-                val previousId = XposedHelpers.getAdditionalInstanceField(view, "wae_bound_id") as? String
-                if (previousId != messageId) {
-                    val prevMessageId = previousId
-                    if (prevMessageId != null) TranslatorWrapperAdapter.hideTranslation(prevMessageId)
-                    XposedHelpers.setAdditionalInstanceField(view, "wae_bound_id", messageId)
-                }
+                TranslatorWrapperAdapter.getOrCreateForJid(conversationJid, prefs)
 
                 val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
-                val anchor = messageTextView ?: view
+                XposedBridge.log("[WAE_GT] onItemBind pos=$position msgId=$messageId textViewNull=${messageTextView == null} jid=$conversationJid")
+                val anchor = messageTextView ?: return
 
-                val gestureDetector = GestureDetector(anchor.context, object : GestureDetector.SimpleOnGestureListener() {
-                    override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                        if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return false
-                        showTranslatePopup(anchor, view, messageText, messageId, isFromMe)
-                        return true
-                    }
-                })
-
-                view.setOnTouchListener { _, event ->
-                    gestureDetector.onTouchEvent(event)
-                    false
+                anchor.setOnClickListener {
+                    if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return@setOnClickListener
+                    showTranslatePopup(anchor, view, messageText, messageId, isFromMe, conversationJid)
                 }
             }
         })
+
+        hookConversationTextRow()
     }
 
-    private fun showTranslatePopup(anchor: View, rootView: ViewGroup, messageText: String, messageId: String, isFromMe: Boolean) {
+    private fun hookConversationTextRow() {
+        val targetId = Utils.getID("conversation_text_row", "id")
+        if (targetId == 0) return
+
+        val hookCallback = object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val frameLayout = param.thisObject as? ViewGroup ?: return
+                if (frameLayout.id != targetId) return
+                attachTranslateTrigger(frameLayout)
+            }
+        }
+
+        if (com.mrksvt.waen.BuildConfig.DONATUR) {
+            val ctx = Utils.application.applicationContext
+            val override = com.mrksvt.waen.xposed.core.HookOverrideStore.getMethodOverride(ctx, "translate_row_trigger")
+            if (override != null) {
+                try {
+                    val clazz = classLoader.loadClass(override.first)
+                    XposedBridge.hookAllMethods(clazz, override.second, hookCallback)
+                    return
+                } catch (e: Exception) {
+                    XposedBridge.log("[WAE_GT] dynamic hook failed: ${e.message}, fallback to static")
+                }
+            }
+        }
+
+        XposedBridge.hookAllMethods(android.view.View::class.java, "onFinishInflate", hookCallback)
+    }
+
+    private fun attachTranslateTrigger(frameLayout: ViewGroup) {
+        val messageTextView = frameLayout.findViewById<TextView>(Utils.getID("message_text", "id")) ?: return
+        val messageText = messageTextView.text?.toString()
+        if (messageText.isNullOrBlank()) return
+
+        messageTextView.setOnClickListener {
+            val currentText = messageTextView.text?.toString() ?: return@setOnClickListener
+            if (currentText.isBlank()) return@setOnClickListener
+
+            val boundItem = ConversationItemListener.listItems[frameLayout]
+            val messageId = boundItem?.messageId ?: return@setOnClickListener
+            val isFromMe = boundItem.message.key.isFromMe
+            val conversationJid = try {
+                XposedHelpers.callMethod(
+                    boundItem.message.key.remoteJid.userJid, "getRawString"
+                ) as? String ?: ""
+            } catch (_: Exception) { "" }
+
+            if (conversationJid.isBlank()) return@setOnClickListener
+            TranslatorWrapperAdapter.getOrCreateForJid(conversationJid, prefs)
+            showTranslatePopup(messageTextView, frameLayout, currentText, messageId, isFromMe, conversationJid)
+        }
+    }
+
+    private fun showTranslatePopup(anchor: View, rootView: ViewGroup, messageText: String, messageId: String, isFromMe: Boolean, conversationJid: String) {
         val popup = PopupMenu(anchor.context, anchor)
         popup.gravity = if (isFromMe) android.view.Gravity.END else android.view.Gravity.START
-        popup.menu.add(0, 1, 0, "Terjemahkan")
+        popup.menu.add(0, 1, 0, anchor.context.getString(R.string.translator_action_translate))
 
-        if (TranslatorWrapperAdapter.hasTranslation(messageId)) {
-            popup.menu.add(0, 2, 1, "Sembunyikan terjemahan")
+        if (TranslatorWrapperAdapter.hasTranslation(conversationJid, messageId)) {
+            popup.menu.add(0, 2, 1, anchor.context.getString(R.string.translator_action_hide))
         }
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> {
-                    triggerTranslate(rootView, messageText, messageId)
+                    triggerTranslate(rootView, messageText, messageId, conversationJid, isFromMe)
                     true
                 }
                 2 -> {
-                    TranslatorWrapperAdapter.hideTranslation(messageId)
+                    TranslatorWrapperAdapter.hideTranslation(conversationJid, messageId)
                     true
                 }
                 else -> false
@@ -162,20 +213,46 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         popup.show()
     }
 
-    private fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String) {
-        val lang = Locale.getDefault().language
+    private fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String, conversationJid: String, isFromMe: Boolean = false) {
+        val prefLang = prefs.getString("translator_target_lang", "auto") ?: "auto"
+        val lang = if (prefLang == "auto") Locale.getDefault().language else prefLang
         val provider = prefs.getString("translator_provider", "google") ?: "google"
-        val future = if (provider == "groq") translateGroq(messageText, lang)
+        val groqKey = prefs.getString("groq_translator_api_key", "") ?: ""
+        XposedBridge.log("[WAE_GT] triggerTranslate provider=$provider lang=$lang groqBlank=${groqKey.isBlank()} msg='${messageText.take(20)}'")
+
+        if (provider == "groq" && groqKey.isBlank()) {
+            TranslatorWrapperAdapter.showGroqFallbackNotification(conversationJid, rootView)
+        }
+
+        TranslatorWrapperAdapter.startLoading(conversationJid, messageId)
+
+        val future = if (provider == "groq" && groqKey.isNotBlank()) translateGroq(messageText, lang)
                      else translateGoogle(messageText, lang)
 
         future.thenAccept { translated ->
             Handler(Looper.getMainLooper()).post {
-                if (translated.isNullOrBlank()) return@post
-                TranslatorWrapperAdapter.showTranslation(messageId, translated)
-            }
+                XposedBridge.log("[WAE_GT] translate done: '${translated?.take(30)}' jid=$conversationJid id=$messageId")
+                TranslatorWrapperAdapter.clearLoading(conversationJid, messageId)
+                if (translated.isNullOrBlank()) {
+                    XposedBridge.log("[WAE_GT] translated blank, skip inject")
+                    return@post
+                }
+                TranslatorWrapperAdapter.showTranslation(conversationJid, messageId, translated)            }
         }.exceptionally { err ->
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(rootView.context, "Gagal: ${err.message}", Toast.LENGTH_SHORT).show()
+                XposedBridge.log("[WAE_GT] translate error: ${err.cause?.message ?: err.message}")
+                TranslatorWrapperAdapter.clearLoading(conversationJid, messageId)
+                try {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        rootView,
+                        rootView.context.getString(R.string.translator_failed) + ": ${err.cause?.message ?: err.message}",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).setAction(rootView.context.getString(R.string.translator_retry)) {
+                        triggerTranslate(rootView, messageText, messageId, conversationJid)
+                    }.show()
+                } catch (e: Exception) {
+                    Toast.makeText(rootView.context, "Gagal: ${err.message}", Toast.LENGTH_SHORT).show()
+                }
             }
             null
         }
@@ -196,13 +273,65 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         val locale = Locale(languageDest)
         val langName = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { languageDest }
 
+        val customSystemPrompt = prefs.getString("groq_custom_system_prompt", "") ?: ""
+        val customSlang = prefs.getString("groq_custom_slang", "") ?: ""
+
+        val defaultSlang = """
+Common Indonesian/Javanese slang:
+- yank/yang = sayang (dear/honey, term of endearment) — BUT "yang" as relative pronoun in a sentence means "that/which/who", NOT sayang
+- sampean/panjenengan = kamu/Anda (you, formal Javanese)
+- awakmu/kowe = kamu (you, informal Javanese)
+- wis/udah = sudah (already/done) [Javanese]
+- maem = makan (eat) [Javanese/child speech]
+- metu = keluar (go out) [Javanese]
+- gw/gue = saya/aku (I/me) [Jakarta slang]
+- lu/lo = kamu (you) [Jakarta slang]
+- dong/deh/sih/nih/lah = filler particles, translate contextually or omit
+- mantap/mantul = great/awesome
+- gabut = bored/nothing to do
+- baper = overly emotional/sensitive
+- kepo = nosy/curious
+- mager = malas gerak (too lazy to move)
+- japri = jalur pribadi (private message)
+- OTW = on the way""".trimIndent()
+
+        val slangSection = if (customSlang.isNotBlank())
+            "$defaultSlang\n\nUser-defined slang:\n$customSlang"
+        else defaultSlang
+
+        val defaultSystemPrompt = """
+You are a professional translator specializing in Indonesian, Javanese, Sundanese, and Indonesian internet slang.
+
+Rules:
+1. ALWAYS translate. NEVER ask questions, NEVER request clarification, NEVER apologize.
+2. If text is already in the target language ($langName), return it EXACTLY as-is without any changes.
+3. If text is a proper noun, name, greeting, or single word with no translatable meaning, return it EXACTLY as-is.
+4. If text contains slang, abbreviations, or regional dialect (Javanese, Sundanese, Betawi, etc.), infer meaning from context and translate.
+5. Return ONLY the translated text. No explanations, no questions, no alternatives, no AI commentary.
+6. NEVER produce phrases like "Maaf", "saya tidak mengerti", "I don't understand", or any meta-response. Just translate or return as-is.
+7. Target language: $langName
+
+$slangSection
+
+Few-shot disambiguation examples:
+- "yank mau kemana?" → "where are you going, dear?" (yank = endearment)
+- "saya yang akan melakukan itu" → "I will be the one to do it" (yang = relative pronoun, NOT endearment)
+- "dia yang terbaik" → "he/she is the best" (yang = relative pronoun)
+- "coba sampean metu" → "try to go out" (sampean = kamu/you, metu = keluar)
+- "mas khil" → "Mas Khil" (proper name/greeting, return as-is)
+- "cek" → "cek" (already Indonesian, return as-is)
+- "ok" → "ok" (universal, return as-is)
+        """.trimIndent()
+
+        val systemPrompt = if (customSystemPrompt.isNotBlank()) customSystemPrompt else defaultSystemPrompt
+
         val jsonBody = """
             {
                 "model": "$model",
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a translator. Translate the user's text to $langName. Return ONLY the translated text, no explanation."
+                        "content": ${org.json.JSONObject.quote(systemPrompt)}
                     },
                     {
                         "role": "user",
@@ -256,8 +385,11 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         val future = CompletableFuture<String?>()
         val url: String?
         try {
+            val customEndpoint = prefs.getString("google_translate_endpoint", "") ?: ""
+            val baseUrl = if (customEndpoint.isNotBlank()) customEndpoint
+                          else "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=%s&q=%s"
             url = String.format(
-                "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=%s&q=%s",
+                baseUrl,
                 languageDest,
                 URLEncoder.encode(text, "UTF-8")
             )

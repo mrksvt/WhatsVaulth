@@ -29,10 +29,10 @@ class MediaQuality(loader: ClassLoader, preferences: SharedPreferences) :
         val imageQuality = prefs.getBoolean("imagequality", false)
         val maxSize = kotlin.math.max(prefs.getFloat("video_limit_size", 60f).toInt(), 90)
 
-        // Disable manual calculation ProcessMediaQuality
+        if (!videoQuality && !imageQuality) return
+
         Others.propsBoolean[14447] = false
 
-        // Enable Media Quality selection for Stories
         enableMediaQualityForStories()
 
         if (videoQuality) {

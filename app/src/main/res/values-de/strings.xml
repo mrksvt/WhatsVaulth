@@ -339,6 +339,7 @@
     <string name="error_image_name">Name muss mit .png enden</string>
     <string name="imported_as">"Importiert als "</string>
     <string name="save">Speichern</string>
+    <string name="composer_translator_enable_for_chat">Für diesen Chat aktivieren</string>
     <string name="import_image">Bild importieren</string>
     <string name="export_as_zip">Als Zip-Datei exportieren</string>
     <string name="clear">Löschen</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Gelöschte Nachrichten</string>
+    <string name="trash_recovery_sum">Gelöschte Nachrichten nach Kontakt anzeigen</string>
+    <string name="trash_recovery_empty">Keine gelöschten Nachrichten</string>
+    <string name="trash_recovery_media">[Medien]</string>
+    <string name="trash_recovery_clear_all">Alle löschen</string>
+    <string name="trash_recovery_cleared">Gelöschte Nachrichten wurden bereinigt</string>
+    <string name="trash_recovery_export">JSON exportieren</string>
+    <string name="trash_recovery_export_success">In Downloads exportiert</string>
+    <string name="trash_recovery_export_failed">Export fehlgeschlagen</string>
+    <string name="trash_recovery_hook">Gelöschte Nachrichten speichern</string>
+    <string name="trash_recovery_hook_sum">Nachrichteninhalt beim Löschen erfassen (Anti-Revoke muss aktiv sein)</string>
 </resources>

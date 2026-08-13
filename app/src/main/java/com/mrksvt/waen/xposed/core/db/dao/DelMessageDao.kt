@@ -18,4 +18,16 @@ interface DelMessageDao {
     @Query("SELECT timestamp FROM delmessages WHERE msgid = :msgid LIMIT 1")
     fun getTimestampByMessageId(msgid: String): Long?
 
+    @Query("SELECT * FROM delmessages")
+    fun getAllMessages(): List<DelMessage>
+
+    @Query("SELECT * FROM delmessages WHERE jid = :jid")
+    fun getFullMessagesByJid(jid: String): List<DelMessage>
+
+    @Query("DELETE FROM delmessages WHERE jid = :jid")
+    fun deleteByJid(jid: String)
+
+    @Query("DELETE FROM delmessages")
+    fun deleteAll()
+
 }

@@ -36,6 +36,12 @@
             app:title="@string/antirevokestatus" />
 
         <rikka.material.preference.MaterialSwitchPreference
+            app:key="trash_recovery"
+            app:iconSpaceReserved="false"
+            app:summary="@string/trash_recovery_hook_sum"
+            app:title="@string/trash_recovery_hook" />
+
+        <rikka.material.preference.MaterialSwitchPreference
             app:key="antidisappearing"
             app:summary="@string/antidisappearing_sum"
             app:title="@string/antidisappearing" />
@@ -113,6 +119,14 @@
             app:key="google_translate"
             app:summary="@string/google_translate_sum"
             app:title="@string/google_translate" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            app:defaultValue="true"
+            app:dependency="google_translate"
+            app:iconSpaceReserved="false"
+            app:key="composer_translator_enabled"
+            app:summary="@string/composer_translator_enabled_sum"
+            app:title="@string/composer_translator_enabled" />
 
         <Preference
             app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$TranslatorGeneralPreference"

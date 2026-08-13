@@ -11,6 +11,7 @@ object HookBinder : WaeIIFace.Stub() {
         val file = File(path)
         if (!file.exists() && create) {
             try {
+                file.parentFile?.mkdirs()
                 file.createNewFile()
             } catch (_: Exception) {
                 return null

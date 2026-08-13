@@ -339,6 +339,7 @@
     <string name="error_image_name">Имя должно заканчиваться на .png</string>
     <string name="imported_as">"Импортировано как "</string>
     <string name="save">Сохранено</string>
+    <string name="composer_translator_enable_for_chat">Включить для этого чата</string>
     <string name="import_image">Импорт изображения</string>
     <string name="export_as_zip">Экспорт в zip</string>
     <string name="clear">Очистить</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Журнал удалённых</string>
+    <string name="trash_recovery_sum">Просмотр удалённых сообщений по контактам</string>
+    <string name="trash_recovery_empty">Нет удалённых сообщений</string>
+    <string name="trash_recovery_media">[Медиа]</string>
+    <string name="trash_recovery_clear_all">Очистить всё</string>
+    <string name="trash_recovery_cleared">Удалённые сообщения очищены</string>
+    <string name="trash_recovery_export">Экспорт JSON</string>
+    <string name="trash_recovery_export_success">Экспортировано в Загрузки</string>
+    <string name="trash_recovery_export_failed">Ошибка экспорта</string>
+    <string name="trash_recovery_hook">Сохранять удалённые сообщения</string>
+    <string name="trash_recovery_hook_sum">Захватывать содержимое при удалении (требует активного Anti Revoke)</string>
 </resources>

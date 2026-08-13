@@ -14,23 +14,34 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
+import androidx.preference.MultiSelectListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceManager;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.mrksvt.waen.BuildConfig;
 import com.mrksvt.waen.R;
+import com.mrksvt.waen.ui.fragments.TrashRecoveryFragment;
 import com.mrksvt.waen.ui.fragments.base.BaseFragment;
 import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
+import com.mrksvt.waen.xposed.core.HookOverrideStore;
+import com.mrksvt.waen.xposed.core.TelegramReporter;
+
+import android.widget.EditText;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -38,6 +49,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -78,9 +90,21 @@ public class GeneralFragment extends BaseFragment {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             super.onCreatePreferences(savedInstanceState, rootKey);
             setPreferencesFromResource(R.xml.fragment_general, rootKey);
-            if (!BuildConfig.DEBUG) {
+            if (!BuildConfig.DEBUG && !BuildConfig.DONATUR) {
                 Preference devPref = findPreference("dev_engineering_screen");
                 if (devPref != null) devPref.setVisible(false);
+            }
+            Preference trashPref = findPreference("trash_recovery_screen");
+            if (trashPref != null) {
+                if (!BuildConfig.DEBUG && !BuildConfig.DONATUR) trashPref.setVisible(false);
+                trashPref.setOnPreferenceClickListener(pref -> {
+                    requireParentFragment().getChildFragmentManager()
+                        .beginTransaction()
+                        .replace(R.id.frag_container, new TrashRecoveryFragment())
+                        .addToBackStack(null)
+                        .commit();
+                    return true;
+                });
             }
         }
 
@@ -313,63 +337,339 @@ public class GeneralFragment extends BaseFragment {
 
         private static final String LOG_PATH = "/data/data/com.mrksvt.waen/files/wae_dev_log.txt";
 
+        @Nullable
+        @Override
+        public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                @Nullable Bundle savedInstanceState) {
+            Context ctx = requireContext();
+            android.content.res.Resources res = ctx.getResources();
+            float density = res.getDisplayMetrics().density;
+            int dp1  = (int) (1  * density + 0.5f);
+            int dp16 = (int) (16 * density + 0.5f);
+
+            ScrollView scrollRoot = new ScrollView(ctx);
+            LinearLayout root = new LinearLayout(ctx);
+            root.setOrientation(LinearLayout.VERTICAL);
+            scrollRoot.addView(root, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            View divider = new View(ctx);
+            divider.setBackgroundColor(0x1F000000);
+            root.addView(divider, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp1));
+
+            if (BuildConfig.DEBUG || BuildConfig.DONATUR) {
+                root.addView(makeMenuItem(ctx,
+                        "APK Explorer",
+                        "Jelajahi resource & ID dari APK WhatsApp",
+                        () -> requireParentFragment().getChildFragmentManager()
+                                .beginTransaction()
+                                .replace(R.id.frag_container, new ApkExplorerFragment())
+                                .addToBackStack(null)
+                                .commit()));
+
+                View d2 = new View(ctx);
+                d2.setBackgroundColor(0x1F000000);
+                root.addView(d2, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp1));
+
+                root.addView(makeMenuItem(ctx,
+                        "Kelola Hook Override",
+                        "Konfigurasi override hook untuk versi baru WA",
+                        () -> requireParentFragment().getChildFragmentManager()
+                                .beginTransaction()
+                                .replace(R.id.frag_container, new com.mrksvt.waen.ui.fragments.HookOverrideFragment())
+                                .addToBackStack(null)
+                                .commit()));
+
+                View d3 = new View(ctx);
+                d3.setBackgroundColor(0x1F000000);
+                root.addView(d3, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp1));
+            }
+
+            if (BuildConfig.DONATUR) {
+                root.addView(makeMenuItem(ctx,
+                        "Kirim Report ke Developer",
+                        "Laporkan error & hook fix ke developer",
+                        this::showSendReportDialog));
+
+                View d4 = new View(ctx);
+                d4.setBackgroundColor(0x1F000000);
+                root.addView(d4, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp1));
+            }
+
+            root.addView(makeMenuItem(ctx,
+                    "Log WhatsVault",
+                    "Lihat log klik & aktivitas modul",
+                    () -> requireParentFragment().getChildFragmentManager()
+                            .beginTransaction()
+                            .replace(R.id.frag_container, new DevLogFragment())
+                            .addToBackStack(null)
+                            .commit()));
+
+            requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+                @Override
+                public void handleOnBackPressed() {
+                    if (getParentFragmentManager().getBackStackEntryCount() > 0) {
+                        getParentFragmentManager().popBackStack();
+                    } else {
+                        requireActivity().finish();
+                    }
+                }
+            });
+
+            return scrollRoot;
+        }
+
+        private View makeMenuItem(Context ctx, String title, String subtitle, Runnable onClick) {
+            float density = ctx.getResources().getDisplayMetrics().density;
+            int dp12 = (int) (12 * density + 0.5f);
+            int dp16 = (int) (16 * density + 0.5f);
+
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(dp16, dp12, dp16, dp12);
+
+            android.util.TypedValue tv = new android.util.TypedValue();
+            ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
+            row.setBackground(androidx.core.content.ContextCompat.getDrawable(ctx, tv.resourceId));
+            row.setClickable(true);
+            row.setFocusable(true);
+            row.setOnClickListener(v -> onClick.run());
+
+            LinearLayout textCol = new LinearLayout(ctx);
+            textCol.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams textColParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            textCol.setLayoutParams(textColParams);
+
+            TextView tvTitle = new TextView(ctx);
+            tvTitle.setText(title);
+            tvTitle.setTextSize(16f);
+            tvTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            textCol.addView(tvTitle);
+
+            TextView tvSubtitle = new TextView(ctx);
+            tvSubtitle.setText(subtitle);
+            tvSubtitle.setTextSize(13f);
+            tvSubtitle.setTextColor(0xFF9E9E9E);
+            textCol.addView(tvSubtitle);
+
+            row.addView(textCol);
+
+            TextView tvChevron = new TextView(ctx);
+            tvChevron.setText("›");
+            tvChevron.setTextSize(20f);
+            tvChevron.setTextColor(0xFF9E9E9E);
+            row.addView(tvChevron);
+
+            return row;
+        }
+
+        private void showSendReportDialog() {
+            String errorLog = "tidak ada log";
+            java.io.File f = logFile();
+            if (f.exists()) {
+                try {
+                    String raw = new String(java.nio.file.Files.readAllBytes(f.toPath()));
+                    errorLog = raw.length() > 3000 ? raw.substring(raw.length() - 3000) : raw;
+                    if (errorLog.isEmpty()) errorLog = "tidak ada log";
+                } catch (Exception ignored) {}
+            }
+
+            StringBuilder overridesSb = new StringBuilder();
+            java.util.Map<String, String> overrides = HookOverrideStore.getAllOverrides(requireContext());
+            if (overrides.isEmpty()) {
+                overridesSb.append("(tidak ada override)");
+            } else {
+                for (java.util.Map.Entry<String, String> e : overrides.entrySet()) {
+                    overridesSb.append(e.getKey()).append("=").append(e.getValue()).append("\n");
+                }
+            }
+
+            String waRegular = "not installed";
+            try {
+                waRegular = requireContext().getPackageManager()
+                        .getPackageInfo("com.whatsapp", 0).versionName;
+            } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
+
+            String waBusiness = "not installed";
+            try {
+                waBusiness = requireContext().getPackageManager()
+                        .getPackageInfo("com.whatsapp.w4b", 0).versionName;
+            } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
+
+            String device = android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
+                    + " Android " + android.os.Build.VERSION.RELEASE;
+
+            String preview = "=== WA Regular ===\n" + waRegular
+                    + "\n\n=== WA Business ===\n" + waBusiness
+                    + "\n\n=== WhatsVault ===\n" + BuildConfig.VERSION_NAME
+                    + "\n\n=== Device ===\n" + device
+                    + "\n\n=== Hook Overrides ===\n" + overridesSb.toString().trim()
+                    + "\n\n=== Error Log ===\n" + errorLog;
+
+            final String finalErrorLog = errorLog;
+            final String finalWaVersion = waRegular + " / " + waBusiness;
+            final String finalOverrides = overridesSb.toString().trim();
+
+            android.content.res.Resources res = requireContext().getResources();
+            float density = res.getDisplayMetrics().density;
+            int dp8 = (int) (8 * density + 0.5f);
+
+            ScrollView scrollView = new ScrollView(requireContext());
+            TextView previewTv = new TextView(requireContext());
+            previewTv.setText(preview);
+            previewTv.setTextSize(11f);
+            previewTv.setTypeface(android.graphics.Typeface.MONOSPACE);
+            previewTv.setPadding(dp8, dp8, dp8, dp8);
+            scrollView.addView(previewTv);
+            scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (int) (200 * density + 0.5f)));
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Kirim Report ke Developer")
+                    .setMessage("Dengan mengirim, kamu setuju data di atas dikirim ke developer.")
+                    .setView(scrollView)
+                    .setPositiveButton("Kirim", (dialog, which) ->
+                            TelegramReporter.INSTANCE.sendHookFixReport(
+                                    finalOverrides.isEmpty() ? "-" : finalOverrides,
+                                    device,
+                                    finalWaVersion,
+                                    finalErrorLog,
+                                    () -> {
+                                        new Handler(Looper.getMainLooper()).post(() ->
+                                                Toast.makeText(requireContext(),
+                                                        "Report terkirim!", Toast.LENGTH_SHORT).show());
+                                        return kotlin.Unit.INSTANCE;
+                                    },
+                                    errMsg -> {
+                                        new Handler(Looper.getMainLooper()).post(() ->
+                                                Toast.makeText(requireContext(),
+                                                        "Gagal kirim: " + errMsg, Toast.LENGTH_LONG).show());
+                                        return kotlin.Unit.INSTANCE;
+                                    }
+                            ))
+                    .setNegativeButton("Batal", null)
+                    .show();
+        }
+
+        private SharedPreferences getWaePrefs() {
+            return PreferenceManager.getDefaultSharedPreferences(requireContext());
+        }
+
+        private java.io.File logFile() {
+            return new java.io.File(LOG_PATH);
+        }
+    }
+
+    public static class DevLogFragment extends Fragment {
+
+        private static final String LOG_PATH = "/data/data/com.mrksvt.waen/files/wae_dev_log.txt";
+
         private TextView logTextView;
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final Runnable pollRunnable = this::pollLogs;
+        private String rawLogContent = "";
+        private int selectedFilterIndex = 0;
+        private String customFilter = "";
+        private android.widget.EditText customFilterEdit;
+        private final Runnable debounceRunnable = this::applyFilter;
 
         @Nullable
         @Override
         public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                 @Nullable Bundle savedInstanceState) {
-            android.content.res.Resources res = requireContext().getResources();
+            Context ctx = requireContext();
+            android.content.res.Resources res = ctx.getResources();
             float density = res.getDisplayMetrics().density;
-            int dp1  = (int) (1  * density + 0.5f);
             int dp8  = (int) (8  * density + 0.5f);
             int dp16 = (int) (16 * density + 0.5f);
 
-            LinearLayout root = new LinearLayout(requireContext());
+            LinearLayout root = new LinearLayout(ctx);
             root.setOrientation(LinearLayout.VERTICAL);
             root.setPadding(dp16, dp16, dp16, dp16);
 
-            SwitchMaterial toggleSwitch = new SwitchMaterial(requireContext());
-            toggleSwitch.setText("DevEngineering");
-            toggleSwitch.setChecked(getWaePrefs().getBoolean("dev_engineering", false));
-            toggleSwitch.setOnCheckedChangeListener((btn, checked) ->
+            SwitchMaterial devEngSwitch = new SwitchMaterial(ctx);
+            devEngSwitch.setText("DevEngineering");
+            devEngSwitch.setChecked(getWaePrefs().getBoolean("dev_engineering", false));
+            devEngSwitch.setOnCheckedChangeListener((btn, checked) ->
                     getWaePrefs().edit().putBoolean("dev_engineering", checked).apply());
-            root.addView(toggleSwitch);
+            devEngSwitch.setPadding(0, 0, 0, dp8);
+            root.addView(devEngSwitch);
 
-            View divider = new View(requireContext());
-            divider.setBackgroundColor(0x1F000000);
-            root.addView(divider, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp1));
-
-            Button clearBtn = new Button(requireContext());
+            Button clearBtn = new Button(ctx);
             clearBtn.setText("Clear Log");
             clearBtn.setOnClickListener(v -> {
                 logFile().delete();
                 logTextView.setText("(belum ada log)");
             });
 
-            Button copyBtn = new Button(requireContext());
+            Button copyBtn = new Button(ctx);
             copyBtn.setText("Copy Log");
             copyBtn.setOnClickListener(v -> {
                 CharSequence text = logTextView.getText();
                 if (text == null || text.toString().equals("(belum ada log)")) return;
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                        ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("wae_dev_log", text));
-                android.widget.Toast.makeText(requireContext(), "Log disalin", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(ctx, "Log disalin", android.widget.Toast.LENGTH_SHORT).show();
             });
 
-            LinearLayout btnRow = new LinearLayout(requireContext());
+            LinearLayout btnRow = new LinearLayout(ctx);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             LinearLayout.LayoutParams btnParam = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             btnRow.addView(clearBtn, btnParam);
             btnRow.addView(copyBtn, btnParam);
             root.addView(btnRow);
 
-            ScrollView scrollView = new ScrollView(requireContext());
-            logTextView = new TextView(requireContext());
+            android.widget.Spinner filterSpinner = new android.widget.Spinner(ctx);
+            String[] filterOptions = {"Semua", "Klik View", "Error", "Send Button", "Custom..."};
+            android.widget.ArrayAdapter<String> spinnerAdapter = new android.widget.ArrayAdapter<>(
+                    ctx, android.R.layout.simple_spinner_item, filterOptions);
+            spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            filterSpinner.setAdapter(spinnerAdapter);
+            LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            spinnerParams.topMargin = dp8;
+            root.addView(filterSpinner, spinnerParams);
+
+            customFilterEdit = new android.widget.EditText(ctx);
+            customFilterEdit.setHint("Kata kunci filter...");
+            customFilterEdit.setSingleLine(true);
+            customFilterEdit.setVisibility(android.view.View.GONE);
+            LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            editParams.topMargin = dp8;
+            root.addView(customFilterEdit, editParams);
+
+            filterSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                    selectedFilterIndex = position;
+                    customFilterEdit.setVisibility(position == 4 ? android.view.View.VISIBLE : android.view.View.GONE);
+                    applyFilter();
+                }
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
+
+            customFilterEdit.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    customFilter = s.toString();
+                    handler.removeCallbacks(debounceRunnable);
+                    handler.postDelayed(debounceRunnable, 300);
+                }
+                @Override public void afterTextChanged(android.text.Editable s) {}
+            });
+
+            ScrollView scrollView = new ScrollView(ctx);
+            logTextView = new TextView(ctx);
             logTextView.setTextSize(10f);
             logTextView.setTypeface(android.graphics.Typeface.MONOSPACE);
             logTextView.setText("(belum ada log)");
@@ -377,6 +677,17 @@ public class GeneralFragment extends BaseFragment {
             scrollView.addView(logTextView);
             root.addView(scrollView, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+            requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+                @Override
+                public void handleOnBackPressed() {
+                    if (getParentFragmentManager().getBackStackEntryCount() > 0) {
+                        getParentFragmentManager().popBackStack();
+                    } else {
+                        requireActivity().finish();
+                    }
+                }
+            });
 
             return root;
         }
@@ -398,12 +709,51 @@ public class GeneralFragment extends BaseFragment {
                 java.io.File f = logFile();
                 if (f.exists()) {
                     try {
-                        String content = new String(java.nio.file.Files.readAllBytes(f.toPath()));
-                        logTextView.setText(content.isEmpty() ? "(belum ada log)" : content);
+                        rawLogContent = new String(java.nio.file.Files.readAllBytes(f.toPath()));
                     } catch (Exception ignored) {}
                 }
+                applyFilter();
             }
             handler.postDelayed(pollRunnable, 500);
+        }
+
+        private void applyFilter() {
+            if (logTextView == null) return;
+            if (rawLogContent.isEmpty()) {
+                logTextView.setText("(belum ada log)");
+                return;
+            }
+            String[] lines = rawLogContent.split("\n", -1);
+            StringBuilder filtered = new StringBuilder();
+            for (String line : lines) {
+                boolean match;
+                switch (selectedFilterIndex) {
+                    case 1:
+                        match = line.contains("performClick") || line.contains("id=");
+                        break;
+                    case 2:
+                        match = line.contains("Error") || line.contains("Exception");
+                        break;
+                    case 3:
+                        match = line.contains("send") || line.contains("composer");
+                        break;
+                    case 4:
+                        match = !customFilter.isEmpty() && line.toLowerCase().contains(customFilter.toLowerCase());
+                        break;
+                    default:
+                        match = true;
+                        break;
+                }
+                if (match) {
+                    if (filtered.length() > 0) filtered.append("\n");
+                    filtered.append(line);
+                }
+            }
+            if (filtered.length() == 0) {
+                logTextView.setText("(tidak ada log yang cocok)");
+            } else {
+                logTextView.setText(filtered.toString());
+            }
         }
 
         private SharedPreferences getWaePrefs() {

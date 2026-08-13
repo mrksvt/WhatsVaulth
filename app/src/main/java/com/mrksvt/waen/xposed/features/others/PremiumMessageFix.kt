@@ -150,8 +150,11 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
 
     private fun migratePremiumMessage(db: SQLiteDatabase) {
         if (schemaMigrated.get()) return
+        if (isMigrating.get()) return
         synchronized(migrateLock) {
             if (schemaMigrated.get()) return
+            if (isMigrating.get()) return
+            isMigrating.set(true)
             try {
                 if (!db.isOpen) return
                 val hasTable = tableExists(db, TABLE)
@@ -182,6 +185,8 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
                 schemaMigrated.set(true)
             } catch (e: Throwable) {
                 log("migratePremiumMessage: ${e.message}")
+            } finally {
+                isMigrating.set(false)
             }
         }
     }
@@ -217,6 +222,7 @@ class PremiumMessageFix(classLoader: ClassLoader, preferences: SharedPreferences
 
         private val migrateLock = Any()
         private val schemaMigrated = AtomicBoolean(false)
+        private val isMigrating = AtomicBoolean(false)
 
         private val MISSING_COLUMNS = linkedMapOf(
             "message_type" to "INTEGER DEFAULT 0",

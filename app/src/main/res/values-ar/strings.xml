@@ -339,6 +339,7 @@
     <string name="error_image_name">الاسم يجب أن ينتهي بـ .png</string>
     <string name="imported_as">"مستورد كـ "</string>
     <string name="save">حفظ</string>
+    <string name="composer_translator_enable_for_chat">تفعيل لهذه المحادثة</string>
     <string name="import_image">استيراد صورة</string>
     <string name="export_as_zip">تصدير كـ zip</string>
     <string name="clear">مسح</string>
@@ -498,6 +499,15 @@
     <string name="picker_contact">الاتصال</string>
     <string name="converting_audio">جارٍ تحويل الصوت، انتظر بضع دقائق حتى يكتمل...</string>
     <string name="preview_image">معاينة الصورة</string>
+    <string name="trash_recovery">سجل المحذوفات</string>
+    <string name="trash_recovery_sum">عرض الرسائل المحذوفة حسب جهات الاتصال</string>
+    <string name="trash_recovery_empty">لا توجد رسائل محذوفة</string>
+    <string name="trash_recovery_media">[وسائط]</string>
+    <string name="trash_recovery_clear_all">مسح الكل</string>
+    <string name="trash_recovery_cleared">تم مسح الرسائل المحذوفة</string>
+    <string name="trash_recovery_export">تصدير JSON</string>
+    <string name="trash_recovery_export_success">تم التصدير إلى التنزيلات</string>
+    <string name="trash_recovery_export_failed">فشل التصدير</string>
     <string name="preview_video">معاينة الفيديو</string>
     <string name="downloading">\"تحميل... \"</string>
     <string name="decrypting">جارٍ فك التشفير...</string>
@@ -509,4 +519,6 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery_hook">حفظ الرسائل المحذوفة</string>
+    <string name="trash_recovery_hook_sum">التقاط محتوى الرسائل عند حذفها (يتطلب تفعيل مضاد الحذف)</string>
 </resources>

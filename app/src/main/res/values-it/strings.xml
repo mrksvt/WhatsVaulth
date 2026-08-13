@@ -339,6 +339,7 @@
     <string name="error_image_name">Il nome deve terminare con .png</string>
     <string name="imported_as">"Importato come "</string>
     <string name="save">Salva</string>
+    <string name="composer_translator_enable_for_chat">Abilita per questa chat</string>
     <string name="import_image">Importa immagine</string>
     <string name="export_as_zip">Esporta come zip</string>
     <string name="clear">Pulisci</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Rimuove il bordo bianco quando si creano adesivi</string>
     <string name="remove_sticker_white_outline">Rimuovi contorno bianco adesivo</string>
     <string name="stickers">Adesivi</string>
+    <string name="trash_recovery">Log eliminati</string>
+    <string name="trash_recovery_sum">Visualizza messaggi eliminati per contatto</string>
+    <string name="trash_recovery_empty">Nessun messaggio eliminato</string>
+    <string name="trash_recovery_media">[Media]</string>
+    <string name="trash_recovery_clear_all">Cancella tutto</string>
+    <string name="trash_recovery_cleared">Messaggi eliminati cancellati</string>
+    <string name="trash_recovery_export">Esporta JSON</string>
+    <string name="trash_recovery_export_success">Esportato in Download</string>
+    <string name="trash_recovery_export_failed">Esportazione fallita</string>
+    <string name="trash_recovery_hook">Salva messaggi eliminati</string>
+    <string name="trash_recovery_hook_sum">Cattura il contenuto alla cancellazione (Anti Revoke deve essere attivo)</string>
 </resources>

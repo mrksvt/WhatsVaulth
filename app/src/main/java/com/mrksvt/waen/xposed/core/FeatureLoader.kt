@@ -47,6 +47,7 @@ import com.mrksvt.waen.xposed.features.customization.SeparateGroup
 import com.mrksvt.waen.xposed.features.customization.ShowOnline
 import com.mrksvt.waen.xposed.features.general.AboutContactPicker
 import com.mrksvt.waen.xposed.features.general.AntiRevoke
+import com.mrksvt.waen.xposed.features.general.TrashRecovery
 import com.mrksvt.waen.xposed.features.general.CallType
 import com.mrksvt.waen.xposed.features.general.ChatLimit
 import com.mrksvt.waen.xposed.features.general.DeleteStatus
@@ -69,6 +70,7 @@ import com.mrksvt.waen.xposed.features.media.StatusDownload
 import com.mrksvt.waen.xposed.features.others.ActivityController
 import com.mrksvt.waen.xposed.features.others.AudioTranscript
 import com.mrksvt.waen.xposed.features.others.BackupRestore
+import com.mrksvt.waen.xposed.features.others.ComposerTranslator
 import com.mrksvt.waen.xposed.features.others.Channels
 import com.mrksvt.waen.xposed.features.others.ChatFilters
 import com.mrksvt.waen.xposed.features.others.CopySelectionMessage
@@ -86,6 +88,7 @@ import com.mrksvt.waen.xposed.features.others.MenuHome
 import com.mrksvt.waen.xposed.features.others.Stickers
 import com.mrksvt.waen.xposed.features.others.TextStatusComposer
 import com.mrksvt.waen.xposed.features.others.ToastViewer
+import com.mrksvt.waen.xposed.features.others.ViewInspector
 import com.mrksvt.waen.xposed.features.privacy.AntiWa
 import com.mrksvt.waen.xposed.features.privacy.CallPrivacy
 import com.mrksvt.waen.xposed.features.privacy.CustomPrivacy
@@ -224,7 +227,11 @@ class FeatureLoader {
                         if (param.thisObject.javaClass.simpleName != "HomeActivity") return
                         if (list.isNotEmpty()) {
                             val activity = param.thisObject as Activity
-                            val msg = list.joinToString("\n") { "${it.pluginName} - ${it.message}" }
+                            val msg = if (BuildConfig.DONATUR) {
+                                list.joinToString("\n\n") { it.toHumanString(activity) }
+                            } else {
+                                list.joinToString("\n") { "${it.pluginName} - ${it.message}" }
+                            }
 
                             AlertDialogWpp(activity)
                                 .setTitle(activity.getString(R.string.error_detected))
@@ -477,6 +484,7 @@ class FeatureLoader {
                 MenuStatusListener::class.java,
                 ShowEditMessage::class.java,
                 AntiRevoke::class.java,
+                TrashRecovery::class.java,
                 CustomToolbar::class.java,
                 CustomView::class.java,
                 SeenTick::class.java,
@@ -527,13 +535,15 @@ class FeatureLoader {
                 DevEngineering::class.java,
                 GoogleTranslate::class.java,
                 GroqTranslator::class.java,
+                ComposerTranslator::class.java,
                 ContactVerify::class.java,
                 LockedChatsEnhancer::class.java,
                 CallRecording::class.java,
                 BackupRestore::class.java,
                 JumpFirstMessage::class.java,
                 AboutContactPicker::class.java,
-                DefaultEmoji::class.java
+                DefaultEmoji::class.java,
+                ViewInspector::class.java
             )
 
             XposedBridge.log("Loading Plugins")
@@ -598,6 +608,14 @@ class FeatureLoader {
                 Message=$message
                 error='$errorDetail'
             """.trimIndent()
+        }
+
+        fun toHumanString(context: Context): String {
+            return if (BuildConfig.DONATUR) {
+                ErrorMessageTranslator.translate(context, pluginName, message, errorDetail)
+            } else {
+                toString()
+            }
         }
     }
 }

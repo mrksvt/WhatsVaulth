@@ -1230,21 +1230,36 @@ object Unobfuscator {
     fun loadNewMessageMethod(loader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(loader) {
             val clazzMessageName = loadFMessageClass(loader).name
-            val listMethods = bridge.findMethod {
-                searchPackages("com.whatsapp")
-                matcher {
-                    addUsingString("extra_payment_note", StringMatchType.Equals)
+            val anchors = listOf(
+                "extra_payment_note",
+                "message_secret_key_tag",
+                "message_text",
+                "futureproof"
+            )
+            var method: java.lang.reflect.Method? = null
+            for (anchor in anchors) {
+                val listMethods = bridge.findMethod {
+                    searchPackages("com.whatsapp")
+                    matcher {
+                        addUsingString(anchor, StringMatchType.Equals)
+                    }
                 }
+                if (listMethods.isEmpty()) continue
+                method = listMethods[0].invokes.parallelStream()
+                    .filter { invoke ->
+                        clazzMessageName == invoke.declaredClass?.name &&
+                                invoke.returnType != null &&
+                                invoke.returnType?.name == "java.lang.String"
+                    }.findFirst().orElse(null)?.getMethodInstance(loader)
+                if (method != null) break
             }
-            if (listMethods.isEmpty()) throw Exception("NewMessage method not found")
-            val invokes = listMethods[0].invokes
-            val method = invokes.parallelStream()
-                .filter { invoke ->
-                    clazzMessageName == invoke.declaredClass?.name &&
-                            invoke.returnType != null &&
-                            invoke.returnType?.name == "java.lang.String"
-                }.findFirst().orElse(null) ?: throw RuntimeException("NewMessage method not found")
-            method.getMethodInstance(loader)
+            method ?: run {
+                val fMsgClass = loader.loadClass(clazzMessageName)
+                val fallback = fMsgClass.declaredMethods.firstOrNull { m ->
+                    m.parameterCount == 0 && m.returnType == String::class.java
+                } ?: throw RuntimeException("NewMessage method not found")
+                fallback
+            }
         }
     }
 
@@ -3411,6 +3426,19 @@ object Unobfuscator {
                     superClass = PopupWindow::class.java.name
                 }
             }.single().getInstance(classLoader)
+        }
+    }
+
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadComposerInputFieldMethod(classLoader: ClassLoader): Method {
+        return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            val clazz = classLoader.loadClass("com.whatsapp.conversation.ConversationFragment")
+            ReflectionUtils.findMethodUsingFilter(clazz) { m ->
+                m.parameterCount == 2 &&
+                        m.parameterTypes[0] == android.os.Bundle::class.java &&
+                        m.parameterTypes[1] == android.view.View::class.java
+            }
         }
     }
 

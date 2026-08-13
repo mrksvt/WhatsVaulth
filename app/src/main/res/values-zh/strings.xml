@@ -339,6 +339,7 @@
     <string name="error_image_name">名称必须以 .png 结尾</string>
     <string name="imported_as">"导入为 "</string>
     <string name="save">保存</string>
+    <string name="composer_translator_enable_for_chat">为此聊天启用</string>
     <string name="import_image">导入图片</string>
     <string name="export_as_zip">导出为zip</string>
     <string name="clear">清除</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">已删除记录</string>
+    <string name="trash_recovery_sum">按联系人查看已删除消息</string>
+    <string name="trash_recovery_empty">没有已删除的消息</string>
+    <string name="trash_recovery_media">[媒体]</string>
+    <string name="trash_recovery_clear_all">全部清除</string>
+    <string name="trash_recovery_cleared">已删除消息已清除</string>
+    <string name="trash_recovery_export">导出 JSON</string>
+    <string name="trash_recovery_export_success">已导出到下载</string>
+    <string name="trash_recovery_export_failed">导出失败</string>
+    <string name="trash_recovery_hook">保存已删除消息</string>
+    <string name="trash_recovery_hook_sum">删除时捕获消息内容（需启用反撤回功能）</string>
 </resources>

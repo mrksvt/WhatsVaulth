@@ -12,10 +12,14 @@ import android.widget.ListView
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
+import com.mrksvt.waen.xposed.features.others.TranslatorWrapperAdapter
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
+import com.mrksvt.waen.BuildConfig
+import com.mrksvt.waen.xposed.core.HookOverrideStore
+import com.mrksvt.waen.xposed.utils.Utils
 import java.util.WeakHashMap
 
 class ConversationItemListener(
@@ -76,74 +80,99 @@ class ConversationItemListener(
                 hooked?.unhook()
         }
 
-        XposedHelpers.findAndHookMethod(
-            ListView::class.java,
-            "setAdapter",
-            ListAdapter::class.java,
-            object : XC_MethodHook() {
-                @Throws(Throwable::class)
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val currentActivity = WppCore.getCurrentActivity()
-                    if (currentActivity == null || currentActivity.javaClass.simpleName != "Conversation") {
-                        return
-                    }
+        val setAdapterHook = object : XC_MethodHook() {
+            @Throws(Throwable::class)
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                val currentActivity = WppCore.getCurrentActivity()
+                if (currentActivity == null || currentActivity.javaClass.simpleName != "Conversation") return
 
-                    val listView = param.thisObject as ListView
-                    if (listView.id != android.R.id.list) {
-                        return
-                    }
+                val listView = param.thisObject as? ListView ?: return
+                if (listView.id != android.R.id.list) return
 
-                    var currentAdapter = param.args[0] as? ListAdapter
-                    if (currentAdapter is HeaderViewListAdapter) {
-                        currentAdapter = currentAdapter.wrappedAdapter
-                    }
+                var currentAdapter = param.args[0] as? ListAdapter
+                if (currentAdapter is HeaderViewListAdapter) {
+                    currentAdapter = currentAdapter.wrappedAdapter
+                }
+                if (currentAdapter is TranslatorWrapperAdapter) {
+                    currentAdapter = currentAdapter.realAdapter
+                }
+                if (currentAdapter == null) return
 
-                    if (currentAdapter == null) {
-                        return
-                    }
+                adapter = currentAdapter
 
-                    adapter = currentAdapter
+                for (listener in conversationListeners) {
+                    listener.onAttachAdapter(adapter)
+                }
 
-                    for (listener in conversationListeners) {
-                        listener.onAttachAdapter(adapter)
-                    }
+                val wrapperAdapter = TranslatorWrapperAdapter.getOrCreateForRealAdapter(currentAdapter, prefs)
+                param.args[0] = wrapperAdapter
 
-                    hooked?.unhook()
+                hooked?.unhook()
 
-                    val method = adapter!!.javaClass.getDeclaredMethod(
+                Handler(Looper.getMainLooper()).post {
+                    wrapperAdapter.attachListViewObserver(listView)
+                }
+
+                val method = try {
+                    adapter!!.javaClass.getDeclaredMethod(
                         "getView",
                         Int::class.javaPrimitiveType,
                         View::class.java,
                         ViewGroup::class.java
                     )
+                } catch (_: NoSuchMethodException) {
+                    adapter!!.javaClass.getMethod(
+                        "getView",
+                        Int::class.javaPrimitiveType,
+                        View::class.java,
+                        ViewGroup::class.java
+                    )
+                }
 
-                    hooked = XposedBridge.hookMethod(method, object : XC_MethodHook() {
-                        @Throws(Throwable::class)
-                        override fun afterHookedMethod(param: MethodHookParam) {
-                            if (param.thisObject !== adapter) return
+                hooked = XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    @Throws(Throwable::class)
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.thisObject !== adapter) return
 
-                            val position = param.args[0] as Int
-                            val convertView = param.args[1] as? View
-                            val viewGroup = param.result as? ViewGroup ?: return
+                        val position = param.args[0] as Int
+                        val convertView = param.args[1] as? View
+                        val viewGroup = param.result as? ViewGroup ?: return
 
-                            val fMessageObj = adapter!!.getItem(position) ?: return
+                        XposedBridge.log("[WAE_CIL] getView pos=$position thisObj=${param.thisObject?.javaClass?.simpleName}")
+                        val fMessageObj = adapter!!.getItem(position) ?: return
+                        XposedBridge.log("[WAE_CIL] fMessageObj class=${fMessageObj.javaClass.simpleName}")
+                        val fMessage = FMessageWpp(fMessageObj)
 
-                            val fMessage = FMessageWpp(fMessageObj)
+                        bindViewToMessage(viewGroup, fMessage)
 
-                            bindViewToMessage(viewGroup, fMessage)
-
-                            for (listener in conversationListeners) {
-                                try {
-                                    listener.onItemBind(fMessage, viewGroup, position, convertView)
-                                } catch (e: Throwable) {
-                                    logDebug(e)
-                                }
+                        for (listener in conversationListeners) {
+                            try {
+                                listener.onItemBind(fMessage, viewGroup, position, convertView)
+                            } catch (e: Throwable) {
+                                logDebug(e)
                             }
                         }
-                    })
+                    }
+                })
+            }
+        }
+
+        if (com.mrksvt.waen.BuildConfig.DONATUR) {
+            val ctx = Utils.application.applicationContext
+            val override = HookOverrideStore.getMethodOverride(ctx, "conversation_item_bind")
+            if (override != null) {
+                try {
+                    val clazz = classLoader.loadClass(override.first)
+                    XposedBridge.hookAllMethods(clazz, override.second, setAdapterHook)
+                    XposedHelpers.findAndHookMethod(ListView::class.java, "setAdapter", ListAdapter::class.java, setAdapterHook)
+                    return
+                } catch (e: Exception) {
+                    XposedBridge.log("[WAE_CIL] dynamic hook failed: ${e.message}, fallback to static")
                 }
             }
-        )
+        }
+
+        XposedHelpers.findAndHookMethod(ListView::class.java, "setAdapter", ListAdapter::class.java, setAdapterHook)
     }
 
     override fun getPluginName(): String {

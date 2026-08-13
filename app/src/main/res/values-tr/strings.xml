@@ -339,6 +339,7 @@
     <string name="error_image_name">Ad .png ile bitmelidir</string>
     <string name="imported_as">"İçe aktarıldı "</string>
     <string name="save">Kaydet</string>
+    <string name="composer_translator_enable_for_chat">Bu sohbet için etkinleştir</string>
     <string name="import_image">Resim İçe Aktar</string>
     <string name="export_as_zip">Zip olarak dışa aktar</string>
     <string name="clear">Temizle</string>
@@ -509,4 +510,15 @@
     <string name="remove_sticker_white_outline_sum">Remove the white border when creating stickers</string>
     <string name="remove_sticker_white_outline">Remove sticker white outline</string>
     <string name="stickers">Stickers</string>
+    <string name="trash_recovery">Silinen Günlük</string>
+    <string name="trash_recovery_sum">Kişiye göre silinen mesajları görüntüle</string>
+    <string name="trash_recovery_empty">Silinmiş mesaj yok</string>
+    <string name="trash_recovery_media">[Medya]</string>
+    <string name="trash_recovery_clear_all">Tümünü temizle</string>
+    <string name="trash_recovery_cleared">Silinen mesajlar temizlendi</string>
+    <string name="trash_recovery_export">JSON dışa aktar</string>
+    <string name="trash_recovery_export_success">İndirilenler klasörüne aktarıldı</string>
+    <string name="trash_recovery_export_failed">Dışa aktarma başarısız</string>
+    <string name="trash_recovery_hook">Silinen mesajları kaydet</string>
+    <string name="trash_recovery_hook_sum">Silinirken mesaj içeriğini yakala (Anti Revoke aktif olmalı)</string>
 </resources>

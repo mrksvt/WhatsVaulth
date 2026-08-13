@@ -171,7 +171,7 @@ class MarketingMessagesFix(classLoader: ClassLoader, preferences: SharedPreferen
                             db.execSQL(sql)
                             log("Added column $col to $TABLE")
                         } catch (e: SQLiteException) {
-                            log("ALTER TABLE $col failed: ${e.message}")
+                            logDebug("ALTER TABLE $col skipped (already exists): ${e.message}")
                         }
                     }
                 }

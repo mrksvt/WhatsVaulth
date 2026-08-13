@@ -145,7 +145,21 @@ class FMessageWpp(fMessage: Any?) {
             return try {
                 val message = messageMethod?.invoke(fmessage) as? String
                 if (message != null) return message
-                messageWithMediaMethod?.invoke(fmessage) as? String
+                val mediaMsg = messageWithMediaMethod?.invoke(fmessage) as? String
+                if (mediaMsg != null) return mediaMsg
+                var clazz: Class<*>? = fmessage.javaClass
+                while (clazz != null && clazz != Any::class.java) {
+                    val found = clazz.declaredFields
+                        .filter { it.type == String::class.java }
+                        .mapNotNull { f ->
+                            f.isAccessible = true
+                            f.get(fmessage) as? String
+                        }
+                        .firstOrNull { it.isNotBlank() && it.length > 1 }
+                    if (found != null) return found
+                    clazz = clazz.superclass
+                }
+                null
             } catch (e: Exception) {
                 XposedBridge.log(e)
                 null

@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mrksvt.waen.xposed.core.db.dao.DelMessageDao
 import com.mrksvt.waen.xposed.core.db.entity.DelMessage
 
-@Database(entities = [DelMessage::class], version = 12, exportSchema = false)
+@Database(entities = [DelMessage::class], version = 14, exportSchema = false)
 abstract class DelMessageDatabase : RoomDatabase() {
 
     abstract fun delMessageDao(): DelMessageDao
@@ -84,6 +84,56 @@ abstract class DelMessageDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN text TEXT;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN mediaPath TEXT;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN mediaType INTEGER DEFAULT -1;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN senderName TEXT;")
+                } catch (_: Exception) {
+                }
+            }
+        }
+
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN wa TEXT;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN contact TEXT;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN intime INTEGER DEFAULT 0;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN deltime INTEGER DEFAULT 0;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN voiceFileName TEXT;")
+                } catch (_: Exception) {
+                }
+                try {
+                    db.execSQL("ALTER TABLE delmessages ADD COLUMN fileId TEXT;")
+                } catch (_: Exception) {
+                }
+            }
+        }
+
         fun getInstance(context: Context): DelMessageDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -100,7 +150,9 @@ abstract class DelMessageDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10,
                         MIGRATION_10_11,
-                        MIGRATION_11_12
+                        MIGRATION_11_12,
+                        MIGRATION_12_13,
+                        MIGRATION_13_14
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(false)
                     .allowMainThreadQueries()
