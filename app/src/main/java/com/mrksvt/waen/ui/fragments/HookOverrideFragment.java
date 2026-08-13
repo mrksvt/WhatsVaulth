@@ -27,43 +27,42 @@ public class HookOverrideFragment extends Fragment {
 
     private LinearLayout listContainer;
 
-    // Built-in hooks: {hookKey, defaultValue, type}
-    // type: "id" or "drawable"
     private static final String[][] BUILTIN_HOOKS = {
-        {"composer_send_btn",         "send",                       "id"},
-        {"action_mode_bar",           "action_mode_bar",            "id"},
-        {"bottom_nav",                "bottom_nav",                 "id"},
-        {"bottom_nav_divider",        "bottom_nav_divider",         "id"},
-        {"broadcast_icon",            "broadcast_icon",             "id"},
-        {"caption",                   "caption",                    "id"},
-        {"contact_photo",             "contact_photo",              "id"},
-        {"container_view",            "container_view",             "id"},
-        {"control_btn",               "control_btn",                "id"},
-        {"conversation_contact",      "conversation_contact",       "id"},
-        {"conversations_row_content", "conversations_row_content",  "id"},
-        {"date",                      "date",                       "id"},
-        {"entry",                     "entry",                      "id"},
-        {"header",                    "header",                     "id"},
-        {"input_attach_button",       "input_attach_button",        "id"},
-        {"input_layout_content",      "input_layout_content",       "id"},
-        {"media_container",           "media_container",            "id"},
-        {"message_text",              "message_text",               "id"},
-        {"menu",                      "menu",                       "id"},
-        {"menuitem_search",           "menuitem_search",            "id"},
-        {"name_in_group",             "name_in_group",              "id"},
-        {"pin_indicator",             "pin_indicator",              "id"},
-        {"reactions_bubble_layout",   "reactions_bubble_layout",    "id"},
-        {"reply_bar_background",      "reply_bar_background",       "id"},
-        {"root_view",                 "root_view",                  "id"},
-        {"row_content",               "row_content",                "id"},
-        {"send",                      "send",                       "id"},
-        {"sticker",                   "sticker",                    "id"},
-        {"text_view",                 "text_view",                  "id"},
-        {"toolbar",                   "toolbar",                    "id"},
-        {"toolbar_logo",              "toolbar_logo",               "id"},
-        {"version",                   "version",                    "id"},
-        {"home_tab_chats_selector",   "home_tab_chats_selector",    "drawable"},
-        {"ic_viewonce",               "ic_viewonce",                "drawable"},
+        {"composer_send_btn",         "send",                       "id",       "Tombol kirim pesan"},
+        {"action_mode_bar",           "action_mode_bar",            "id",       "Action bar saat seleksi teks"},
+        {"bottom_nav",                "bottom_nav",                 "id",       "Navigasi bawah (tab bar)"},
+        {"bottom_nav_divider",        "bottom_nav_divider",         "id",       "Garis pemisah navigasi bawah"},
+        {"broadcast_icon",            "broadcast_icon",             "id",       "Ikon siaran/broadcast"},
+        {"caption",                   "caption",                    "id",       "Teks keterangan media"},
+        {"contact_photo",             "contact_photo",              "id",       "Foto profil kontak"},
+        {"container_view",            "container_view",             "id",       "Container utama layar"},
+        {"control_btn",               "control_btn",                "id",       "Tombol kontrol"},
+        {"conversation_contact",      "conversation_contact",       "id",       "Header info kontak di percakapan"},
+        {"conversation_text_row",     "conversation_text_row",      "id",       "Baris teks pesan di chat (trigger terjemahan)"},
+        {"conversations_row_content", "conversations_row_content",  "id",       "Konten baris daftar percakapan"},
+        {"date",                      "date",                       "id",       "Label tanggal pemisah pesan"},
+        {"entry",                     "entry",                      "id",       "Input teks pesan"},
+        {"header",                    "header",                     "id",       "Header percakapan"},
+        {"input_attach_button",       "input_attach_button",        "id",       "Tombol lampiran di input"},
+        {"input_layout_content",      "input_layout_content",       "id",       "Layout area input pesan"},
+        {"media_container",           "media_container",            "id",       "Container media (foto/video)"},
+        {"message_text",              "message_text",               "id",       "TextView isi teks pesan (trigger tap terjemahan)"},
+        {"menu",                      "menu",                       "id",       "Menu konteks/opsi"},
+        {"menuitem_search",           "menuitem_search",            "id",       "Item search di menu"},
+        {"name_in_group",             "name_in_group",              "id",       "Nama pengirim di grup"},
+        {"pin_indicator",             "pin_indicator",              "id",       "Indikator pesan disematkan"},
+        {"reactions_bubble_layout",   "reactions_bubble_layout",    "id",       "Layout balon reaksi emoji"},
+        {"reply_bar_background",      "reply_bar_background",       "id",       "Background bar balas pesan"},
+        {"root_view",                 "root_view",                  "id",       "Root view utama layar"},
+        {"row_content",               "row_content",                "id",       "Konten baris item"},
+        {"send",                      "send",                       "id",       "Tombol kirim (alias)"},
+        {"sticker",                   "sticker",                    "id",       "Container stiker"},
+        {"text_view",                 "text_view",                  "id",       "TextView generik"},
+        {"toolbar",                   "toolbar",                    "id",       "Toolbar/AppBar atas"},
+        {"toolbar_logo",              "toolbar_logo",               "id",       "Logo di toolbar"},
+        {"version",                   "version",                    "id",       "Label versi"},
+        {"home_tab_chats_selector",   "home_tab_chats_selector",    "drawable", "Drawable tab chat aktif"},
+        {"ic_viewonce",               "ic_viewonce",                "drawable", "Ikon pesan sekali lihat"},
     };
 
     @Nullable
@@ -188,6 +187,14 @@ public class HookOverrideFragment extends Fragment {
             keyView.setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD);
             keyView.setTextSize(13f);
             infoCol.addView(keyView);
+
+            if (hook.length > 3 && hook[3] != null && !hook[3].isEmpty()) {
+                TextView labelView = new TextView(requireContext());
+                labelView.setText(hook[3]);
+                labelView.setTextSize(12f);
+                labelView.setTextColor(0xFF333333);
+                infoCol.addView(labelView);
+            }
 
             TextView defaultView = new TextView(requireContext());
             defaultView.setText("default: " + defaultVal + "  [" + hook[2] + "]");

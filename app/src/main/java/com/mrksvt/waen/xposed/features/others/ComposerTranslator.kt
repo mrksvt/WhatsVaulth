@@ -15,6 +15,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
@@ -742,6 +743,271 @@ class ComposerTranslator(
         return future
     }
 
+    private val ALL_LANGUAGES = listOf(
+        LangEntry("en",    "English",    "English",         "🇺🇸"),
+        LangEntry("id",    "Indonesian", "Indonesia",       "🇮🇩"),
+        LangEntry("ms",    "Malay",      "Bahasa Melayu",   "🇲🇾"),
+        LangEntry("zh-CN", "Chinese",    "中文",             "🇨🇳"),
+        LangEntry("ja",    "Japanese",   "日本語",           "🇯🇵"),
+        LangEntry("ko",    "Korean",     "한국어",           "🇰🇷"),
+        LangEntry("ar",    "Arabic",     "العربية",         "🇸🇦"),
+        LangEntry("es",    "Spanish",    "Español",         "🇪🇸"),
+        LangEntry("fr",    "French",     "Français",        "🇫🇷"),
+        LangEntry("pt",    "Portuguese", "Português",       "🇧🇷"),
+        LangEntry("de",    "German",     "Deutsch",         "🇩🇪"),
+        LangEntry("ru",    "Russian",    "Русский",         "🇷🇺"),
+        LangEntry("hi",    "Hindi",      "हिन्दी",          "🇮🇳"),
+        LangEntry("th",    "Thai",       "ไทย",             "🇹🇭"),
+        LangEntry("vi",    "Vietnamese", "Tiếng Việt",      "🇻🇳"),
+        LangEntry("tr",    "Turkish",    "Türkçe",          "🇹🇷"),
+        LangEntry("pl",    "Polish",     "Polski",          "🇵🇱"),
+        LangEntry("nl",    "Dutch",      "Nederlands",      "🇳🇱"),
+        LangEntry("sv",    "Swedish",    "Svenska",         "🇸🇪"),
+        LangEntry("da",    "Danish",     "Dansk",           "🇩🇰"),
+        LangEntry("fi",    "Finnish",    "Suomi",           "🇫🇮"),
+        LangEntry("no",    "Norwegian",  "Norsk",           "🇳🇴"),
+        LangEntry("cs",    "Czech",      "Čeština",         "🇨🇿"),
+        LangEntry("sk",    "Slovak",     "Slovenčina",      "🇸🇰"),
+        LangEntry("hu",    "Hungarian",  "Magyar",          "🇭🇺"),
+        LangEntry("ro",    "Romanian",   "Română",          "🇷🇴"),
+        LangEntry("bg",    "Bulgarian",  "Български",       "🇧🇬"),
+        LangEntry("uk",    "Ukrainian",  "Українська",      "🇺🇦"),
+        LangEntry("hr",    "Croatian",   "Hrvatski",        "🇭🇷"),
+        LangEntry("sr",    "Serbian",    "Српски",          "🇷🇸"),
+        LangEntry("sl",    "Slovenian",  "Slovenščina",     "🇸🇮"),
+        LangEntry("lt",    "Lithuanian", "Lietuvių",        "🇱🇹"),
+        LangEntry("lv",    "Latvian",    "Latviešu",        "🇱🇻"),
+        LangEntry("et",    "Estonian",   "Eesti",           "🇪🇪"),
+        LangEntry("mt",    "Maltese",    "Malti",           "🇲🇹"),
+        LangEntry("ga",    "Irish",      "Gaeilge",         "🇮🇪"),
+        LangEntry("sq",    "Albanian",   "Shqip",           "🇦🇱"),
+        LangEntry("mk",    "Macedonian", "Македонски",      "🇲🇰"),
+        LangEntry("bs",    "Bosnian",    "Bosanski",        "🇧🇦"),
+        LangEntry("az",    "Azerbaijani","Azərbaycan",      "🇦🇿"),
+        LangEntry("ka",    "Georgian",   "ქართული",        "🇬🇪"),
+        LangEntry("hy",    "Armenian",   "Հայերեն",         "🇦🇲"),
+        LangEntry("is",    "Icelandic",  "Íslenska",        "🇮🇸"),
+        LangEntry("eu",    "Basque",     "Euskara",         "🏴"),
+        LangEntry("ca",    "Catalan",    "Català",          "🏴"),
+        LangEntry("gl",    "Galician",   "Galego",          "🏴"),
+        LangEntry("af",    "Afrikaans",  "Afrikaans",       "🇿🇦"),
+        LangEntry("sw",    "Swahili",    "Kiswahili",       "🇰🇪"),
+        LangEntry("tl",    "Filipino",   "Filipino",        "🇵🇭"),
+        LangEntry("jv",    "Javanese",   "Basa Jawa",       "🇮🇩"),
+        LangEntry("su",    "Sundanese",  "Basa Sunda",      "🇮🇩")
+    )
+
+    private val DEFAULT_POPULAR = listOf(
+        "en", "id", "ms", "zh-CN", "ja", "ko", "ar", "es", "fr",
+        "pt", "de", "ru", "hi", "th", "vi", "tr", "pl", "nl",
+        "sv", "da", "fi", "no", "cs", "sk", "hu", "ro", "bg",
+        "uk", "hr", "sr", "sl", "lt", "lv", "et", "mt", "ga",
+        "sq", "mk", "bs", "az", "ka", "hy", "is", "eu", "ca",
+        "gl", "af", "sw", "tl", "jv", "su"
+    )
+
+    private fun loadRecentLangs(): MutableList<String> {
+        val prefs = WppCore.getPrivPrefs()
+        return try {
+            val arr = org.json.JSONArray(prefs.getString("ct_recent_langs", "[]") ?: "[]")
+            MutableList(arr.length()) { arr.getString(it) }
+        } catch (e: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun saveRecentLangs(list: List<String>) {
+        WppCore.getPrivPrefs().edit()
+            .putString("ct_recent_langs", org.json.JSONArray(list).toString())
+            .apply()
+    }
+
+    private fun pushRecentLang(code: String) {
+        val recent = loadRecentLangs()
+        recent.remove(code)
+        recent.add(0, code)
+        if (recent.size > 9) recent.subList(9, recent.size).clear()
+        saveRecentLangs(recent)
+    }
+
+    private fun buildGridLanguages(): List<LangEntry> {
+        val systemLang = java.util.Locale.getDefault().language
+        val recent = loadRecentLangs().filter { code ->
+            code != systemLang && ALL_LANGUAGES.any { it.code == code }
+        }
+        val fallback = DEFAULT_POPULAR.filter { code ->
+            code != systemLang && recent.none { it == code }
+        }
+        val combined = (recent + fallback)
+            .mapNotNull { code -> ALL_LANGUAGES.find { it.code == code } }
+        return combined.take(9)
+    }
+
+    private fun showFullLanguageDialog(
+        activity: Activity,
+        currentCode: String,
+        onPick: (LangEntry) -> Unit
+    ) {
+        val dialog = android.app.Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+        dialog.window?.apply {
+            setGravity(android.view.Gravity.CENTER)
+            setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.92f).toInt(),
+                (activity.resources.displayMetrics.heightPixels * 0.80f).toInt()
+            )
+            setBackgroundDrawableResource(android.R.color.transparent)
+        }
+
+        val dp4  = Utils.dipToPixels(4)
+        val dp8  = Utils.dipToPixels(8)
+        val dp12 = Utils.dipToPixels(12)
+        val dp16 = Utils.dipToPixels(16)
+        val dp20 = Utils.dipToPixels(20)
+        val dp48 = Utils.dipToPixels(48)
+
+        val container = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E2A2A"))
+                cornerRadius = dp20.toFloat()
+            }
+            setPadding(dp16, dp16, dp16, dp16)
+        }
+
+        val headerRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val headerTitle = TextView(activity).apply {
+            text = "Pilih Bahasa"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val closeBtn = TextView(activity).apply {
+            text = "✕"
+            textSize = 22f
+            setTextColor(Color.WHITE)
+            setPadding(dp8, dp8, dp8, dp8)
+            setOnClickListener { dialog.dismiss() }
+        }
+        headerRow.addView(headerTitle)
+        headerRow.addView(closeBtn)
+        container.addView(headerRow)
+
+        val searchBox = android.widget.EditText(activity).apply {
+            hint = "Cari bahasa..."
+            setHintTextColor(Color.parseColor("#8A8A8A"))
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#2A3A3A"))
+                setStroke(Utils.dipToPixels(1), Color.parseColor("#3A3A3A"))
+                cornerRadius = dp8.toFloat()
+            }
+            setPadding(dp12, dp8, dp12, dp8)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp12
+                bottomMargin = dp8
+            }
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+        container.addView(searchBox)
+
+        val scrollView = android.widget.ScrollView(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        val listLayout = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        scrollView.addView(listLayout)
+        container.addView(scrollView)
+
+        fun rebuildList(query: String) {
+            listLayout.removeAllViews()
+            val filtered = if (query.isBlank()) ALL_LANGUAGES
+            else ALL_LANGUAGES.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                it.nativeName.contains(query, ignoreCase = true) ||
+                it.code.contains(query, ignoreCase = true)
+            }
+            filtered.forEach { lang ->
+                val isSelected = lang.code == currentCode
+                val rowBg = GradientDrawable().apply {
+                    setColor(if (isSelected) Color.parseColor("#1B3A2A") else Color.parseColor("#1E2A2A"))
+                    setStroke(Utils.dipToPixels(1), if (isSelected) Color.parseColor("#25D366") else Color.parseColor("#2A3A3A"))
+                    cornerRadius = dp8.toFloat()
+                }
+                val row = LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = rowBg
+                    setPadding(dp12, dp12, dp12, dp12)
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        bottomMargin = dp4
+                    }
+                    isClickable = true
+                    isFocusable = true
+                }
+                val flagTv = TextView(activity).apply {
+                    text = lang.flag
+                    textSize = 22f
+                    layoutParams = LinearLayout.LayoutParams(dp48, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    gravity = Gravity.CENTER
+                }
+                val textCol = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        leftMargin = dp8
+                    }
+                }
+                val nameTv = TextView(activity).apply {
+                    text = lang.name
+                    textSize = 14f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                }
+                val nativeTv = TextView(activity).apply {
+                    text = lang.nativeName
+                    textSize = 12f
+                    setTextColor(Color.parseColor("#8A8A8A"))
+                }
+                textCol.addView(nameTv)
+                textCol.addView(nativeTv)
+                row.addView(flagTv)
+                row.addView(textCol)
+                if (isSelected) {
+                    val checkTv = TextView(activity).apply {
+                        text = "✓"
+                        textSize = 16f
+                        setTextColor(Color.parseColor("#25D366"))
+                        setPadding(dp8, 0, 0, 0)
+                    }
+                    row.addView(checkTv)
+                }
+                row.setOnClickListener {
+                    onPick(lang)
+                    dialog.dismiss()
+                }
+                listLayout.addView(row)
+            }
+        }
+
+        rebuildList("")
+        searchBox.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                rebuildList(s?.toString() ?: "")
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        dialog.setContentView(container)
+        dialog.show()
+    }
+
     private fun showLanguagePicker(context: android.content.Context, rootView: View) {
         val activity = context as? Activity ?: WppCore.getCurrentActivity() ?: return
 
@@ -752,130 +1018,424 @@ class ComposerTranslator(
         }
         val (currentEnabled, currentLang) = getPerChatConfig(jid)
 
-        val entries = arrayOf(
-            "Otomatis (Locale sistem)", "Indonesia", "English", "Jawa (Javanese)",
-            "Sunda (Sundanese)", "Melayu (Malay)", "日本語 (Japanese)", "한국어 (Korean)",
-            "中文 (Chinese Simplified)", "Español (Spanish)", "Français (French)", "العربية (Arabic)"
-        )
-        val values = arrayOf("auto", "id", "en", "jv", "su", "ms", "ja", "ko", "zh-CN", "es", "fr", "ar")
+        // Backward compat: "auto" saved pref maps to system locale in triggerTranslate
+        // but picker no longer shows it — resolve display lang for pill init
+        val displayLang = if (currentLang == "auto") java.util.Locale.getDefault().language else currentLang
 
-        val sheet = android.app.Dialog(activity, android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar)
+        val sheet = android.app.Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+        sheet.window?.apply {
+            setGravity(android.view.Gravity.BOTTOM)
+            setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+            setBackgroundDrawableResource(android.R.color.transparent)
+        }
 
-        val dp16 = Utils.dipToPixels(16)
-        val dp8 = Utils.dipToPixels(8)
+        val dp2 = Utils.dipToPixels(2)
         val dp4 = Utils.dipToPixels(4)
+        val dp8 = Utils.dipToPixels(8)
+        val dp12 = Utils.dipToPixels(12)
+        val dp16 = Utils.dipToPixels(16)
+        val dp20 = Utils.dipToPixels(20)
+        val dp32 = Utils.dipToPixels(32)
+        val dp40 = Utils.dipToPixels(40)
+        val dp48 = Utils.dipToPixels(48)
 
-        val sheetLayout = LinearLayout(activity).apply {
+        val maxHeight = (activity.resources.displayMetrics.heightPixels * 0.9f).toInt()
+
+        val scrollView = android.widget.ScrollView(activity).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, maxHeight)
+        }
+
+        val rootLayout = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp16, dp16, dp16, dp16)
-            setBackgroundColor(Color.WHITE)
+            setPadding(dp16, dp16, dp16, dp16 + Utils.dipToPixels(32))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E2A2A"))
+                cornerRadius = dp20.toFloat()
+            }
         }
+        scrollView.addView(rootLayout)
 
+        val dragHandle = View(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(dp4, dp32).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp8
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = dp2.toFloat()
+            }
+        }
+        rootLayout.addView(dragHandle)
+
+        val titleRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
         val title = TextView(activity).apply {
-            text = activity.getString(R.string.composer_translator_enabled)
-            textSize = 18f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.BLACK)
-            setPadding(0, 0, 0, dp16)
+            text = "Composer Translator"
+            textSize = 20f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        sheetLayout.addView(title)
+        titleRow.addView(title)
 
-        val divider1 = View(activity).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(1))
-                .also { it.bottomMargin = dp8 }
-            setBackgroundColor(Color.parseColor("#E0E0E0"))
+        val closeBtn = TextView(activity).apply {
+            text = "✕"
+            textSize = 24f
+            setTextColor(Color.WHITE)
+            setPadding(dp8, dp8, dp8, dp8)
+            setOnClickListener { sheet.dismiss() }
         }
-        sheetLayout.addView(divider1)
+        titleRow.addView(closeBtn)
+        rootLayout.addView(titleRow)
+
+        val subtitle = TextView(activity).apply {
+            text = "Atur terjemahan khusus untuk obrolan ini."
+            textSize = 13f
+            setTextColor(Color.parseColor("#8A8A8A"))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp4
+            }
+        }
+        rootLayout.addView(subtitle)
 
         val toggleRow = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp8, 0, dp8)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp16
+            }
         }
-        val toggleLabel = TextView(activity).apply {
-            text = activity.getString(R.string.composer_translator_enable_for_chat)
-            textSize = 15f
-            setTextColor(Color.BLACK)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+
+        val badgeBg = GradientDrawable().apply {
+            setColor(Color.parseColor("#1B3A2A"))
+            cornerRadius = dp20.toFloat()
         }
+        val badgeContainer = FrameLayout(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(dp40, dp40)
+        }
+        val badgeView = View(activity).apply {
+            layoutParams = FrameLayout.LayoutParams(dp40, dp40).apply { gravity = Gravity.CENTER }
+            background = badgeBg
+        }
+        val badgeText = TextView(activity).apply {
+            text = "A⇄"
+            textSize = 16f
+            setTextColor(Color.parseColor("#25D366"))
+            layoutParams = FrameLayout.LayoutParams(dp40, dp40).apply { gravity = Gravity.CENTER }
+            gravity = Gravity.CENTER
+        }
+        badgeContainer.addView(badgeView)
+        badgeContainer.addView(badgeText)
+        toggleRow.addView(badgeContainer)
+
+        val toggleTexts = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                leftMargin = dp12
+                rightMargin = dp12
+            }
+        }
+        val toggleTitle = TextView(activity).apply {
+            text = "Aktifkan untuk obrolan ini"
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+        }
+        val toggleDesc = TextView(activity).apply {
+            text = "Composer akan otomatis menerjemahkan pesan sebelum dikirim."
+            textSize = 13f
+            setTextColor(Color.parseColor("#8A8A8A"))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp2
+            }
+        }
+        toggleTexts.addView(toggleTitle)
+        toggleTexts.addView(toggleDesc)
+        toggleRow.addView(toggleTexts)
+
         val toggleSwitch = android.widget.Switch(activity).apply {
             isChecked = currentEnabled
         }
-        toggleRow.addView(toggleLabel)
-        toggleRow.addView(toggleSwitch)
-        sheetLayout.addView(toggleRow)
-
-        val divider2 = View(activity).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(1))
-                .also { it.topMargin = dp4; it.bottomMargin = dp8 }
-            setBackgroundColor(Color.parseColor("#E0E0E0"))
-        }
-        sheetLayout.addView(divider2)
-
-        val langLabel = TextView(activity).apply {
-            text = activity.getString(R.string.translator_target_lang)
-            textSize = 14f
-            setTextColor(Color.parseColor("#757575"))
-            setPadding(0, 0, 0, dp8)
-        }
-        sheetLayout.addView(langLabel)
-
-        var selectedIndex = values.indexOfFirst { it == currentLang }.coerceAtLeast(0)
-
-        val radioGroup = android.widget.RadioGroup(activity).apply {
-            orientation = android.widget.RadioGroup.VERTICAL
-        }
-        entries.forEachIndexed { idx, label ->
-            val rb = android.widget.RadioButton(activity).apply {
-                text = label
-                id = idx
-                isChecked = idx == selectedIndex
-                setTextColor(Color.BLACK)
-                textSize = 14f
-                setPadding(dp4, dp4, dp4, dp4)
-            }
-            radioGroup.addView(rb)
-        }
-        radioGroup.setOnCheckedChangeListener { _, checkedId ->
-            selectedIndex = checkedId
-        }
-
-        val scrollView = android.widget.ScrollView(activity).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                Utils.dipToPixels(280)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            val green = Color.parseColor("#25D366")
+            toggleSwitch.thumbTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(green, Color.LTGRAY)
+            )
+            toggleSwitch.trackTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(Color.parseColor("#80C8F0C0"), Color.LTGRAY)
             )
         }
-        scrollView.addView(radioGroup)
-        sheetLayout.addView(scrollView)
+        toggleRow.addView(toggleSwitch)
+        rootLayout.addView(toggleRow)
+
+        val divider = View(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(1)).apply {
+                topMargin = dp8
+                bottomMargin = dp8
+            }
+            setBackgroundColor(Color.parseColor("#3A3A3A"))
+        }
+        rootLayout.addView(divider)
+
+        val langSection = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val langLabel = TextView(activity).apply {
+            text = "Bahasa target"
+            textSize = 15f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+        }
+        val langDesc = TextView(activity).apply {
+            text = "Pilih bahasa untuk menerjemahkan pesan yang Anda ketik."
+            textSize = 13f
+            setTextColor(Color.parseColor("#8A8A8A"))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp2
+            }
+        }
+        langSection.addView(langLabel)
+        langSection.addView(langDesc)
+
+        val gridLanguages = buildGridLanguages()
+        var selectedLang: LangEntry = gridLanguages.firstOrNull { it.code == displayLang }
+            ?: ALL_LANGUAGES.firstOrNull { it.code == displayLang }
+            ?: gridLanguages.firstOrNull()
+            ?: ALL_LANGUAGES.first()
+
+        val langPillBg = GradientDrawable().apply {
+            setColor(Color.parseColor("#1E2A2A"))
+            setStroke(Utils.dipToPixels(1), Color.parseColor("#3A3A3A"))
+            cornerRadius = dp20.toFloat()
+        }
+        val langPill = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = langPillBg
+            setPadding(dp12, dp8, dp12, dp8)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp8
+            }
+            isClickable = true
+            isFocusable = true
+        }
+        val langPillText = TextView(activity).apply {
+            text = "🌐 ${selectedLang.flag} ${selectedLang.name} ▾"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        langPill.addView(langPillText)
+        langSection.addView(langPill)
+        rootLayout.addView(langSection)
+
+        val gridLayout = GridLayout(activity).apply {
+            columnCount = 3
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp8
+            }
+        }
+
+        val cellRefs = mutableListOf<Pair<View, View>>()
+
+        fun refreshGridSelection() {
+            cellRefs.forEach { (c, d) ->
+                val code = c.tag as? String ?: ""
+                val sel = code == selectedLang.code
+                (c.background as? GradientDrawable)?.setStroke(
+                    Utils.dipToPixels(1),
+                    if (sel) Color.parseColor("#25D366") else Color.parseColor("#3A3A3A")
+                )
+                (d.background as? GradientDrawable)?.apply {
+                    setColor(if (sel) Color.parseColor("#25D366") else Color.parseColor("#1E2A2A"))
+                    setStroke(Utils.dipToPixels(2), if (sel) Color.parseColor("#25D366") else Color.parseColor("#3A3A3A"))
+                }
+            }
+            langPillText.text = "🌐 ${selectedLang.flag} ${selectedLang.name} ▾"
+        }
+
+        langPill.setOnClickListener {
+            showFullLanguageDialog(activity, selectedLang.code) { picked ->
+                selectedLang = picked
+                refreshGridSelection()
+            }
+        }
+
+        gridLanguages.forEachIndexed { idx, lang ->
+            val isSelected = lang.code == selectedLang.code
+            val cellBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E2A2A"))
+                setStroke(Utils.dipToPixels(1), if (isSelected) Color.parseColor("#25D366") else Color.parseColor("#3A3A3A"))
+                cornerRadius = Utils.dipToPixels(12).toFloat()
+            }
+            val cell = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = cellBg
+                setPadding(dp12, dp12, dp12, dp12)
+                layoutParams = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = LinearLayout.LayoutParams.WRAP_CONTENT
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                    rowSpec = GridLayout.spec(GridLayout.UNDEFINED)
+                    leftMargin = if (idx % 3 != 0) dp4 else 0
+                    rightMargin = if (idx % 3 != 2) dp4 else 0
+                    topMargin = if (idx >= 3) dp4 else 0
+                    bottomMargin = dp4
+                }
+                isClickable = true
+                isFocusable = true
+            }
+
+            val flagView = TextView(activity).apply {
+                text = lang.flag
+                textSize = 22f
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            }
+
+            val textCol = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    leftMargin = dp8
+                }
+            }
+            val nameView = TextView(activity).apply {
+                text = lang.name
+                textSize = 14f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.WHITE)
+            }
+            val nativeView = TextView(activity).apply {
+                text = lang.nativeName
+                textSize = 12f
+                setTextColor(Color.parseColor("#8A8A8A"))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = dp2
+                }
+            }
+            textCol.addView(nameView)
+            textCol.addView(nativeView)
+
+            val dotSize = Utils.dipToPixels(28)
+            val dotBg = GradientDrawable().apply {
+                setColor(if (isSelected) Color.parseColor("#25D366") else Color.parseColor("#1E2A2A"))
+                setStroke(Utils.dipToPixels(2), if (isSelected) Color.parseColor("#25D366") else Color.parseColor("#3A3A3A"))
+                cornerRadius = (dotSize / 2).toFloat()
+            }
+            val radioDot = View(activity).apply {
+                layoutParams = LinearLayout.LayoutParams(dotSize, dotSize)
+                background = dotBg
+            }
+
+            cell.addView(flagView)
+            cell.addView(textCol)
+            cell.addView(radioDot)
+
+            cell.setOnClickListener {
+                selectedLang = lang
+                refreshGridSelection()
+            }
+            cell.tag = lang.code
+            cellRefs.add(Pair(cell, radioDot))
+            gridLayout.addView(cell)
+        }
+        rootLayout.addView(gridLayout)
+
+        val privacyRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp12
+            }
+        }
+        val privacyBadge = View(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(dp32, dp32)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1B3A2A"))
+                cornerRadius = dp16.toFloat()
+            }
+        }
+        val privacyBadgeContainer = FrameLayout(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(dp32, dp32)
+        }
+        val privacyBadgeText = TextView(activity).apply {
+            text = "🛡️"
+            textSize = 16f
+            layoutParams = FrameLayout.LayoutParams(dp32, dp32).apply { gravity = Gravity.CENTER }
+            gravity = Gravity.CENTER
+        }
+        privacyBadgeContainer.addView(privacyBadge, FrameLayout.LayoutParams(dp32, dp32).apply { gravity = Gravity.CENTER })
+        privacyBadgeContainer.addView(privacyBadgeText)
+        privacyRow.addView(privacyBadgeContainer)
+
+        val privacyTexts = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                leftMargin = dp12
+            }
+        }
+        val privacyTitle = TextView(activity).apply {
+            text = "Privasi terjamin"
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.parseColor("#25D366"))
+        }
+        val privacyDesc = TextView(activity).apply {
+            text = "Pesan Anda hanya diproses saat dikirim dan tidak disimpan secara permanen."
+            textSize = 12f
+            setTextColor(Color.parseColor("#8A8A8A"))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp2
+            }
+        }
+        privacyTexts.addView(privacyTitle)
+        privacyTexts.addView(privacyDesc)
+        privacyRow.addView(privacyTexts)
+        rootLayout.addView(privacyRow)
 
         val saveBtn = android.widget.Button(activity).apply {
-            text = activity.getString(R.string.save)
+            text = "💾 SIMPAN"
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
             setTextColor(Color.WHITE)
             val bg = GradientDrawable().apply {
                 setColor(Color.parseColor("#25D366"))
-                cornerRadius = Utils.dipToPixels(6).toFloat()
+                cornerRadius = dp12.toFloat()
             }
             background = bg
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                dp48
             ).apply { topMargin = dp16 }
+            setOnClickListener {
+                val chosenLang = selectedLang.code
+                val chosenEnabled = toggleSwitch.isChecked
+                pushRecentLang(chosenLang)
+                savePerChatConfig(jid, chosenEnabled, chosenLang)
+                XposedBridge.log("[ComposerTranslator] conversation=$jid")
+                XposedBridge.log("[ComposerTranslator] enabled=$chosenEnabled")
+                XposedBridge.log("[ComposerTranslator] language=$chosenLang")
+                sheet.dismiss()
+            }
         }
-        saveBtn.setOnClickListener {
-            val chosenLang = values.getOrElse(selectedIndex) { "auto" }
-            val chosenEnabled = toggleSwitch.isChecked
-            savePerChatConfig(jid, chosenEnabled, chosenLang)
-            XposedBridge.log("[ComposerTranslator] conversation=$jid")
-            XposedBridge.log("[ComposerTranslator] enabled=$chosenEnabled")
-            XposedBridge.log("[ComposerTranslator] language=$chosenLang")
-            sheet.dismiss()
-        }
-        sheetLayout.addView(saveBtn)
+        rootLayout.addView(saveBtn)
 
-        sheet.setContentView(sheetLayout)
+        sheet.setContentView(scrollView)
         sheet.show()
     }
+
+    private data class LangEntry(
+        val code: String,
+        val name: String,
+        val nativeName: String,
+        val flag: String
+    )
 
     override fun getPluginName(): String = "Composer Translator"
 }

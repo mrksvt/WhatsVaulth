@@ -134,6 +134,23 @@ class TranslatorWrapperAdapter(
             fallback.setConversationJid(jid)
             return fallback
         }
+
+        fun getOrCreateForJid(jid: String, prefs: android.content.SharedPreferences): TranslatorWrapperAdapter {
+            val existing = instances[jid]?.get()
+            if (existing != null) return existing
+            val fallback = lastCreated?.get()
+            if (fallback != null) {
+                fallback.setConversationJid(jid)
+                return fallback
+            }
+            val stub = object : android.widget.BaseAdapter() {
+                override fun getCount() = 0
+                override fun getItem(pos: Int) = null
+                override fun getItemId(pos: Int) = 0L
+                override fun getView(pos: Int, v: android.view.View?, p: android.view.ViewGroup) = v ?: android.view.View(p.context)
+            }
+            return TranslatorWrapperAdapter(stub, prefs, jid)
+        }
     }
 
     var listViewRef: WeakReference<ListView>? = null
