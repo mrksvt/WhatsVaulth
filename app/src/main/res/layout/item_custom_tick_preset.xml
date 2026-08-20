@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <TextView
+        android:id="@+id/tv_preset_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textAppearance="?attr/textAppearanceBodyLarge"/>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="8dp">
+
+        <ImageView
+            android:id="@+id/iv_preview_0"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="4dp"
+            android:scaleType="centerInside"
+            android:background="?attr/colorSurfaceVariant"
+            android:contentDescription="@null"/>
+
+        <ImageView
+            android:id="@+id/iv_preview_1"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="4dp"
+            android:scaleType="centerInside"
+            android:background="?attr/colorSurfaceVariant"
+            android:contentDescription="@null"/>
+
+        <ImageView
+            android:id="@+id/iv_preview_2"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="4dp"
+            android:scaleType="centerInside"
+            android:background="?attr/colorSurfaceVariant"
+            android:contentDescription="@null"/>
+
+        <ImageView
+            android:id="@+id/iv_preview_3"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="4dp"
+            android:scaleType="centerInside"
+            android:background="?attr/colorSurfaceVariant"
+            android:contentDescription="@null"/>
+
+        <ImageView
+            android:id="@+id/iv_preview_4"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:scaleType="centerInside"
+            android:background="?attr/colorSurfaceVariant"
+            android:contentDescription="@null"/>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_preset_active"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="Active"
+        android:textAppearance="?attr/textAppearanceLabelSmall"
+        android:textColor="?attr/colorPrimary"
+        android:visibility="gone"/>
+
+</LinearLayout>

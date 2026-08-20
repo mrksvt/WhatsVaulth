@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="supported_versions_wpp">
+        <item>2.26.29.xx</item>
+        <item>2.26.30.xx</item>
+        <item>2.26.31.xx</item>
+        <item>2.26.32.xx</item>
+    </string-array>
+    <string-array name="supported_versions_business">
+        <item>2.26.29.xx</item>
+        <item>2.26.30.xx</item>
+        <item>2.26.31.xx</item>
+        <item>2.26.32.xx</item>
+    </string-array>
+
+    <string-array name="scope">
+        <item>com.whatsapp</item>
+        <item>com.whatsapp.w4b</item>
+        <item>android</item>
+    </string-array>
+
+
+    <string-array name="antirevoke_entries">
+        <item>@string/antirevoke_buttons_desable</item>
+        <item>@string/antirevoke_buttons_show_text</item>
+        <item>@string/antirevoke_buttons_show_icon</item>
+    </string-array>
+    <string-array name="antirevoke_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+
+    <string-array name="archive_entries">
+        <item>@string/disabled</item>
+        <item>@string/click_times</item>
+        <item>@string/hold_title</item>
+    </string-array>
+
+    <string-array name="archive_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="status_style_entries">
+        <item>@string/disabled</item>
+        <item>Facebook Style (1 row)</item>
+        <item>Facebook Style (Table)</item>
+        <item>Status Vertical (No Preview)</item>
+        <item>Status Vertical (Circle)</item>
+        <item>Status Vertical (Square)</item>
+    </string-array>
+
+    <string-array name="status_style_values">
+        <item>0</item>
+        <item>1</item>
+        <item>5</item>
+        <item>4</item>
+        <item>3</item>
+        <item>9</item>
+    </string-array>
+
+    <string-array name="tabshide_contents">
+        <item>@string/updates</item>
+        <item>@string/communities</item>
+        <item>@string/calls</item>
+        <item>@string/tools</item>
+    </string-array>
+    <string-array name="tabshide_values">
+        <item>300</item>
+        <item>600</item>
+        <item>400</item>
+        <item>700</item>
+    </string-array>
+    <string-array name="thememode_entries">
+        <item>@string/follow_system</item>
+        <item>@string/dark_theme_on</item>
+        <item>@string/dark_theme_off</item>
+    </string-array>
+    <string-array name="thememode_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="changecolor_mode_entries">
+        <item>@string/changecolor_mode_manual</item>
+        <item>@string/changecolor_mode_monet</item>
+    </string-array>
+    <string-array name="changecolor_mode_values">
+        <item>manual</item>
+        <item>monet</item>
+    </string-array>
+    <string-array name="wae_color_mode_entries">
+        <item>@string/wae_color_mode_preset</item>
+        <item>@string/wae_color_mode_auto_monet</item>
+    </string-array>
+    <string-array name="wae_color_mode_values">
+        <item>preset</item>
+        <item>monet</item>
+    </string-array>
+    <string-array name="wae_color_preset_entries">
+        <item>@string/color_preset_green</item>
+        <item>@string/color_preset_blue</item>
+        <item>@string/color_preset_cyan</item>
+        <item>@string/color_preset_purple</item>
+        <item>@string/color_preset_orange</item>
+        <item>@string/color_preset_red</item>
+        <item>@string/color_preset_pink</item>
+    </string-array>
+    <string-array name="wae_color_preset_values">
+        <item>green</item>
+        <item>blue</item>
+        <item>cyan</item>
+        <item>purple</item>
+        <item>orange</item>
+        <item>red</item>
+        <item>pink</item>
+    </string-array>
+    <string-array name="chatfilter_buttons">
+        <item>@string/chatfilter_no_search</item>
+        <item>@string/chatfilter_search_icon</item>
+        <item>@string/chatfilter_search_bar</item>
+    </string-array>
+    <string-array name="chatfilter_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="call_blocker_buttons">
+        <item>@string/call_blocker_buttons_no_block</item>
+        <item>@string/call_blocker_buttons_all_block</item>
+        <item>@string/call_blocker_buttons_only_unknown_block</item>
+        <item>@string/contact_block_list</item>
+        <item>@string/contact_white_list</item>
+    </string-array>
+    <string-array name="call_blocker_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="call_type_buttons">
+        <item>@string/call_type_buttons_no_internet</item>
+        <item>@string/call_type_buttons_busy</item>
+        <item>@string/call_type_buttons_ended</item>
+        <item>@string/call_type_buttons_uncallable</item>
+    </string-array>
+
+    <string-array name="call_type_values">
+        <item>no_internet</item>
+        <item>busy</item>
+        <item>ended</item>
+        <item>uncallable</item>
+    </string-array>
+
+    <string-array name="seentick_buttons">
+        <item>@string/antirevoke_buttons_desable</item>
+        <item>@string/seentick_screen</item>
+        <item>@string/seentick_menu</item>
+    </string-array>
+    <string-array name="seentick_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="image_picker">
+        <item>image/*</item>
+    </string-array>
+    <string-array name="audio_type_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="audio_type_buttons">
+        <item>@string/standard</item>
+        <item>@string/audio_note</item>
+        <item>@string/voice_note</item>
+    </string-array>
+    <string-array name="transcription_provider_entries">
+        <item>AssemblyAI</item>
+        <item>Groq AI (Whisper v3 Turbo)</item>
+    </string-array>
+    <string-array name="transcription_provider_values">
+        <item>assemblyai</item>
+        <item>groq</item>
+    </string-array>
+    <string-array name="animations_values">
+        <item>default</item>
+        <item>fade_in</item>
+        <item>fade_out</item>
+        <item>scale_up</item>
+        <item>slide_up</item>
+        <item>slide_right_to_left</item>
+        <item>rotate</item>
+        <item>bounce</item>
+        <item>shrink</item>
+        <item>flip</item>
+        <item>hyperspace_out</item>
+    </string-array>
+    <string-array name="animations_names">
+        <item>Default</item>
+        <item>Fade in</item>
+        <item>Fade out</item>
+        <item>Scale up</item>
+        <item>Slide up</item>
+        <item>Slide right to left</item>
+        <item>Rotate</item>
+        <item>Bounce</item>
+        <item>Shrink</item>
+        <item>Flip</item>
+        <item>Hyperspace out</item>
+    </string-array>
+    <string-array name="custom_privacy_entries">
+        <item>@string/antirevoke_buttons_desable</item>
+        <item>@string/show_contact_info</item>
+        <item>@string/show_contact_info_menu</item>
+    </string-array>
+    <string-array name="custom_privacy_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="configui_entries">
+        <item>@string/configui_mode_default</item>
+        <item>@string/configui_mode_toolbar_photo</item>
+        <item>@string/configui_mode_you_tab</item>
+    </string-array>
+
+    <string-array name="configui_values">
+        <item>0</item>
+        <item>2</item>
+        <item>6</item>
+    </string-array>
+
+    <string-array name="translator_provider_entries">
+        <item>@string/translator_provider_google</item>
+        <item>@string/translator_provider_groq</item>
+    </string-array>
+
+    <string-array name="translator_provider_values">
+        <item>google</item>
+        <item>groq</item>
+    </string-array>
+
+    <string-array name="groq_translator_model_entries">
+        <item>llama-3.3-70b-versatile</item>
+        <item>llama-3.1-8b-instant</item>
+        <item>llama3-8b-8192</item>
+        <item>llama3-70b-8192</item>
+        <item>gemma2-9b-it</item>
+        <item>mixtral-8x7b-32768</item>
+    </string-array>
+
+    <string-array name="groq_translator_model_values">
+        <item>llama-3.3-70b-versatile</item>
+        <item>llama-3.1-8b-instant</item>
+        <item>llama3-8b-8192</item>
+        <item>llama3-70b-8192</item>
+        <item>gemma2-9b-it</item>
+        <item>mixtral-8x7b-32768</item>
+    </string-array>
+
+    <string-array name="translator_target_lang_entries">
+        <item>Otomatis (Locale sistem)</item>
+        <item>Indonesia</item>
+        <item>English</item>
+        <item>Jawa (Javanese) [Cloud only]</item>
+        <item>Sunda (Sundanese) [Cloud only]</item>
+        <item>Melayu (Malay)</item>
+        <item>日本語 (Japanese)</item>
+        <item>한국어 (Korean)</item>
+        <item>中文 (Chinese Simplified)</item>
+        <item>Español (Spanish)</item>
+        <item>Français (French)</item>
+        <item>العربية (Arabic)</item>
+    </string-array>
+
+    <string-array name="translator_target_lang_values">
+        <item>auto</item>
+        <item>id</item>
+        <item>en</item>
+        <item>jv</item>
+        <item>su</item>
+        <item>ms</item>
+        <item>ja</item>
+        <item>ko</item>
+        <item>zh-CN</item>
+        <item>es</item>
+        <item>fr</item>
+        <item>ar</item>
+    </string-array>
+
+
+    <string-array name="custom_font_source_entries">
+        <item>Bundled fonts</item>
+        <item>Custom file</item>
+    </string-array>
+    <string-array name="custom_font_source_values">
+        <item>bundled</item>
+        <item>custom</item>
+    </string-array>
+
+    <string-array name="custom_font_bundled_entries">
+        <item>Bebas Neue</item>
+        <item>Bebas Neue Bold</item>
+        <item>Comfortaa</item>
+        <item>Comfortaa Bold</item>
+        <item>Courgette</item>
+        <item>Courier Prime Bold</item>
+        <item>Exo2 Extra Bold</item>
+        <item>Helvetica</item>
+        <item>Maven Pro</item>
+        <item>Maven Pro Bold</item>
+        <item>Norican</item>
+        <item>Pacifico</item>
+        <item>Product Sans</item>
+        <item>Raleway</item>
+        <item>Raleway Bold</item>
+        <item>Roboto Mono</item>
+        <item>Roboto Mono Regular</item>
+        <item>Satisfy</item>
+        <item>Source Sans Pro</item>
+        <item>Source Sans Pro Bold</item>
+    </string-array>
+    <string-array name="custom_font_bundled_values">
+        <item>BebasNeue.ttf</item>
+        <item>BebasNeue-Bold.ttf</item>
+        <item>Comfortaa.ttf</item>
+        <item>Comfortaa-Bold.ttf</item>
+        <item>Courgette.ttf</item>
+        <item>CourierPrime-Bold.ttf</item>
+        <item>Exo2-ExtraBold.ttf</item>
+        <item>Helvetica.ttf</item>
+        <item>MavenPro.ttf</item>
+        <item>MavenPro-Bold.ttf</item>
+        <item>Norican.ttf</item>
+        <item>Pacifico.ttf</item>
+        <item>ProductSans.ttf</item>
+        <item>Raleway.ttf</item>
+        <item>Raleway-Bold.ttf</item>
+        <item>RobotoMono.ttf</item>
+        <item>RobotoMono-Regular.ttf</item>
+        <item>Satisfy.ttf</item>
+        <item>SourceSansPro.ttf</item>
+        <item>SourceSansPro-Bold.ttf</item>
+    </string-array>
+
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="groq_translator_bubble_incoming" type="id" />
+    <item name="groq_translator_bubble_outgoing" type="id" />
+    <item name="wae_composer_send_btn_tag" type="id" />
+</resources>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/translator_menu">
+
+        <ListPreference
+            app:defaultValue="google"
+            app:entries="@array/translator_provider_entries"
+            app:entryValues="@array/translator_provider_values"
+            app:iconSpaceReserved="false"
+            app:key="translator_provider"
+            app:summary="@string/translator_provider_sum"
+            app:title="@string/translator_provider"
+            app:useSimpleSummaryProvider="false" />
+
+        <ListPreference
+            app:defaultValue="auto"
+            app:entries="@array/translator_target_lang_entries"
+            app:entryValues="@array/translator_target_lang_values"
+            app:iconSpaceReserved="false"
+            app:key="translator_target_lang"
+            app:summary="@string/translator_target_lang_sum"
+            app:title="@string/translator_target_lang"
+            app:useSimpleSummaryProvider="false" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="google_translate_endpoint"
+            app:summary="@string/google_translate_endpoint_sum"
+            app:title="@string/google_translate_endpoint"
+            app:useSimpleSummaryProvider="false" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="groq_custom_slang"
+            app:summary="@string/groq_custom_slang_sum"
+            app:title="@string/groq_custom_slang"
+            app:useSimpleSummaryProvider="false" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="groq_custom_system_prompt"
+            app:summary="@string/groq_custom_system_prompt_sum"
+            app:title="@string/groq_custom_system_prompt"
+            app:useSimpleSummaryProvider="false" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="translator_reset_system_prompt"
+            app:summary="@string/translator_reset_system_prompt_sum"
+            app:title="@string/translator_reset_system_prompt" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:key="groq_settings_category"
+        app:title="Groq AI Settings">
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="groq_translator_api_key"
+            app:summary="@string/groq_translator_api_key_sum"
+            app:title="@string/groq_translator_api_key"
+            app:useSimpleSummaryProvider="false" />
+
+        <ListPreference
+            app:defaultValue="llama-3.3-70b-versatile"
+            app:entries="@array/groq_translator_model_entries"
+            app:entryValues="@array/groq_translator_model_values"
+            app:iconSpaceReserved="false"
+            app:key="groq_translator_model"
+            app:summary="@string/groq_translator_model_sum"
+            app:title="@string/groq_translator_model"
+            app:useSimpleSummaryProvider="false" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="groq_fetch_models"
+            app:summary="@string/groq_translator_fetch_models_sum"
+            app:title="@string/groq_translator_fetch_models" />
+
+    </PreferenceCategory>
+
+
+</PreferenceScreen>

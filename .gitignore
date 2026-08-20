@@ -1,0 +1,26 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+key.jks
+key_base64.txt
+/app/.project
+AlwaysStrong/
+.kotlin/
+.target/
+*.bak
+*.log
+.theme
+donatur.properties
+
+# Fitur donatur — tidak di-push ke remote
+app/src/main/java/com/mrksvt/waen/xposed/core/TelegramReporter.kt
+app/src/main/java/com/mrksvt/waen/xposed/features/others/ViewInspector.kt
+app/src/main/java/com/mrksvt/waen/xposed/features/customization/CustomFont.kt
+app/src/main/java/com/mrksvt/waen/ui/fragments/CustomFontSettingsFragment.java

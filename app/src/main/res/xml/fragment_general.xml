@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <Preference
+        app:key="dev_engineering_screen"
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$DevEngineeringFragment"
+        app:iconSpaceReserved="false"
+        app:title="@string/dev_engineering" />
+
+    <Preference
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$HomeGeneralPreference"
+        app:iconSpaceReserved="false"
+        app:title="@string/general" />
+
+    <Preference
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$HomeScreenGeneralPreference"
+        app:iconSpaceReserved="false"
+        app:title="@string/home_screen" />
+
+    <Preference
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$ConversationGeneralPreference"
+        app:iconSpaceReserved="false"
+        app:title="@string/conversation" />
+
+    <Preference
+        app:key="trash_recovery_screen"
+        app:iconSpaceReserved="false"
+        app:title="@string/trash_recovery"
+        app:summary="@string/trash_recovery_sum" />
+
+    <Preference
+        app:fragment="com.mrksvt.waen.ui.fragments.GeneralFragment$TranslatorGeneralPreference"
+        app:iconSpaceReserved="false"
+        app:title="@string/translator_menu"
+        app:summary="@string/translator_menu_sum" />
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/status">
+
+        <rikka.material.preference.MaterialSwitchPreference
+            app:key="autonext_status"
+            app:summary="@string/disable_auto_status_sum"
+            app:title="@string/disable_auto_status" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            app:key="copystatus"
+            app:summary="@string/enable_copy_status_sum"
+            app:title="@string/enable_copy_status" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            app:key="toast_viewed_status"
+            app:summary="@string/toast_on_viewed_status_sum"
+            app:title="@string/toast_on_viewed_status" />
+
+
+    </PreferenceCategory>
+
+
+</PreferenceScreen>

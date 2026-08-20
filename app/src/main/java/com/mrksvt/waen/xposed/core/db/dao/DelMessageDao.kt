@@ -1,0 +1,33 @@
+package com.mrksvt.waen.xposed.core.db.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.mrksvt.waen.xposed.core.db.entity.DelMessage
+
+@Dao
+interface DelMessageDao {
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertMessage(message: DelMessage)
+
+    @Query("SELECT msgid FROM delmessages WHERE jid = :jid")
+    fun getMessagesByJid(jid: String): List<String>
+
+    @Query("SELECT timestamp FROM delmessages WHERE msgid = :msgid LIMIT 1")
+    fun getTimestampByMessageId(msgid: String): Long?
+
+    @Query("SELECT * FROM delmessages")
+    fun getAllMessages(): List<DelMessage>
+
+    @Query("SELECT * FROM delmessages WHERE jid = :jid")
+    fun getFullMessagesByJid(jid: String): List<DelMessage>
+
+    @Query("DELETE FROM delmessages WHERE jid = :jid")
+    fun deleteByJid(jid: String)
+
+    @Query("DELETE FROM delmessages")
+    fun deleteAll()
+
+}
