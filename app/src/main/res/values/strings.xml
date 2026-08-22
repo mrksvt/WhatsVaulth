@@ -360,6 +360,13 @@
     <string name="import_theme">Import Theme</string>
     <string name="theme_manager">Theme Manager</string>
     <string name="manage_theme_sum">Manage themes using CSS for WhatsApp</string>
+    <string name="theme_preview_title">Theme Preview</string>
+    <string name="theme_preview_toolbar">WhatsApp</string>
+    <string name="theme_preview_incoming">Hello! How are you?</string>
+    <string name="theme_preview_outgoing">I\'m great, thanks!</string>
+    <string name="theme_preview_body">Message preview</string>
+    <string name="apply_theme">Apply Theme</string>
+    <string name="edit">Edit</string>
     <string name="grant_permission">Please, grant permissions to read images and read external storage</string>
     <string name="one_row">One Row</string>
     <string name="two_row">Two row</string>

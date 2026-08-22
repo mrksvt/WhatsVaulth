@@ -15,6 +15,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -121,15 +122,12 @@ public class ThemePreference extends Preference implements FilePicker.OnUriPicke
                 }
             }
             itemView.setOnClickListener(v -> {
-                var sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-                sharedPreferences.edit().putString(getKey(), folder).commit();
+                String cssCode = "";
                 if (cssFile.exists()) {
-                    var code = FilesKt.readText(cssFile, Charset.defaultCharset());
-                    sharedPreferences.edit().putString("custom_css", code).commit();
-                } else {
-                    sharedPreferences.edit().putString("custom_css", "").commit();
+                    cssCode = FilesKt.readText(cssFile, Charset.defaultCharset());
                 }
                 mainDialog.dismiss();
+                showPreviewDialog(folder, cssCode);
             });
             View editButton = itemView.findViewById(R.id.edit_button);
             if (folder.equals("Default Theme")) {
@@ -145,6 +143,116 @@ public class ThemePreference extends Preference implements FilePicker.OnUriPicke
             folderListContainer.addView(itemView);
         }
         mainDialog = builder.show();
+    }
+
+    private void showPreviewDialog(String folderName, String cssCode) {
+        final Context context = getContext();
+        View dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_theme_preview, null);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+                .setView(dialogView);
+
+        TextView nameView = dialogView.findViewById(R.id.preview_theme_name);
+        nameView.setText(folderName);
+
+        ImageView wallpaperView = dialogView.findViewById(R.id.preview_wallpaper);
+        File themeDir = new File(rootDirectory, folderName);
+        File[] images = themeDir.listFiles((dir, name) ->
+                name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
+        if (images != null && images.length > 0) {
+            try {
+                android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                opts.inSampleSize = 2;
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(images[0].getAbsolutePath(), opts);
+                if (bmp != null) wallpaperView.setImageBitmap(bmp);
+            } catch (Exception ignored) {}
+        }
+
+        java.util.Properties props = parseCssProperties(cssCode);
+        String primaryStr = props.getProperty("primary_color", "");
+        String bgStr = props.getProperty("background_color", "");
+        String textStr = props.getProperty("text_color", "");
+        String bubbleRight = props.getProperty("bubble_right", "");
+        String bubbleLeft = props.getProperty("bubble_left", "");
+
+        int primary = parseColor(primaryStr, 0xFF00A884);
+        int bg = parseColor(bgStr, 0xFFECE5DD);
+        int text = parseColor(textStr, 0xFF111B21);
+        int rightBubble = parseColor(bubbleRight, primary);
+        int leftBubble = parseColor(bubbleLeft, 0xFFFFFFFF);
+
+        View toolbar = dialogView.findViewById(R.id.preview_toolbar);
+        toolbar.setBackgroundColor(primary);
+        TextView toolbarTitle = dialogView.findViewById(R.id.preview_toolbar_title);
+        toolbarTitle.setTextColor(contrastOn(primary));
+        TextView bubbleIn = dialogView.findViewById(R.id.preview_bubble_incoming);
+        bubbleIn.setBackgroundColor(leftBubble);
+        bubbleIn.setTextColor(parseColor(bubbleLeft, 0xFF111B21));
+        TextView bubbleOut = dialogView.findViewById(R.id.preview_bubble_outgoing);
+        bubbleOut.setBackgroundColor(rightBubble);
+        bubbleOut.setTextColor(contrastOn(rightBubble));
+        TextView bodyText = dialogView.findViewById(R.id.preview_body_text);
+        bodyText.setTextColor(text);
+        wallpaperView.setColorFilter(bg);
+
+        androidx.appcompat.app.AlertDialog previewDialog = builder.show();
+
+        dialogView.findViewById(R.id.preview_apply_button).setOnClickListener(v -> {
+            var sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+            sharedPreferences.edit().putString(getKey(), folderName).commit();
+            sharedPreferences.edit().putString("custom_css", cssCode).commit();
+            previewDialog.dismiss();
+        });
+
+        dialogView.findViewById(R.id.preview_edit_button).setOnClickListener(v -> {
+            previewDialog.dismiss();
+            if (!"Default Theme".equals(folderName)) {
+                Intent intent = new Intent(context, TextEditorActivity.class);
+                intent.putExtra("folder_name", folderName);
+                intent.putExtra("key", getKey());
+                ContextCompat.startActivity(context, intent, null);
+            }
+        });
+    }
+
+    private java.util.Properties parseCssProperties(String css) {
+        java.util.Properties props = new java.util.Properties();
+        if (css == null || css.isEmpty()) return props;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("^/\\*\\s*(.*?)\\s*\\*/", java.util.regex.Pattern.DOTALL)
+                .matcher(css);
+        if (matcher.find()) {
+            String[] lines = matcher.group(1).split("\\n");
+            for (String line : lines) {
+                String[] kv = line.split("=");
+                if (kv.length == 2) {
+                    props.setProperty(kv[0].trim(), kv[1].trim().replace("\"", ""));
+                }
+            }
+        }
+        return props;
+    }
+
+    private int parseColor(String value, int def) {
+        if (value == null || value.isEmpty()) return def;
+        try {
+            if (value.startsWith("#")) {
+                if (value.length() == 7) {
+                    return android.graphics.Color.parseColor(value);
+                } else if (value.length() == 9) {
+                    return android.graphics.Color.parseColor("#" + value.substring(3));
+                }
+            } else {
+                return (int) Long.parseLong(value, 16);
+            }
+        } catch (Exception ignored) {}
+        return def;
+    }
+
+    private int contrastOn(int color) {
+        double luminance = (0.299 * android.graphics.Color.red(color)
+                + 0.587 * android.graphics.Color.green(color)
+                + 0.114 * android.graphics.Color.blue(color)) / 255.0;
+        return luminance > 0.5 ? 0xFF000000 : 0xFFFFFFFF;
     }
 
     private List<String> getFolders() {
