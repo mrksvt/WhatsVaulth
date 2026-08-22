@@ -194,7 +194,8 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
             File cssFile = new File(themeDir, "style.css");
             String author = "";
             if (cssFile.exists()) {
-                author = Utils.getAuthorFromCss(Utils.readFileText(cssFile));
+                String parsed = Utils.getAuthorFromCss(Utils.readFileText(cssFile));
+                if (parsed != null) author = parsed;
             }
             holder.author.setText(author.isEmpty() ? "unknown" : author);
 
