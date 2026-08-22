@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.AssetManager
 import android.content.res.Resources
 import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.FeatureLoader
 
@@ -26,5 +27,12 @@ class ModuleContextWrapper(private val base: Context) :
 
     override fun getAssets(): AssetManager {
         return FeatureLoader.moduleContext.assets
+    }
+
+    override fun getSystemService(name: String): Any? {
+        if (name == Context.LAYOUT_INFLATER_SERVICE) {
+            return FeatureLoader.moduleContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
+        }
+        return super.getSystemService(name)
     }
 }
