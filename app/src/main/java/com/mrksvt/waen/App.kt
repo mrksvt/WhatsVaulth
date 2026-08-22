@@ -149,10 +149,33 @@ class App : Application() {
             get() {
                 val download =
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val waEnhancerFolder = File(download, "WaEnhancer")
+                val waEnhancerFolder = File(download, "WhatsVault")
                 if (!waEnhancerFolder.exists()) waEnhancerFolder.mkdirs()
                 return waEnhancerFolder
             }
+
+        @JvmStatic
+        fun waEnhancerSubfolder(name: String): File {
+            val sub = File(waEnhancerFolder, name)
+            if (!sub.exists()) sub.mkdirs()
+            return sub
+        }
+
+        @JvmStatic
+        val themesFolder: File
+            get() = waEnhancerSubfolder("themes")
+
+        @JvmStatic
+        val recordingsFolder: File
+            get() = waEnhancerSubfolder("recordings")
+
+        @JvmStatic
+        val statusFolder: File
+            get() = waEnhancerSubfolder("status")
+
+        @JvmStatic
+        val mediaFolder: File
+            get() = waEnhancerSubfolder("media")
 
         @Suppress("SimplifyBooleanWithConstants", "KotlinConstantConditions")
         @JvmStatic

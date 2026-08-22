@@ -149,6 +149,7 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                     Files.copy(zipInputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
                 requireActivity().runOnUiThread(() -> {
+                    convertFouadXmlThemes();
                     Toast.makeText(requireContext(), R.string.theme_imported_successfully, Toast.LENGTH_SHORT).show();
                     loadThemes();
                 });
@@ -157,6 +158,20 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                         Toast.makeText(requireContext(), "Import failed", Toast.LENGTH_SHORT).show());
             }
         });
+    }
+
+    private void convertFouadXmlThemes() {
+        File dir = ThemePreference.rootDirectory;
+        File[] folders = dir.listFiles(File::isDirectory);
+        if (folders == null) return;
+        for (File folder : folders) {
+            File css = new File(folder, "style.css");
+            if (css.exists()) continue;
+            File[] xmls = folder.listFiles((d, n) -> n.toLowerCase().endsWith(".xml"));
+            if (xmls != null && xmls.length > 0) {
+                com.mrksvt.waen.utils.FouadThemeConverter.INSTANCE.convert(xmls[0], css);
+            }
+        }
     }
 
     private String getZipFileName(Uri uri) {

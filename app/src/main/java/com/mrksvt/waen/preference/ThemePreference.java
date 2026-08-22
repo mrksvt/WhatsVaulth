@@ -285,7 +285,7 @@ public class ThemePreference extends Preference implements FilePicker.OnUriPicke
     }
 
     private void createNewFolder(String folderName) {
-        File rootDirectory = new File(Environment.getExternalStorageDirectory(), "Download/WaEnhancer/themes");
+        File rootDirectory = com.mrksvt.waen.App.getThemesFolder();
         File newFolder = new File(rootDirectory, folderName);
         if (!newFolder.exists()) {
             if (newFolder.mkdirs()) {
@@ -310,7 +310,7 @@ public class ThemePreference extends Preference implements FilePicker.OnUriPicke
                 
                 while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                     var entryName = zipEntry.getName();
-                    var rootDirectory = new File(Environment.getExternalStorageDirectory(), "Download/WaEnhancer/themes");
+                    var rootDirectory = com.mrksvt.waen.App.getThemesFolder();
 
                     String folderName;
                     String targetPath;
