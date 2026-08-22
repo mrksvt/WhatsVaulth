@@ -169,7 +169,8 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
             if (css.exists()) continue;
             File[] xmls = folder.listFiles((d, n) -> n.toLowerCase().endsWith(".xml"));
             if (xmls != null && xmls.length > 0) {
-                com.mrksvt.waen.utils.FouadThemeConverter.INSTANCE.convert(xmls[0], css);
+                String themeName = folder.getName().replaceAll("[^A-Za-z0-9-_]", "-").toLowerCase();
+                com.mrksvt.waen.utils.FouadThemeConverter.INSTANCE.convert(xmls[0], css, themeName);
             }
         }
     }

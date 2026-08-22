@@ -844,18 +844,42 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
         private fun loadDrawableFromFile(filePath: String, reqWidth: Int, reqHeight: Int): Drawable? {
             return try {
                 val file = File(filePath)
-                val bitmap = if (!file.canRead()) {
-                    val bridge = WppCore.getClientBridge() ?: return null
-                    val parcelFile = bridge.openFile(filePath, false)
-                    BitmapFactory.decodeStream(FileInputStream(parcelFile.fileDescriptor))
+                if (!file.exists()) return null
+
+                val bitmap = if (filePath.lowercase().endsWith(".svg")) {
+                    loadSvgAsBitmap(file, reqWidth, reqHeight)
                 } else {
-                    BitmapFactory.decodeFile(file.absolutePath)
+                    if (!file.canRead()) {
+                        val bridge = WppCore.getClientBridge() ?: return null
+                        val parcelFile = bridge.openFile(filePath, false)
+                        BitmapFactory.decodeStream(FileInputStream(parcelFile.fileDescriptor))
+                    } else {
+                        BitmapFactory.decodeFile(file.absolutePath)
+                    }
                 } ?: return null
+
                 val newHeight = if (reqHeight < 1) bitmap.height else minOf(bitmap.height, reqHeight)
                 val newWidth = if (reqWidth < 1) bitmap.width else minOf(bitmap.width, reqWidth)
                 val resized =
                     bitmap.scale(newWidth, newHeight)
                 resized.toDrawable(context.resources)
+            } catch (e: Exception) {
+                XposedBridge.log(e)
+                null
+            }
+        }
+
+        private fun loadSvgAsBitmap(file: File, reqWidth: Int, reqHeight: Int): Bitmap? {
+            return try {
+                val w = if (reqWidth < 1) 64 else reqWidth
+                val h = if (reqHeight < 1) 64 else reqHeight
+                val svg = com.caverock.androidsvg.SVG.getFromInputStream(FileInputStream(file))
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+                svg.setDocumentWidth(w.toFloat())
+                svg.setDocumentHeight(h.toFloat())
+                svg.renderToCanvas(canvas)
+                bmp
             } catch (e: Exception) {
                 XposedBridge.log(e)
                 null

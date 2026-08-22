@@ -21,6 +21,8 @@ import com.mrksvt.waen.activities.TextEditorActivity;
 import com.mrksvt.waen.preference.ThemePreference;
 import com.mrksvt.waen.xposed.utils.Utils;
 
+import org.json.JSONObject;
+
 import java.io.File;
 import java.util.Properties;
 
@@ -160,16 +162,52 @@ public class ThemeDetailFragment extends Fragment {
         }
     }
 
-private void applyTheme(File themeDir) {
+    private void applyTheme(File themeDir) {
         File cssFile = new File(themeDir, "style.css");
         String cssCode = cssFile.exists() ? Utils.readFileText(cssFile) : "";
-        PreferenceManager.getDefaultSharedPreferences(requireContext())
-                .edit()
-                .putString("folder_theme", themeDir.getName())
-                .putString("custom_css", cssCode)
-                .putBoolean("custom_filters", true)
-                .apply();
+        android.content.SharedPreferences.Editor editor = PreferenceManager
+                .getDefaultSharedPreferences(requireContext()).edit();
+
+        File jsonFile = findThemeJson(themeDir);
+        if (jsonFile != null) {
+            try {
+                JSONObject json = new JSONObject(Utils.readFileText(jsonFile));
+                for (java.util.Iterator<String> it = json.keys(); it.hasNext(); ) {
+                    String key = it.next();
+                    JSONObject entry = json.optJSONObject(key);
+                    if (entry == null) continue;
+                    String type = entry.optString("type", "");
+                    switch (type) {
+                        case "Boolean":
+                            editor.putBoolean(key, entry.optBoolean("value"));
+                            break;
+                        case "Integer":
+                            editor.putInt(key, entry.optInt("value"));
+                            break;
+                        case "String":
+                            editor.putString(key, entry.optString("value"));
+                            break;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        editor.putString("folder_theme", themeDir.getName());
+        editor.putString("custom_css", cssCode);
+        editor.putBoolean("custom_filters", true);
+        editor.apply();
+
         android.widget.Toast.makeText(requireContext(), R.string.theme_applied_toast, android.widget.Toast.LENGTH_SHORT).show();
+        com.mrksvt.waen.App.instance.sendBroadcast(
+                new android.content.Intent(com.mrksvt.waen.BuildConfig.APPLICATION_ID + ".MANUAL_RESTART"));
+    }
+
+    private File findThemeJson(File themeDir) {
+        File[] jsons = themeDir.listFiles((d, n) -> n.toLowerCase().endsWith(".json"));
+        if (jsons != null && jsons.length > 0) return jsons[0];
+        return null;
     }
 
     private void editTheme(File themeDir) {
