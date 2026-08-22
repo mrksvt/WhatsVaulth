@@ -52,10 +52,6 @@ android {
             applicationIdSuffix = ""
             isDefault = true
         }
-        create("business") {
-            dimension = "version"
-            applicationIdSuffix = ".w4b"
-        }
     }
 
     defaultConfig {
@@ -140,27 +136,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("Boolean", "DONATUR", "false")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-stable ($gitHash)_mrksvt\"")
-            buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"\"")
-            buildConfigField("String", "TELEGRAM_CHAT_ID", "\"\"")
-        }
-
-        create("donatur") {
-            initWith(buildTypes["release"])
-            isMinifyEnabled = true
-            isShrinkResources = false
-            signingConfig =
-                if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
             buildConfigField("Boolean", "DONATUR", "true")
             buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-stable ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"${donaturToken()}\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"${donaturChatId()}\"")
-            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {
@@ -181,28 +160,13 @@ android {
     }
 
     applicationVariants.all {
-        val isDonatur = buildType.name == "donatur"
-        val isBusiness = flavorName == "business"
+        resValue("string", "app_name", "WhatsVault")
 
-        val appLabel = when {
-            isBusiness && isDonatur -> "WhatsVault Business Donatur"
-            isBusiness -> "WhatsVault Business"
-            isDonatur -> "WhatsVault Donatur"
-            else -> "WhatsVault"
-        }
-        resValue("string", "app_name", appLabel)
-
-        val appFileName = when {
-            isBusiness && isDonatur -> "WhatsVault-Business-donatur"
-            isBusiness -> "WhatsVault-Business"
-            isDonatur -> "WhatsVault-donatur"
-            else -> "WhatsVault"
-        }
         val buildSuffix = getBuildTypeSuffix(buildType.name)
         val baseVersion = "1.5.5$versionSuffix$buildSuffix ($gitHash)_mrksvt"
 
         outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "$appFileName-$baseVersion.apk"
+            (this as BaseVariantOutputImpl).outputFileName = "WhatsVault-$baseVersion.apk"
         }
     }
 
@@ -276,6 +240,14 @@ configurations.all {
     exclude("androidx.appcompat", "appcompat")
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk7")
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk8")
+    resolutionStrategy {
+        force("com.google.guava:guava:33.3.1-jre")
+        eachDependency {
+            if (requested.group == "com.google.guava" && requested.name == "guava" && requested.version == "+") {
+                useVersion("33.3.1-jre")
+            }
+        }
+    }
 }
 
 tasks.configureEach {
@@ -290,7 +262,7 @@ interface InjectedExecOps {
 
 
 afterEvaluate {
-    listOf("installWhatsappDebug", "installBusinessDebug", "installWhatsappDonatur", "installBusinessDonatur").forEach { taskName ->
+    listOf("installWhatsappDebug", "installWhatsappRelease").forEach { taskName ->
         tasks.findByName(taskName)?.doLast {
             runCatching {
                 val injected  = project.objects.newInstance<InjectedExecOps>()
