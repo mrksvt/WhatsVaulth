@@ -95,6 +95,20 @@ public class ThemePreference extends Preference implements FilePicker.OnUriPicke
             TextView folderNameView = itemView.findViewById(R.id.folder_name);
             folderNameView.setText(folder);
 
+            androidx.appcompat.widget.AppCompatImageView previewView =
+                    itemView.findViewById(R.id.theme_preview);
+            File themeDir = new File(rootDirectory, folder);
+            File[] images = themeDir.listFiles((dir, name) ->
+                    name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
+            if (images != null && images.length > 0) {
+                try {
+                    android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                    opts.inSampleSize = 4;
+                    android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(images[0].getAbsolutePath(), opts);
+                    if (bmp != null) previewView.setImageBitmap(bmp);
+                } catch (Exception ignored) {}
+            }
+
             if (folder.equals(folder_name)) {
                 folderNameView.setTextColor(ContextCompat.getColor(context, R.color.md_theme_material_green_dark_onPrimaryContainer));
             }

@@ -14,17 +14,29 @@
         android:layout_height="wrap_content"
         android:padding="@dimen/spacing_medium">
 
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/theme_preview"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/folder_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:layout_marginStart="@dimen/spacing_medium"
             android:textAppearance="?textAppearanceTitleMedium"
             android:textColor="@color/text_primary"
             app:layout_constraintBottom_toTopOf="@id/linearLayout2"
             app:layout_constraintEnd_toStartOf="@id/edit_button"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/theme_preview"
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.button.MaterialButton
@@ -43,10 +55,11 @@
             android:id="@+id/linearLayout2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_medium"
             android:layout_marginTop="@dimen/spacing_xs"
             android:orientation="horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/theme_preview"
             app:layout_constraintTop_toBottomOf="@id/folder_name">
 
             <com.google.android.material.textview.MaterialTextView

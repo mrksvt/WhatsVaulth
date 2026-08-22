@@ -138,9 +138,9 @@
             app:summary="@string/custom_tick_manage_summary" />
 
         <Preference
-            app:key="theme_builder_settings"
-            app:title="@string/theme_builder"
-            app:summary="@string/theme_builder_presets" />
+            app:key="custom_font_settings"
+            app:title="@string/custom_font_enable"
+            app:summary="@string/custom_font_manage_summary" />
 
         <rikka.material.preference.MaterialSwitchPreference
             app:key="admin_grp"

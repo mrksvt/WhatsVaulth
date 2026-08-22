@@ -149,6 +149,15 @@ object Utils {
     }
 
     @JvmStatic
+    fun getModuleContextOrNull(): Context? {
+        return try {
+            FeatureLoader.moduleContext
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    @JvmStatic
     fun dipToPixels(dipValue: Int): Int {
         val metrics = FeatureLoader.mApp!!.resources.displayMetrics
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dipValue.toFloat(), metrics)
