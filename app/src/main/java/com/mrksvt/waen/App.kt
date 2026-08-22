@@ -147,11 +147,10 @@ class App : Application() {
         @JvmStatic
         val waEnhancerFolder: File
             get() {
-                val download =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val waEnhancerFolder = File(download, "WhatsVault")
-                if (!waEnhancerFolder.exists()) waEnhancerFolder.mkdirs()
-                return waEnhancerFolder
+                val root = Environment.getExternalStorageDirectory()
+                val folder = File(root, "WhatsVault")
+                if (!folder.exists()) folder.mkdirs()
+                return folder
             }
 
         @JvmStatic
