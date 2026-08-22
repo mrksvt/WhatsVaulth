@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -66,6 +67,21 @@ public class ThemeDetailFragment extends Fragment {
                 mgr.popBackStack();
             } else {
                 requireActivity().onBackPressed();
+            }
+        });
+
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                FragmentManager mgr = getParentFragment() != null
+                        ? getParentFragment().getChildFragmentManager()
+                        : getParentFragmentManager();
+                if (mgr.getBackStackEntryCount() > 0) {
+                    mgr.popBackStack();
+                } else {
+                    setEnabled(false);
+                    requireActivity().getOnBackPressedDispatcher().onBackPressed();
+                }
             }
         });
 

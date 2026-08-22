@@ -10,6 +10,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -63,6 +64,21 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                 mgr.popBackStack();
             } else {
                 requireActivity().onBackPressed();
+            }
+        });
+
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                FragmentManager mgr = getParentFragment() != null
+                        ? getParentFragment().getChildFragmentManager()
+                        : getParentFragmentManager();
+                if (mgr.getBackStackEntryCount() > 0) {
+                    mgr.popBackStack();
+                } else {
+                    setEnabled(false);
+                    requireActivity().getOnBackPressedDispatcher().onBackPressed();
+                }
             }
         });
 
