@@ -160,13 +160,14 @@ public class ThemeDetailFragment extends Fragment {
         }
     }
 
-    private void applyTheme(File themeDir) {
+private void applyTheme(File themeDir) {
         File cssFile = new File(themeDir, "style.css");
         String cssCode = cssFile.exists() ? Utils.readFileText(cssFile) : "";
         PreferenceManager.getDefaultSharedPreferences(requireContext())
                 .edit()
-                .putString("folder_theme", folderName)
+                .putString("folder_theme", themeDir.getName())
                 .putString("custom_css", cssCode)
+                .putBoolean("custom_filters", true)
                 .apply();
         android.widget.Toast.makeText(requireContext(), R.string.theme_applied_toast, android.widget.Toast.LENGTH_SHORT).show();
     }

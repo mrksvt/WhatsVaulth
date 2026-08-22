@@ -57,6 +57,9 @@ object FouadThemeConverter {
             if (!props.containsKey("background_color")) props["background_color"] = "#ECE5DD"
             if (!props.containsKey("text_color")) props["text_color"] = "#111B21"
 
+            // Wajib agar CustomThemeV2 memproses warna dari CSS
+            props["change_colors"] = "true"
+
             // Generate CSS comment block
             val css = buildString {
                 appendLine("/*")

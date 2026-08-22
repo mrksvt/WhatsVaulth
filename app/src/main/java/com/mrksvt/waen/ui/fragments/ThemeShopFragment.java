@@ -279,8 +279,17 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                     .edit()
                     .putString("folder_theme", "Default Theme")
                     .putString("custom_css", "")
+                    .putBoolean("changecolor", false)
+                    .putString("changecolor_mode", "manual")
+                    .putInt("primary_color", 0)
+                    .putInt("text_color", 0)
+                    .putInt("background_color", 0)
+                    .putBoolean("wallpaper", false)
+                    .putBoolean("custom_filters", false)
                     .apply();
             Toast.makeText(requireContext(), R.string.theme_reset_toast, Toast.LENGTH_SHORT).show();
+            com.mrksvt.waen.App.instance.sendBroadcast(
+                    new android.content.Intent(com.mrksvt.waen.BuildConfig.APPLICATION_ID + ".MANUAL_RESTART"));
         }
 
         @Override
