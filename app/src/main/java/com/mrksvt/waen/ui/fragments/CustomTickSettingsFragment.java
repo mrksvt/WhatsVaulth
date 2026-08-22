@@ -8,7 +8,11 @@ import androidx.preference.Preference;
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
 
+import org.json.JSONObject;
+
 public class CustomTickSettingsFragment extends BasePreferenceFragment {
+
+    private static final String KEY_PREVIEW = "custom_tick_active_preview";
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -28,6 +32,34 @@ public class CustomTickSettingsFragment extends BasePreferenceFragment {
                 }
                 return true;
             });
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        renderActivePresetSummary();
+    }
+
+    private void renderActivePresetSummary() {
+        Preference preview = findPreference(KEY_PREVIEW);
+        if (preview == null) return;
+
+        String json = mPrefs.getString("custom_tick_active_preset_json", null);
+        if (json == null) {
+            preview.setSummary(R.string.custom_tick_no_presets);
+            return;
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            String name = obj.optString("name", "");
+            if (name.isEmpty()) {
+                preview.setSummary(R.string.custom_tick_no_presets);
+            } else {
+                preview.setSummary(name);
+            }
+        } catch (Exception e) {
+            preview.setSummary(R.string.custom_tick_no_presets);
         }
     }
 

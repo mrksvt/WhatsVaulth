@@ -5,12 +5,16 @@
         <item>2.26.30.xx</item>
         <item>2.26.31.xx</item>
         <item>2.26.32.xx</item>
+        <item>2.26.33.xx</item>
+        <item>2.26.34.xx</item>
     </string-array>
     <string-array name="supported_versions_business">
         <item>2.26.29.xx</item>
         <item>2.26.30.xx</item>
         <item>2.26.31.xx</item>
         <item>2.26.32.xx</item>
+        <item>2.26.33.xx</item>
+        <item>2.26.34.xx</item>
     </string-array>
 
     <string-array name="scope">
@@ -295,58 +299,6 @@
     </string-array>
 
 
-    <string-array name="custom_font_source_entries">
-        <item>Bundled fonts</item>
-        <item>Custom file</item>
-    </string-array>
-    <string-array name="custom_font_source_values">
-        <item>bundled</item>
-        <item>custom</item>
-    </string-array>
 
-    <string-array name="custom_font_bundled_entries">
-        <item>Bebas Neue</item>
-        <item>Bebas Neue Bold</item>
-        <item>Comfortaa</item>
-        <item>Comfortaa Bold</item>
-        <item>Courgette</item>
-        <item>Courier Prime Bold</item>
-        <item>Exo2 Extra Bold</item>
-        <item>Helvetica</item>
-        <item>Maven Pro</item>
-        <item>Maven Pro Bold</item>
-        <item>Norican</item>
-        <item>Pacifico</item>
-        <item>Product Sans</item>
-        <item>Raleway</item>
-        <item>Raleway Bold</item>
-        <item>Roboto Mono</item>
-        <item>Roboto Mono Regular</item>
-        <item>Satisfy</item>
-        <item>Source Sans Pro</item>
-        <item>Source Sans Pro Bold</item>
-    </string-array>
-    <string-array name="custom_font_bundled_values">
-        <item>BebasNeue.ttf</item>
-        <item>BebasNeue-Bold.ttf</item>
-        <item>Comfortaa.ttf</item>
-        <item>Comfortaa-Bold.ttf</item>
-        <item>Courgette.ttf</item>
-        <item>CourierPrime-Bold.ttf</item>
-        <item>Exo2-ExtraBold.ttf</item>
-        <item>Helvetica.ttf</item>
-        <item>MavenPro.ttf</item>
-        <item>MavenPro-Bold.ttf</item>
-        <item>Norican.ttf</item>
-        <item>Pacifico.ttf</item>
-        <item>ProductSans.ttf</item>
-        <item>Raleway.ttf</item>
-        <item>Raleway-Bold.ttf</item>
-        <item>RobotoMono.ttf</item>
-        <item>RobotoMono-Regular.ttf</item>
-        <item>Satisfy.ttf</item>
-        <item>SourceSansPro.ttf</item>
-        <item>SourceSansPro-Bold.ttf</item>
-    </string-array>
 
 </resources>

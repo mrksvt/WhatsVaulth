@@ -1059,10 +1059,13 @@ object Unobfuscator {
                     )
                 }
             }.stream()
-                .filter { methodData -> methodData.paramTypes[0].name == Context::class.java.name }
+                .filter { methodData ->
+                    methodData.paramTypes.isNotEmpty() &&
+                        methodData.paramTypes[0].name == Context::class.java.name
+                }
                 .collect(Collectors.toList())
             if (methods.isEmpty()) throw ClassNotFoundException("View Holder not found!")
-            methods[0].getMethodInstance(loader).declaringClass
+            methods[0].getClassInstance(loader)
         }
     }
 

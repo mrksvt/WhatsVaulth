@@ -3,6 +3,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Locale
+import java.util.Properties
 import kotlin.time.Duration.Companion.milliseconds
 
 plugins {
@@ -12,7 +13,7 @@ plugins {
     alias(libs.plugins.kspPlugin)
 }
 
-val donaturProps = java.util.Properties().apply {
+val donaturProps = Properties().apply {
     val f = rootProject.file("donatur.properties")
     if (f.exists()) load(f.inputStream())
 }

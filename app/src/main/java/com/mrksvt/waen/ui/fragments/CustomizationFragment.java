@@ -46,12 +46,12 @@ public class CustomizationFragment extends BaseFragment {
                 });
             }
 
-            Preference customFontPref = findPreference("custom_font_settings");
-            if (customFontPref != null) {
-                customFontPref.setOnPreferenceClickListener(pref -> {
+            Preference themeBuilderPref = findPreference("theme_builder_settings");
+            if (themeBuilderPref != null) {
+                themeBuilderPref.setOnPreferenceClickListener(pref -> {
                     requireParentFragment().getChildFragmentManager()
                             .beginTransaction()
-                            .replace(R.id.frag_container, new CustomFontSettingsFragment())
+                            .replace(R.id.frag_container, new ThemeBuilderFragment())
                             .addToBackStack(null)
                             .commit();
                     return true;

@@ -36,7 +36,6 @@ import com.mrksvt.waen.xposed.features.customization.ContactVerify
 import com.mrksvt.waen.xposed.features.customization.CustomThemeV2
 import com.mrksvt.waen.xposed.features.customization.CustomTime
 import com.mrksvt.waen.xposed.features.customization.CustomToolbar
-import com.mrksvt.waen.xposed.features.customization.CustomFont
 import com.mrksvt.waen.xposed.features.customization.CustomTick
 import com.mrksvt.waen.xposed.features.customization.CustomView
 import com.mrksvt.waen.xposed.features.customization.DefaultEmoji
@@ -90,7 +89,6 @@ import com.mrksvt.waen.xposed.features.others.MenuHome
 import com.mrksvt.waen.xposed.features.others.Stickers
 import com.mrksvt.waen.xposed.features.others.TextStatusComposer
 import com.mrksvt.waen.xposed.features.others.ToastViewer
-import com.mrksvt.waen.xposed.features.others.ViewInspector
 import com.mrksvt.waen.xposed.features.privacy.AntiWa
 import com.mrksvt.waen.xposed.features.privacy.CallPrivacy
 import com.mrksvt.waen.xposed.features.privacy.CustomPrivacy
@@ -132,6 +130,14 @@ class FeatureLoader {
         private var supportedVersions: List<String>? = null
         private var currentVersion: String? = null
         private var crashHandlerInstalled = false
+
+        private fun pluginIfPresent(className: String): Class<*>? {
+            return try {
+                Class.forName(className)
+            } catch (_: Throwable) {
+                null
+            }
+        }
 
         @JvmStatic
         fun start(loader: ClassLoader, sourceDir: String) {
@@ -476,7 +482,7 @@ class FeatureLoader {
 
         @Throws(Exception::class)
         private fun plugins(loader: ClassLoader, pref: SharedPreferences, versionWpp: String) {
-            val classes = arrayOf(
+            val classes = listOfNotNull(
                 DebugFeature::class.java,
                 MarketingMessagesFix::class.java,
                 PremiumMessageFix::class.java,
@@ -545,9 +551,9 @@ class FeatureLoader {
                 JumpFirstMessage::class.java,
                 AboutContactPicker::class.java,
                 DefaultEmoji::class.java,
-                ViewInspector::class.java,
+                pluginIfPresent("com.mrksvt.waen.xposed.features.others.ViewInspector"),
                 CustomTick::class.java,
-                CustomFont::class.java
+                pluginIfPresent("com.mrksvt.waen.xposed.features.customization.CustomFont")
             )
 
             XposedBridge.log("Loading Plugins")

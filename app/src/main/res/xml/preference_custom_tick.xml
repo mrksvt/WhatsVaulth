@@ -4,6 +4,9 @@
         android:key="custom_tick_enable"
         android:title="@string/custom_tick_enable"
         android:defaultValue="false"/>
+    <Preference
+        android:key="custom_tick_active_preview"
+        android:title="@string/custom_tick_active_preview"/>
     <!-- active preset stored as custom_tick_active_preset_id (long) -->
     <Preference
         android:key="custom_tick_manage_presets"

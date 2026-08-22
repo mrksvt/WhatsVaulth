@@ -24,28 +24,82 @@ class CustomTick(loader: ClassLoader, preferences: SharedPreferences) :
 
     private val drawableCache = HashMap<String, Drawable>()
     private val seenDebugIds = HashSet<Int>()
+    private var idToDrawable = HashMap<Int, Drawable>()
+    private var originalById = HashMap<Int, Drawable>()
+    private var cachedPresetJson: String? = null
 
     override fun getPluginName(): String = "Custom Tick"
 
     override fun doHook() {
         XposedBridge.log("[CT] doHook called DONATUR=${BuildConfig.DONATUR} enable=${prefs.getBoolean("custom_tick_enable", false)} presetId=${prefs.getLong("custom_tick_active_preset_id", -1L)}")
         if (!prefs.getBoolean("custom_tick_enable", false)) return
-
-        val presetId = prefs.getLong("custom_tick_active_preset_id", -1L)
-        if (presetId == -1L) return
-
-        val json = prefs.getString("custom_tick_active_preset_json", null)
-        if (json == null) {
-            XposedBridge.log("[CT] no preset json in prefs")
+        if (!reloadPresetIfChanged()) {
+            XposedBridge.log("[CT] nothing to hook")
             return
         }
+        XposedBridge.log("[CT] idToDrawable.size=${idToDrawable.size}")
 
-        val idToDrawable = HashMap<Int, Drawable>()
-        val originalById = HashMap<Int, Drawable>()
+        XposedBridge.hookAllMethods(Resources::class.java, "getDrawable", object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                reloadPresetIfChanged()
+                val id = param.args[0] as? Int ?: return
+                val d = param.result as? Drawable
+                val waRes = Utils.application.resources
+                if (seenDebugIds.add(id)) {
+                    val name = try { waRes.getResourceEntryName(id) } catch (_: Exception) { "?" }
+                    XposedBridge.log("[CT-dbg] getDrawable id=$id name=$name cls=${d?.javaClass?.simpleName} size=${d?.intrinsicWidth}x${d?.intrinsicHeight}")
+                }
+                val custom = idToDrawable[id] ?: return
+                param.result = custom.constantState?.newDrawable()?.mutate() ?: custom
+                val name = try { waRes.getResourceEntryName(id) } catch (_: Exception) { "?" }
+                XposedBridge.log("[CT] getDrawable replaced id=$id name=$name size=${custom.intrinsicWidth}x${custom.intrinsicHeight}")
+            }
+        })
+
+        XposedBridge.hookAllMethods(ImageView::class.java, "setImageResource", object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                reloadPresetIfChanged()
+                val id = param.args[0] as? Int ?: return
+                val custom = idToDrawable[id] ?: return
+                val view = param.thisObject as? ImageView ?: return
+                param.result = null
+                view.setImageDrawable(custom.constantState?.newDrawable()?.mutate() ?: custom)
+                XposedBridge.log("[CT] setImageResource replaced id=$id")
+            }
+        })
+
+        XposedBridge.hookAllMethods(ImageView::class.java, "setImageDrawable", object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                reloadPresetIfChanged()
+                val d = param.args[0] as? Drawable ?: return
+                val state = unwrapDrawable(d).constantState ?: return
+                for ((id, original) in originalById) {
+                    val origState = original.constantState ?: continue
+                    if (state === origState) {
+                        param.args[0] = idToDrawable[id]?.constantState?.newDrawable()?.mutate()
+                        XposedBridge.log("[CT] setImageDrawable replaced id=$id")
+                        return
+                    }
+                }
+            }
+        })
+        XposedBridge.log("[CT] hooks installed")
+    }
+
+    private fun reloadPresetIfChanged(): Boolean {
+        val current = prefs.getString("custom_tick_active_preset_json", null)
+        if (current == cachedPresetJson) return idToDrawable.isNotEmpty()
+        cachedPresetJson = current
+        idToDrawable = HashMap()
+        originalById = HashMap()
+        if (current == null) {
+            XposedBridge.log("[CT] no preset json in prefs")
+            return false
+        }
+
         val waRes = Utils.application.resources
-
         try {
-            val obj = JSONObject(json)
+            val obj = JSONObject(current)
             val waPkg = Utils.application.packageName
 
             val states = listOf(
@@ -72,54 +126,7 @@ class CustomTick(loader: ClassLoader, preferences: SharedPreferences) :
         } catch (e: Exception) {
             XposedBridge.log("[CT] load error: ${e.message}")
         }
-
-        if (idToDrawable.isEmpty()) {
-            XposedBridge.log("[CT] nothing to hook")
-            return
-        }
-        XposedBridge.log("[CT] idToDrawable.size=${idToDrawable.size}")
-
-        XposedBridge.hookAllMethods(Resources::class.java, "getDrawable", object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val id = param.args[0] as? Int ?: return
-                val d = param.result as? Drawable
-                if (seenDebugIds.add(id)) {
-                    val name = try { waRes.getResourceEntryName(id) } catch (_: Exception) { "?" }
-                    XposedBridge.log("[CT-dbg] getDrawable id=$id name=$name cls=${d?.javaClass?.simpleName} size=${d?.intrinsicWidth}x${d?.intrinsicHeight}")
-                }
-                val custom = idToDrawable[id] ?: return
-                param.result = custom.constantState?.newDrawable()?.mutate() ?: custom
-                val name = try { waRes.getResourceEntryName(id) } catch (_: Exception) { "?" }
-                XposedBridge.log("[CT] getDrawable replaced id=$id name=$name size=${custom.intrinsicWidth}x${custom.intrinsicHeight}")
-            }
-        })
-
-        XposedBridge.hookAllMethods(ImageView::class.java, "setImageResource", object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val id = param.args[0] as? Int ?: return
-                val custom = idToDrawable[id] ?: return
-                val view = param.thisObject as? ImageView ?: return
-                param.result = null
-                view.setImageDrawable(custom.constantState?.newDrawable()?.mutate() ?: custom)
-                XposedBridge.log("[CT] setImageResource replaced id=$id")
-            }
-        })
-
-        XposedBridge.hookAllMethods(ImageView::class.java, "setImageDrawable", object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val d = param.args[0] as? Drawable ?: return
-                val state = unwrapDrawable(d).constantState ?: return
-                for ((id, original) in originalById) {
-                    val origState = original.constantState ?: continue
-                    if (state === origState) {
-                        param.args[0] = idToDrawable[id]?.constantState?.newDrawable()?.mutate()
-                        XposedBridge.log("[CT] setImageDrawable replaced id=$id")
-                        return
-                    }
-                }
-            }
-        })
-        XposedBridge.log("[CT] hooks installed")
+        return idToDrawable.isNotEmpty()
     }
 
     private fun unwrapDrawable(d: Drawable): Drawable {

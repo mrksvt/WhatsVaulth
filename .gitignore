@@ -24,3 +24,13 @@ app/src/main/java/com/mrksvt/waen/xposed/core/TelegramReporter.kt
 app/src/main/java/com/mrksvt/waen/xposed/features/others/ViewInspector.kt
 app/src/main/java/com/mrksvt/waen/xposed/features/customization/CustomFont.kt
 app/src/main/java/com/mrksvt/waen/ui/fragments/CustomFontSettingsFragment.java
+app/src/main/java/com/mrksvt/waen/xposed/core/db/entity/CustomFontPresetEntity.kt
+app/src/main/java/com/mrksvt/waen/xposed/core/db/dao/CustomFontPresetDao.kt
+app/src/main/java/com/mrksvt/waen/ui/fragments/CustomFontPresetsFragment.java
+app/src/main/java/com/mrksvt/waen/ui/fragments/CustomFontEditFragment.java
+app/src/main/res/layout/fragment_custom_font_presets.xml
+app/src/main/res/layout/item_custom_font_preset.xml
+app/src/main/res/layout/fragment_custom_font_edit.xml
+app/src/main/res/xml/preference_custom_font.xml
+app/src/main/res/values/custom_font_donatur.xml
+app/src/main/java/com/mrksvt/waen/xposed/core/db/CustomFontDatabase.kt

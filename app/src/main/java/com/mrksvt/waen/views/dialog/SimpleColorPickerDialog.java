@@ -18,6 +18,7 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ContextThemeWrapper;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -42,17 +43,28 @@ public class SimpleColorPickerDialog {
     private String svgPreviewPath = null;
 
     public SimpleColorPickerDialog(Context context, OnColorSelectedListener listener) {
-        this.context = context;
+        this.context = wrapContext(context);
         this.listener = listener;
         this.selectedColor = Color.RED;
         this.initialColor = Color.RED;
     }
 
     public SimpleColorPickerDialog(Context context, int initialColor, OnColorSelectedListener listener) {
-        this.context = context;
+        this.context = wrapContext(context);
         this.listener = listener;
         this.selectedColor = initialColor;
         this.initialColor = initialColor;
+    }
+
+    // WhatsApp host context lacks MaterialComponents theme; force module theme so
+    // TextInputLayout & MaterialAlertDialogBuilder can resolve their attributes.
+    private static Context wrapContext(Context context) {
+        if (context == null) return null;
+        try {
+            return new ContextThemeWrapper(context, R.style.AppTheme);
+        } catch (Throwable t) {
+            return context;
+        }
     }
 
     public SimpleColorPickerDialog setSvgPreviewPath(String path) {

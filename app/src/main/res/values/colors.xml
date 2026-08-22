@@ -63,4 +63,5 @@
     <color name="log_success">#18733D</color>
     <color name="log_warning">#8A4B00</color>
     <color name="log_error">#B3261E</color>
+    <color name="theme_builder_preview_bg">#FFECE5DD</color>
 </resources>

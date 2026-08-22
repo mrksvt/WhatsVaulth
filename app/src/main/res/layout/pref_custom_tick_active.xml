@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:minHeight="48dp">
+
+    <TextView
+        android:id="@+id/tv_active_preset_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textAppearance="?attr/textAppearanceBodyMedium"/>
+
+    <ImageView
+        android:id="@+id/iv_tick_0"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null"/>
+
+    <ImageView
+        android:id="@+id/iv_tick_1"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null"/>
+
+    <ImageView
+        android:id="@+id/iv_tick_2"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null"/>
+
+    <ImageView
+        android:id="@+id/iv_tick_3"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null"/>
+
+    <ImageView
+        android:id="@+id/iv_tick_4"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null"/>
+
+</LinearLayout>

@@ -35,12 +35,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.mrksvt.waen.BuildConfig;
 import com.mrksvt.waen.R;
-import com.mrksvt.waen.ui.fragments.TrashRecoveryFragment;
 import com.mrksvt.waen.ui.fragments.base.BackNavHelper;
 import com.mrksvt.waen.ui.fragments.base.BaseFragment;
 import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
 import com.mrksvt.waen.xposed.core.HookOverrideStore;
-import com.mrksvt.waen.xposed.core.TelegramReporter;
 
 import android.widget.EditText;
 
@@ -530,7 +528,7 @@ public class GeneralFragment extends BaseFragment {
                     .setMessage("Dengan mengirim, kamu setuju data di atas dikirim ke developer.")
                     .setView(scrollView)
                     .setPositiveButton("Kirim", (dialog, which) ->
-                            TelegramReporter.INSTANCE.sendHookFixReport(
+                            sendDonaturReport(
                                     finalOverrides.isEmpty() ? "-" : finalOverrides,
                                     device,
                                     finalWaVersion,
@@ -539,17 +537,36 @@ public class GeneralFragment extends BaseFragment {
                                         new Handler(Looper.getMainLooper()).post(() ->
                                                 Toast.makeText(requireContext(),
                                                         "Report terkirim!", Toast.LENGTH_SHORT).show());
-                                        return kotlin.Unit.INSTANCE;
                                     },
                                     errMsg -> {
                                         new Handler(Looper.getMainLooper()).post(() ->
                                                 Toast.makeText(requireContext(),
                                                         "Gagal kirim: " + errMsg, Toast.LENGTH_LONG).show());
-                                        return kotlin.Unit.INSTANCE;
                                     }
                             ))
                     .setNegativeButton("Batal", null)
                     .show();
+        }
+
+        private void sendDonaturReport(String hookKey, String resourceName, String waVersion,
+                                       String errorLog, Runnable onSuccess, java.util.function.Consumer<String> onError) {
+            try {
+                Class<?> cls = Class.forName("com.mrksvt.waen.xposed.core.TelegramReporter");
+                Object instance = cls.getField("INSTANCE").get(null);
+                kotlin.jvm.functions.Function0<kotlin.Unit> successFn = () -> {
+                    onSuccess.run();
+                    return kotlin.Unit.INSTANCE;
+                };
+                kotlin.jvm.functions.Function1<String, kotlin.Unit> errorFn = errMsg -> {
+                    onError.accept(errMsg);
+                    return kotlin.Unit.INSTANCE;
+                };
+                cls.getMethod("sendHookFixReport", String.class, String.class, String.class, String.class,
+                                kotlin.jvm.functions.Function0.class, kotlin.jvm.functions.Function1.class)
+                        .invoke(instance, hookKey, resourceName, waVersion, errorLog, successFn, errorFn);
+            } catch (Throwable t) {
+                onError.accept("Fitur donatur tidak tersedia");
+            }
         }
 
         private SharedPreferences getWaePrefs() {
