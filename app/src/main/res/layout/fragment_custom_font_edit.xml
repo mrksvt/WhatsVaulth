@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/custom_font_preset_name"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_font_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPersonName"/>
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/custom_font_source_label"
+            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+
+        <Spinner
+            android:id="@+id/sp_font_source"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/custom_font_source_entries"
+            android:entryValues="@array/custom_font_source_values"/>
+
+        <LinearLayout
+            android:id="@+id/layout_bundled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/custom_font_bundled_label"
+                android:textAppearance="?attr/textAppearanceTitleSmall"/>
+
+            <Spinner
+                android:id="@+id/sp_font_bundled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_custom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/custom_font_custom_label"
+                android:textAppearance="?attr/textAppearanceTitleSmall"/>
+
+            <Button
+                android:id="@+id/btn_pick_font"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/custom_font_pick_file"/>
+
+            <TextView
+                android:id="@+id/tv_custom_path"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="24dp"
+            android:background="#22000000"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Preview"
+            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+
+        <TextView
+            android:id="@+id/tv_font_preview"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:text="Aa Bb Cc 123"
+            android:textSize="28sp"
+            android:background="?attr/colorSurfaceVariant"
+            android:layout_marginTop="8dp"/>
+
+        <Button
+            android:id="@+id/btn_save_font"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/save"/>
+
+    </LinearLayout>
+</ScrollView>
