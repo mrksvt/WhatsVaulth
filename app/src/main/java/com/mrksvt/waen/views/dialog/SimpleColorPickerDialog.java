@@ -56,10 +56,18 @@ public class SimpleColorPickerDialog {
         this.initialColor = initialColor;
     }
 
-    // WhatsApp host context lacks MaterialComponents theme; force module theme so
-    // TextInputLayout & MaterialAlertDialogBuilder can resolve their attributes.
+    // WhatsApp host context lacks MaterialComponents theme & module resources.
+    // ModuleContextWrapper overrides getResources()/getAssets() to the module,
+    // so TextInputLayout & MaterialAlertDialogBuilder resolve module attributes.
     private static Context wrapContext(Context context) {
         if (context == null) return null;
+        try {
+            if (com.mrksvt.waen.xposed.utils.Utils.getModuleContextOrNull() != null) {
+                return new com.mrksvt.waen.xposed.utils.ModuleContextWrapper(context);
+            }
+        } catch (Throwable t) {
+            // fall through
+        }
         try {
             return new ContextThemeWrapper(context, R.style.AppTheme);
         } catch (Throwable t) {
@@ -244,12 +252,12 @@ public class SimpleColorPickerDialog {
         }
 
         new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.select_a_color)
+                .setTitle("Select a color")
                 .setView(scrollView)
                 .setPositiveButton("OK", (dialog, which) -> {
                     if (listener != null) listener.onColorSelected(selectedColor);
                 })
-                .setNegativeButton(R.string.cancel, null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
