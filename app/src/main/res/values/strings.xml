@@ -368,6 +368,9 @@
     <string name="apply_theme">Apply Theme</string>
     <string name="theme_shop_title">Theme Shop</string>
     <string name="theme_shop_empty">No themes yet. Tap Import Theme to add one.</string>
+    <string name="theme_default">Default Theme</string>
+    <string name="theme_default_sum">Restore WhatsApp default look</string>
+    <string name="theme_reset_toast">Theme reset to default</string>
     <string name="theme_free">FREE</string>
     <string name="theme_premium">PREMIUM</string>
     <string name="theme_applied_toast">Theme applied</string>

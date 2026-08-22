@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -97,8 +98,11 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
         loadThemes();
     }
 
+    private static final String DEFAULT_TAG = "__DEFAULT__";
+
     private void loadThemes() {
         themes.clear();
+        themes.add(new File(DEFAULT_TAG)); // Default Theme selalu di atas
         File dir = ThemePreference.rootDirectory;
         if (dir.exists() && dir.isDirectory()) {
             File[] folders = dir.listFiles(File::isDirectory);
@@ -110,7 +114,6 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                 }
             }
         }
-        themes.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         adapter.notifyDataSetChanged();
         tvEmpty.setVisibility(themes.isEmpty() ? View.VISIBLE : View.GONE);
     }
@@ -205,6 +208,18 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             File themeDir = themes.get(position);
             String folder = themeDir.getName();
+
+            if (DEFAULT_TAG.equals(folder)) {
+                holder.name.setText(R.string.theme_default);
+                holder.author.setText(R.string.theme_default_sum);
+                holder.thumb.setImageResource(android.R.drawable.ic_menu_revert);
+                holder.badge.setText(R.string.theme_free);
+                holder.badge.setTextColor(requireContext().getColor(R.color.material_state_green));
+                holder.badge.setVisibility(View.GONE);
+                holder.card.setOnClickListener(v -> resetToDefault());
+                return;
+            }
+
             holder.name.setText(folder);
 
             File cssFile = new File(themeDir, "style.css");
@@ -242,6 +257,15 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                         .addToBackStack(null)
                         .commit();
             });
+        }
+
+        private void resetToDefault() {
+            PreferenceManager.getDefaultSharedPreferences(requireContext())
+                    .edit()
+                    .putString("folder_theme", "Default Theme")
+                    .putString("custom_css", "")
+                    .apply();
+            Toast.makeText(requireContext(), R.string.theme_reset_toast, Toast.LENGTH_SHORT).show();
         }
 
         @Override
