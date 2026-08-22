@@ -55,6 +55,18 @@ public class CustomizationFragment extends BaseFragment {
                     return true;
                 });
             }
+
+            Preference themeShopPref = findPreference("theme_shop_settings");
+            if (themeShopPref != null) {
+                themeShopPref.setOnPreferenceClickListener(pref -> {
+                    requireParentFragment().getChildFragmentManager()
+                            .beginTransaction()
+                            .replace(R.id.frag_container, new ThemeShopFragment())
+                            .addToBackStack(null)
+                            .commit();
+                    return true;
+                });
+            }
         }
 
         private void openDonaturFragment(String className) {

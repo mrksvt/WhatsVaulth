@@ -366,6 +366,11 @@
     <string name="theme_preview_outgoing">I\'m great, thanks!</string>
     <string name="theme_preview_body">Message preview</string>
     <string name="apply_theme">Apply Theme</string>
+    <string name="theme_shop_title">Theme Shop</string>
+    <string name="theme_shop_empty">No themes yet. Tap Import Theme to add one.</string>
+    <string name="theme_free">FREE</string>
+    <string name="theme_premium">PREMIUM</string>
+    <string name="theme_applied_toast">Theme applied</string>
     <string name="edit">Edit</string>
     <string name="grant_permission">Please, grant permissions to read images and read external storage</string>
     <string name="one_row">One Row</string>

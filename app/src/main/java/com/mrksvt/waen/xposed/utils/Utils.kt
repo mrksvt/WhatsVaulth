@@ -335,6 +335,17 @@ object Utils {
         return match.group(1)
     }
 
+    @JvmStatic
+    fun readFileText(file: java.io.File): String {
+        return try {
+            java.io.FileReader(file).use { reader ->
+                reader.readText()
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun showNotification(title: String?, content: String?) {
         val context: Application = application
