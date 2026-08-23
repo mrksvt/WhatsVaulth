@@ -1,1 +1,6 @@
 @import "tailwindcss";
+@source "./data.ts";
+@source "./safelist.ts";
+@source "./App.tsx";
+@source "./components/WhatsAppMockup.tsx";
+@source "./components/PropertyPanel.tsx";

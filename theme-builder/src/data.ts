@@ -1,21 +1,21 @@
 import type { ThemeElement, ElementStyle } from './types'
 
 export const DEFAULT_ELEMENTS: ThemeElement[] = [
-  { id: '#toolbar', label: 'Toolbar', style: { bg: 'bg-[#075E54]', padding: 'p-4', shadow: 'shadow-md' } },
-  { id: '#toolbar TextView', label: 'Toolbar Title', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
-  { id: '#search_bar_inner_layout', label: 'Search Bar', style: { bg: 'bg-white', rounded: 'rounded-lg', padding: 'p-2', margin: 'm-2' } },
-  { id: '#conversations_row_content', label: 'Chat Row', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' } },
-  { id: '#conversations_row_contact_name', label: 'Chat Name', style: { textColor: 'text-gray-900', fontWeight: 'font-bold', fontSize: 'text-base' } },
-  { id: '#single_msg_tv', label: 'Chat Message', style: { textColor: 'text-gray-500', fontSize: 'text-sm' } },
-  { id: '#conversations_row_date', label: 'Chat Time', style: { textColor: 'text-gray-400', fontSize: 'text-xs' } },
-  { id: '#fab', label: 'FAB Button', style: { bg: 'bg-[#25D366]', rounded: 'rounded-full', shadow: 'shadow-lg', icon: 'message-circle' } },
-  { id: '#send', label: 'Send Button', style: { icon: 'send', width: 'w-10', height: 'h-10' } },
-  { id: '#bottom_nav', label: 'Bottom Nav', style: { bg: 'bg-white', padding: 'p-2', shadow: 'shadow-md' } },
-  { id: '#input_layout', label: 'Input Bar', style: { bg: 'bg-white', padding: 'p-2', rounded: 'rounded-xl' } },
-  { id: '#entry', label: 'Input Field', style: { textColor: 'text-gray-700', fontSize: 'text-sm', padding: 'p-2' } },
-  { id: '#conversation_background', label: 'Chat Background', style: { bg: 'bg-[#ECE5DD]' } },
-  { id: '#bubble_incoming', label: 'Incoming Bubble', style: { bg: 'bg-white', rounded: 'rounded-xl', padding: 'p-3' } },
-  { id: '#bubble_outgoing', label: 'Outgoing Bubble', style: { bg: 'bg-[#DCF8C6]', rounded: 'rounded-xl', padding: 'p-3' } },
+  { id: '#toolbar', label: 'Toolbar', type: 'toolbar', style: { bg: 'bg-[#075E54]', padding: 'p-4', shadow: 'shadow-md' } },
+  { id: '#toolbar TextView', label: 'Toolbar Title', type: 'toolbar-title', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: '#search_bar_inner_layout', label: 'Search Bar', type: 'search', style: { bg: 'bg-white', rounded: 'rounded-lg', padding: 'p-2', margin: 'm-2' }, removable: true },
+  { id: '#conversations_row_content', label: 'Chat Row', type: 'chat-row', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: '#conversations_row_contact_name', label: 'Chat Name', type: 'chat-name', style: { textColor: 'text-gray-900', fontWeight: 'font-bold', fontSize: 'text-base' } },
+  { id: '#single_msg_tv', label: 'Chat Message', type: 'chat-message', style: { textColor: 'text-gray-500', fontSize: 'text-sm' } },
+  { id: '#conversations_row_date', label: 'Chat Time', type: 'chat-time', style: { textColor: 'text-gray-400', fontSize: 'text-xs' } },
+  { id: '#fab', label: 'FAB Button', type: 'fab', style: { bg: 'bg-[#25D366]', rounded: 'rounded-full', shadow: 'shadow-lg', icon: 'message-circle' }, removable: true },
+  { id: '#send', label: 'Send Button', type: 'send', style: { icon: 'send', width: 'w-10', height: 'h-10' }, removable: true },
+  { id: '#bottom_nav', label: 'Bottom Nav', type: 'bottom-nav', style: { bg: 'bg-white', padding: 'p-2', shadow: 'shadow-md' } },
+  { id: '#input_layout', label: 'Input Bar', type: 'input', style: { bg: 'bg-white', padding: 'p-2', rounded: 'rounded-xl' } },
+  { id: '#entry', label: 'Input Field', type: 'input-field', style: { textColor: 'text-gray-700', fontSize: 'text-sm', padding: 'p-2' } },
+  { id: '#conversation_background', label: 'Chat Background', type: 'bubble-incoming', style: { bg: 'bg-[#ECE5DD]' } },
+  { id: '#bubble_incoming', label: 'Incoming Bubble', type: 'bubble-incoming', style: { bg: 'bg-white', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
+  { id: '#bubble_outgoing', label: 'Outgoing Bubble', type: 'bubble-outgoing', style: { bg: 'bg-[#DCF8C6]', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
 ]
 
 export function styleToTailwind(style: ElementStyle): string {
