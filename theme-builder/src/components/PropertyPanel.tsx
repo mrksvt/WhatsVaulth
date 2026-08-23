@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ElementStyle, ThemeElement } from '../types'
-import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, cssForElements, parseCssUpdates, SHAPE_OPTIONS } from '../data'
+import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, cssForElements, parseCssUpdates } from '../data'
 import IconPicker from './IconPicker'
 
 interface Props {
@@ -15,7 +15,6 @@ interface Props {
   onSelectParent?: () => void
   screenElements?: ThemeElement[]
   onUpdateElements?: (updates: Map<string, string>) => void
-  elementType?: ThemeElement['type']
 }
 
 function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
@@ -54,7 +53,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
   )
 }
 
-export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent, screenElements, onUpdateElements, elementType }: Props) {
+export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent, screenElements, onUpdateElements }: Props) {
   const hasCustomCorner = !!(style.cornerRadius && Object.keys(style.cornerRadius).length > 0)
   const [customCorner, setCustomCorner] = useState(hasCustomCorner)
   const [showIconPicker, setShowIconPicker] = useState(false)
@@ -123,18 +122,6 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
             className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs" />
         </div>
       </Section>
-
-      {elementType === 'container' && (
-        <Section title="Shape">
-          <div className="flex flex-wrap gap-1">
-            {SHAPE_OPTIONS.map((s) => (
-              <Btn key={s.id} active={style.shape === s.id} onClick={() => onChange({ shape: s.id === 'rectangle' ? undefined : s.id })}>
-                {s.label}
-              </Btn>
-            ))}
-          </div>
-        </Section>
-      )}
 
       <Section title="Background">
         <div className="flex flex-wrap gap-1">

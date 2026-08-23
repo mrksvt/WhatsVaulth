@@ -15,10 +15,7 @@ export interface ElementStyle {
   borderWidth?: string; borderColor?: string; borderStyle?: string
   rotate?: string; cornerRadius?: { tl?: string; tr?: string; bl?: string; br?: string }
   customClass?: string
-  shape?: ShapeType
 }
-
-export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
 
 export interface ThemeElement {
   id: string          // selector css, contoh: '#toolbar'
