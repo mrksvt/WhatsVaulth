@@ -38,6 +38,7 @@
 ## Gap yang Belum / Bermasalah (TODO)
 
 ### 🔴 DnD Canvas belum stabil (prioritas)
+- [ ] **Select dengan DnD pada canvas untuk blok/memilih elemen** — drag di canvas (marquee/lasso) untuk memilih satu/beberapa elemen sekaligus (seperti Figma/Canva), drag elemen untuk memindahkan (bukan hanya klik-toggle)
 - [ ] **BUG: interaksi elemen di canvas tidak konsisten** — klik/move/resize kadang tidak merespons
   - Kemungkinan: pointer capture + onClick konflik, event ordering, device frame overlay
   - Perlu: debug event flow, isolasi pointer events per mode
@@ -102,6 +103,7 @@ change_colors = true
 
 ## Todo (prioritas)
 
+- [ ] **T-S** Select dengan DnD di canvas — marquee/lasso pilih satu/beberapa elemen (Figma/Canva style), drag elemen untuk move
 - [ ] **T-A** Fix interaksi DnD canvas (debug event flow, pointer capture, klik vs drag)
 - [ ] **T-B** Stabilkan resize handle & move (drag langsung, bukan hanya toggle)
 - [ ] **T-C** Lock via drag-drop yang andal
