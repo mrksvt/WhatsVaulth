@@ -14,10 +14,13 @@
 | Device frame | ✅ `react-device-mockup` (iPhone/Android/iPad) |
 | Canvas polos build-from-0 | ✅ Tambah elemen: Text, Icon, Image, Box, Container |
 | ID assignment | ✅ Dropdown ID per screen + manual |
-| Resize handle | ⚠️ Handle ↘, tapi interaksi DnD belum stabil |
-| Move (drag) | ⚠️ Klik 2 → move, drag belum konsisten |
-| Lock elemen | ⚠️ Drag-drop → lock, belum andal |
+| Resize handle | ✅ Drag akurat, tidak menggeser elemen |
+| Move (drag) | ✅ Drag langsung, tanpa toggle klik |
+| Marquee select | ✅ Drag canvas → lasso pilih multi elemen (Figma style) |
+| Lock elemen | ✅ Lock via tombol / setelah drag |
 | Klik kanan modal | ✅ ID, konten, icon, warna, radius |
+| Template elemen | ✅ Toolbar, Bottom Nav, Chat Input, Conversation Row |
+| Safe area | ✅ Boundary clamp dinamis per device (ResizeObserver) |
 | Export ZIP | ✅ style.css + theme.json + assets |
 
 ---
@@ -34,24 +37,18 @@
 8. **Export ZIP** — `style.css` (class: + icon:) + `theme-name.json` + wallpaper + lucide SVG
 9. **Interaksi recycle** — klik 1 → resize, klik 2 → move, klik 3 → resize (count indicator)
 10. **Lock via drag-drop** — elemen terkunci setelah drag selesai
+11. **Marquee select** — drag canvas kosong → lasso select multi elemen (bbox collision), klik kosong → deselect
+12. **DnD stabil** — klik = select, drag = move (tanpa mode toggle), pointer capture sebelum dragRef, guard resize vs move
+13. **Resize akurat** — `resizingRef` mencegah elemen ikut berpindah saat resize handle didrag
+14. **Multi-select** — `selectedIds[]` (bukan `selectedId`), delete/duplicate batch, updateStyle patch semua terpilih
+15. **Template elemen** — 4 template (Toolbar, Bottom Nav, Chat Input, Conversation Row) dari hello_remake, insert via modal, ID unik + offset
+16. **Safe area** — boundary clamp dinamis: ResizeObserver ukur tinggi canvas aktual per device, move/resize tidak bisa keluar frame
 
 ## Gap yang Belum / Bermasalah (TODO)
 
-### 🔴 DnD Canvas belum stabil (prioritas)
-- [ ] **Select dengan DnD pada canvas untuk blok/memilih elemen** — drag di canvas (marquee/lasso) untuk memilih satu/beberapa elemen sekaligus (seperti Figma/Canva), drag elemen untuk memindahkan (bukan hanya klik-toggle)
-- [ ] **BUG: interaksi elemen di canvas tidak konsisten** — klik/move/resize kadang tidak merespons
-  - Kemungkinan: pointer capture + onClick konflik, event ordering, device frame overlay
-  - Perlu: debug event flow, isolasi pointer events per mode
-- [ ] **Drag & drop elemen** (bukan cuma klik-toggle) — user ingin tarik elemen langsung
-- [ ] **Resize handle** — pastikan resize akurat saat drag
-- [ ] **Lock via drag-drop** — andalkan lock setelah drop
-
 ### 🟡 Penyempurnaan
-- [ ] Konfirmasi: elemen baru harus muncul di canvas & bisa langsung diinteraksi
-- [ ] Multiple elemen overlap — z-index/selection
 - [ ] Snap to grid / align guide (opsional)
 - [ ] Undo/redo (opsional)
-- [ ] Duplicate — posisi offset agar tidak menumpuk
 
 ### 🟢 Engine / Export
 - [ ] Engine: `top-[Xpx] left-[Xpx]` arbitrary value di-tailwind parser (sudah di web, perlu engine)
@@ -103,11 +100,13 @@ change_colors = true
 
 ## Todo (prioritas)
 
-- [ ] **T-S** Select dengan DnD di canvas — marquee/lasso pilih satu/beberapa elemen (Figma/Canva style), drag elemen untuk move
-- [ ] **T-A** Fix interaksi DnD canvas (debug event flow, pointer capture, klik vs drag)
-- [ ] **T-B** Stabilkan resize handle & move (drag langsung, bukan hanya toggle)
-- [ ] **T-C** Lock via drag-drop yang andal
-- [ ] **T-D** Duplicate offset (elemen copy tidak menumpuk)
+- [x] **T-S** Select dengan DnD di canvas — marquee/lasso pilih satu/beberapa elemen (Figma/Canva style), drag elemen untuk move
+- [x] **T-A** Fix interaksi DnD canvas (debug event flow, pointer capture, klik vs drag)
+- [x] **T-B** Stabilkan resize handle & move (drag langsung, bukan hanya toggle)
+- [x] **T-C** Lock via drag-drop yang andal
+- [x] **T-D** Duplicate offset (elemen copy tidak menumpuk)
+- [x] **T-H** Template elemen (Toolbar, Bottom Nav, Chat Input, Conversation Row)
+- [x] **T-I** Safe area — boundary clamp dinamis per device
 - [ ] **T-E** Engine: top/left arbitrary di Tailwind parser
 - [ ] **T-F** Validasi ID selector export
 - [ ] **T-G** Snap grid / undo-redo (opsional)

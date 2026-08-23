@@ -89,3 +89,55 @@ export const RADIUS = ['none', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'full']
 export const SHADOWS = ['none', 'sm', 'md', 'lg', 'xl', '2xl']
 export const FONT_SIZES = ['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl']
 export const FONT_WEIGHTS = ['font-light', 'font-normal', 'font-medium', 'font-semibold', 'font-bold']
+
+// Template element groups (hello_remake style)
+export interface ElementTemplate {
+  name: string
+  screen: ScreenId
+  elements: Omit<ThemeElement, 'screen'>[]
+}
+
+export const TEMPLATES: ElementTemplate[] = [
+  {
+    name: 'Toolbar (Home)',
+    screen: 'home',
+    elements: [
+      { id: '#toolbar', label: 'Toolbar', type: 'box', style: { width: 360, height: 56, top: 0, left: 0, bg: 'bg-teal-600' }, removable: true, customId: false },
+      { id: '#search_bar_inner_layout', label: 'Search', type: 'box', style: { width: 200, height: 40, top: 8, left: 80, bg: 'bg-white', rounded: 'rounded-full' }, removable: true, customId: false },
+      { id: '#menu_icon', label: 'Menu', type: 'icon-btn', style: { width: 40, height: 40, top: 8, left: 320, icon: 'menu' }, removable: true, customId: true },
+    ],
+  },
+  {
+    name: 'Bottom Navigation',
+    screen: 'home',
+    elements: [
+      { id: '#bottom_nav', label: 'Bottom Nav Container', type: 'container', style: { width: 360, height: 56, top: 744, left: 0, bg: 'bg-gray-100' }, removable: true, customId: false },
+      { id: '#nav_chat', label: 'Nav Chat', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 40, icon: 'message-square' }, removable: true, customId: true },
+      { id: '#nav_status', label: 'Nav Status', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 130, icon: 'circle-dashed' }, removable: true, customId: true },
+      { id: '#nav_call', label: 'Nav Call', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 220, icon: 'phone' }, removable: true, customId: true },
+      { id: '#nav_settings', label: 'Nav Settings', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 310, icon: 'settings' }, removable: true, customId: true },
+    ],
+  },
+  {
+    name: 'Chat Input Bar',
+    screen: 'conversation',
+    elements: [
+      { id: '#input_layout', label: 'Input Container', type: 'container', style: { width: 360, height: 56, top: 744, left: 0, bg: 'bg-white' }, removable: true, customId: false },
+      { id: '#emoji_picker_btn', label: 'Emoji', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 8, icon: 'smile' }, removable: true, customId: false },
+      { id: '#input_attach_button', label: 'Attach', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 48, icon: 'paperclip' }, removable: true, customId: false },
+      { id: '#entry', label: 'Input Field', type: 'box', style: { width: 200, height: 40, top: 752, left: 88, bg: 'bg-gray-100', rounded: 'rounded-full' }, removable: true, customId: false },
+      { id: '#camera_btn', label: 'Camera', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 296, icon: 'camera' }, removable: true, customId: false },
+      { id: '#voice_note_btn', label: 'Voice', type: 'icon-btn', style: { width: 32, height: 32, top: 756, left: 336, icon: 'mic' }, removable: true, customId: false },
+    ],
+  },
+  {
+    name: 'Conversation Row',
+    screen: 'home',
+    elements: [
+      { id: '#conversations_row_content', label: 'Chat Row', type: 'box', style: { width: 360, height: 72, top: 80, left: 0, bg: 'bg-white' }, removable: true, customId: false },
+      { id: '#conversations_row_contact_name', label: 'Contact Name', type: 'text', style: { width: 200, height: 20, top: 88, left: 72, textColor: 'text-gray-900', fontWeight: 'font-semibold' }, removable: true, customId: false },
+      { id: '#single_msg_tv', label: 'Last Message', type: 'text', style: { width: 200, height: 16, top: 112, left: 72, textColor: 'text-gray-600', fontSize: 'text-sm' }, removable: true, customId: false },
+      { id: '#conversations_row_date', label: 'Date', type: 'text', style: { width: 60, height: 14, top: 88, left: 288, textColor: 'text-gray-400', fontSize: 'text-xs' }, removable: true, customId: false },
+    ],
+  },
+]

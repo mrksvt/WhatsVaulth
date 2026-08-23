@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Theme, ThemeElement, ScreenId, DeviceId } from './types'
-import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE } from './data'
+import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE, TEMPLATES } from './data'
 import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
 import ElementModal from './components/ElementModal'
@@ -12,54 +12,87 @@ export default function App() {
   const [elements, setElements] = useState<ThemeElement[]>(DEFAULT_ELEMENTS)
   const [screen, setScreen] = useState<ScreenId>('home')
   const [device, setDevice] = useState<DeviceId>('iphone')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [wallpaper, setWallpaper] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [canvasHeight, setCanvasHeight] = useState(812)
 
   const screenElements = elements.filter((e) => e.screen === screen)
-  const selected = elements.find((e) => e.id === selectedId)
+  const selected = selectedIds.length > 0 ? elements.find((e) => e.id === selectedIds[0]) : undefined
 
   const updateStyle = (patch: Partial<ThemeElement['style']>) => {
-    if (!selectedId) return
+    if (selectedIds.length === 0) return
     setElements((prev) =>
-      prev.map((e) => (e.id === selectedId ? { ...e, style: { ...e.style, ...patch } } : e))
+      prev.map((e) => selectedIds.includes(e.id) ? { ...e, style: { ...e.style, ...patch } } : e)
     )
   }
 
-  const handleDelete = (id: string) => {
-    setElements((prev) => prev.filter((e) => e.id !== id))
-    setSelectedId(null)
+  const handleDelete = (ids: string[]) => {
+    setElements((prev) => prev.filter((e) => !ids.includes(e.id)))
+    setSelectedIds([])
   }
 
-  const handleDuplicate = (id: string) => {
+  const handleDuplicate = (ids: string[]) => {
     setElements((prev) => {
-      const idx = prev.findIndex((e) => e.id === id)
-      if (idx === -1) return prev
-      const src = prev[idx]
-      const copy: ThemeElement = {
-        ...src,
-        id: `${src.id}-copy-${Date.now()}`,
-        label: `${src.label} (copy)`,
-        customId: true,
-      }
       const next = [...prev]
-      next.splice(idx + 1, 0, copy)
+      for (const id of ids) {
+        const idx = next.findIndex((e) => e.id === id)
+        if (idx === -1) continue
+        const src = next[idx]
+        const copy: ThemeElement = {
+          ...src,
+          id: `${src.id}-copy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          label: `${src.label} (copy)`,
+          customId: true,
+        }
+        next.splice(idx + 1, 0, copy)
+      }
       return next
     })
   }
 
   const handleMove = (id: string, dx: number, dy: number) => {
+    const CANVAS_WIDTH = 375
+    const CANVAS_HEIGHT = canvasHeight
     setElements((prev) =>
       prev.map((e) => {
         if (e.id !== id) return e
-        return { ...e, style: { ...e.style, top: (e.style.top ?? 10) + dy, left: (e.style.left ?? 10) + dx } }
+        const newTop = (e.style.top ?? 10) + dy
+        const newLeft = (e.style.left ?? 10) + dx
+        const w = e.style.width ?? 120
+        const h = e.style.height ?? 40
+        return {
+          ...e,
+          style: {
+            ...e.style,
+            top: Math.max(0, Math.min(newTop, CANVAS_HEIGHT - h)),
+            left: Math.max(0, Math.min(newLeft, CANVAS_WIDTH - w)),
+          },
+        }
       })
     )
   }
 
   const handleResize = (id: string, w: number, h: number) => {
+    const CANVAS_WIDTH = 375
+    const CANVAS_HEIGHT = canvasHeight
     setElements((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, style: { ...e.style, width: w, height: h } } : e))
+      prev.map((e) => {
+        if (e.id !== id) return e
+        const top = e.style.top ?? 10
+        const left = e.style.left ?? 10
+        const maxW = CANVAS_WIDTH - left
+        const maxH = CANVAS_HEIGHT - top
+        return {
+          ...e,
+          style: {
+            ...e.style,
+            width: Math.max(20, Math.min(w, maxW)),
+            height: Math.max(20, Math.min(h, maxH)),
+          },
+        }
+      })
     )
   }
 
@@ -79,7 +112,34 @@ export default function App() {
     }
     if (icon) newEl.style.icon = icon
     setElements((prev) => [...prev, newEl])
-    setSelectedId(newEl.id)
+    setSelectedIds([newEl.id])
+  }
+
+  const handleInsertTemplate = (templateName: string) => {
+    const template = TEMPLATES.find((t) => t.name === templateName && t.screen === screen)
+    if (!template) return
+    
+    const usedIds = elements.map((e) => e.id)
+    const newElements: ThemeElement[] = template.elements.map((el, idx) => {
+      let uniqueId = el.id
+      if (usedIds.includes(el.id)) {
+        uniqueId = `${el.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      }
+      return {
+        ...el,
+        id: uniqueId,
+        screen,
+        style: {
+          ...el.style,
+          top: (el.style.top ?? 10) + (idx * 5),
+          left: (el.style.left ?? 10) + (idx * 5),
+        },
+      }
+    })
+    
+    setElements((prev) => [...prev, ...newElements])
+    setSelectedIds(newElements.map((e) => e.id))
+    setShowTemplates(false)
   }
 
   const onWallpaper = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,14 +200,14 @@ export default function App() {
           {screenElements.map((el) => (
             <div
               key={el.id}
-              onClick={() => setSelectedId(el.id)}
+              onClick={() => setSelectedIds([el.id])}
               className={`w-full text-left px-3 py-1.5 text-sm flex justify-between items-center cursor-pointer ${
-                el.id === selectedId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                selectedIds.includes(el.id) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
               <span className="truncate flex-1">{el.label}</span>
               <span className="text-[9px] text-gray-400 font-mono truncate max-w-[80px]">{el.id}</span>
-              <span className="text-gray-300 text-xs cursor-pointer ml-1" onClick={(e) => { e.stopPropagation(); handleDelete(el.id) }}>✕</span>
+              <span className="text-gray-300 text-xs cursor-pointer ml-1" onClick={(e) => { e.stopPropagation(); handleDelete([el.id]) }}>✕</span>
             </div>
           ))}
           <div className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Add Element</div>
@@ -160,6 +220,13 @@ export default function App() {
               + {a.label}
             </button>
           ))}
+          <div className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Templates</div>
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="w-full text-left px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
+          >
+            📋 Insert Template
+          </button>
         </aside>
 
         <main className="flex-1 flex flex-col bg-gray-200 overflow-auto">
@@ -170,13 +237,14 @@ export default function App() {
               screen={screen}
               device={device}
               onScreen={setScreen}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+              selectedIds={selectedIds}
+              onSelect={setSelectedIds}
               onDelete={handleDelete}
               onDuplicate={handleDuplicate}
               onMove={handleMove}
               onResize={handleResize}
               onEdit={setEditingId}
+              onCanvasHeight={setCanvasHeight}
             />
           </div>
         </main>
@@ -204,6 +272,31 @@ export default function App() {
           onSave={handleSaveElement}
           onClose={() => setEditingId(null)}
         />
+      )}
+      {showTemplates && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTemplates(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-96 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-900">Insert Template</h2>
+              <button onClick={() => setShowTemplates(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-4">
+              {TEMPLATES.filter((t) => t.screen === screen).length === 0 && (
+                <p className="text-sm text-gray-500">No templates for this screen</p>
+              )}
+              {TEMPLATES.filter((t) => t.screen === screen).map((template) => (
+                <button
+                  key={template.name}
+                  onClick={() => handleInsertTemplate(template.name)}
+                  className="w-full text-left p-3 mb-2 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <div className="font-medium text-gray-900">{template.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">{template.elements.length} elements</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
