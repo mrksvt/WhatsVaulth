@@ -408,6 +408,18 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                         view.postInvalidate()
                     }
                 }
+                "class" -> {
+                    applyTailwindClasses(view, terms[0].strValue)
+                }
+                "icon" -> {
+                    if (view !is ImageView) continue
+                    val name = terms[0].strValue.trim()
+                    val drawable = loadIconDrawable(name, view.width, view.height)
+                    if (drawable != null) {
+                        view.setImageDrawable(drawable)
+                        view.visibility = View.VISIBLE
+                    }
+                }
                 "display" -> {
                     when (terms[0].strValue) {
                         "none" -> {
@@ -799,6 +811,283 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                 log("Error parsing gradient: ${e.message}")
             }
         }
+    }
+
+    private fun applyTailwindClasses(view: View, classStr: String) {
+        for (c in classStr.split(" ")) {
+            if (c.isBlank()) continue
+            applyTailwindUtility(view, c.trim())
+        }
+    }
+
+    private fun applyTailwindUtility(view: View, cls: String) {
+        // bg-{color}-{shade} / bg-[#hex]
+        if (cls.startsWith("bg-")) {
+            val color = parseTailwindColor(cls.removePrefix("bg-"))
+            if (color != null) {
+                if (view is TextView) view.setBackgroundColor(color)
+                else view.setBackgroundColor(color)
+            }
+            return
+        }
+        // text-{color}-{shade} / text-[#hex]
+        if (cls.startsWith("text-") && view is TextView) {
+            val color = parseTailwindColor(cls.removePrefix("text-"))
+            if (color != null) {
+                view.setTextColor(color)
+                return
+            }
+        }
+        // border-{color}
+        if (cls.startsWith("border-")) {
+            if (cls == "border-0" || cls == "border-2" || cls == "border-4" || cls == "border-8") return
+            val color = parseTailwindColor(cls.removePrefix("border-"))
+            if (color != null) {
+                if (view is ImageView) view.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_ATOP)
+                else view.background?.setTint(color)
+            }
+            return
+        }
+        // rounded-{n}
+        if (cls.startsWith("rounded-")) {
+            val radius = tailwindRadius(cls.removePrefix("rounded-"))
+            if (radius > 0) {
+                try {
+                    val gd = android.graphics.drawable.GradientDrawable()
+                    gd.setCornerRadius(radius.toFloat())
+                    if (view.background is android.graphics.drawable.GradientDrawable) {
+                        val bg = view.background as android.graphics.drawable.GradientDrawable
+                        bg.setCornerRadius(radius.toFloat())
+                    } else {
+                        gd.setColor(android.graphics.Color.TRANSPARENT)
+                        view.background = gd
+                    }
+                } catch (_: Exception) {}
+            }
+            return
+        }
+        // shadow-{n}
+        if (cls.startsWith("shadow-")) {
+            val elevation = tailwindShadow(cls.removePrefix("shadow-"))
+            view.elevation = elevation
+            return
+        }
+        // p-{n} / px-{n} / py-{n} / pt-{n} / pr-{n} / pb-{n} / pl-{n}
+        if (cls.startsWith("p") || cls.startsWith("m")) {
+            applyTailwindSpacing(view, cls)
+            return
+        }
+        // w-{n} / h-{n}
+        if (cls.startsWith("w-")) {
+            val w = tailwindSpacing(cls.removePrefix("w-"))
+            if (w > 0 && view.layoutParams != null) {
+                view.layoutParams.width = (w * density).toInt()
+                view.requestLayout()
+            }
+            return
+        }
+        if (cls.startsWith("h-")) {
+            val h = tailwindSpacing(cls.removePrefix("h-"))
+            if (h > 0 && view.layoutParams != null) {
+                view.layoutParams.height = (h * density).toInt()
+                view.requestLayout()
+            }
+            return
+        }
+        // text-{size}
+        if (cls.startsWith("text-") && view is TextView) {
+            val size = tailwindTextSize(cls.removePrefix("text-"))
+            if (size > 0f) view.textSize = size
+            return
+        }
+        // font-{weight}
+        if (cls.startsWith("font-") && view is TextView) {
+            when (cls) {
+                "font-bold" -> view.setTypeface(null, android.graphics.Typeface.BOLD)
+                "font-semibold" -> view.setTypeface(null, android.graphics.Typeface.BOLD)
+                "font-medium" -> view.setTypeface(null, android.graphics.Typeface.NORMAL)
+                "font-normal" -> view.setTypeface(null, android.graphics.Typeface.NORMAL)
+                "font-light" -> view.setTypeface(null, android.graphics.Typeface.NORMAL)
+            }
+            return
+        }
+        // display
+        when (cls) {
+            "hidden" -> { view.visibility = View.GONE; forcedVisibilityMap[view] = View.GONE }
+            "block", "flex" -> { view.visibility = View.VISIBLE; forcedVisibilityMap[view] = View.VISIBLE }
+            "invisible" -> { view.visibility = View.INVISIBLE; forcedVisibilityMap[view] = View.INVISIBLE }
+        }
+        // opacity-{n}
+        if (cls.startsWith("opacity-")) {
+            val n = cls.removePrefix("opacity-").toIntOrNull() ?: return
+            view.alpha = n.coerceIn(0, 100) / 100f
+            return
+        }
+        // icon:lucide-{name} → handled by icon property, not class
+        // color-tint-{color}
+        if (cls.startsWith("color-tint-")) {
+            val color = parseTailwindColor(cls.removePrefix("color-tint-"))
+            if (color != null && view is ImageView) {
+                view.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_ATOP)
+            }
+            return
+        }
+    }
+
+    private val density by lazy { Utils.application.resources.displayMetrics.density }
+
+    private fun parseTailwindColor(name: String): Int? {
+        // format: [name]-[shade] atau [hex]
+        if (name.startsWith("[")) {
+                val hex = name.removeSurrounding("[", "]").trim()
+            return try { android.graphics.Color.parseColor(hex) } catch (_: Exception) { null }
+        }
+        val parts = name.split("-")
+        val shade = parts.lastOrNull()?.toIntOrNull()
+        val base = if (shade != null) parts.dropLast(1).joinToString("-") else name
+        val hex = TAILWIND_COLORS[base]
+        if (hex == null || shade == null) return hex?.let { try { android.graphics.Color.parseColor(it) } catch (_: Exception) { null } }
+        // shade interpolation: shade 50-950 → lebih terang/gelap
+        val baseColor = try { android.graphics.Color.parseColor(hex) } catch (_: Exception) { return null }
+        return if (shade == 500) baseColor
+        else if (shade < 500) lightenColor(baseColor, (500 - shade) * 0.01f)
+        else darkenColor(baseColor, (shade - 500) * 0.01f)
+    }
+
+    private fun lightenColor(color: Int, factor: Float): Int {
+        val r = (android.graphics.Color.red(color) + (255 - android.graphics.Color.red(color)) * factor).toInt()
+        val g = (android.graphics.Color.green(color) + (255 - android.graphics.Color.green(color)) * factor).toInt()
+        val b = (android.graphics.Color.blue(color) + (255 - android.graphics.Color.blue(color)) * factor).toInt()
+        return android.graphics.Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+    }
+
+    private fun darkenColor(color: Int, factor: Float): Int {
+        val r = (android.graphics.Color.red(color) * (1f - factor)).toInt()
+        val g = (android.graphics.Color.green(color) * (1f - factor)).toInt()
+        val b = (android.graphics.Color.blue(color) * (1f - factor)).toInt()
+        return android.graphics.Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+    }
+
+    private fun tailwindRadius(name: String): Int {
+        return when (name) {
+            "none" -> 0; "sm" -> 2; "md" -> 6; "lg" -> 8; "xl" -> 12
+            "2xl" -> 16; "3xl" -> 24; "full" -> 9999
+            else -> name.toIntOrNull() ?: 0
+        }
+    }
+
+    private fun tailwindShadow(name: String): Float {
+        return when (name) {
+            "sm" -> 1f; "md" -> 3f; "lg" -> 6f; "xl" -> 10f; "2xl" -> 16f
+            else -> 0f
+        }
+    }
+
+    private fun tailwindSpacing(name: String): Float {
+        val scale = mapOf(
+            "0" to 0f, "0.5" to 2f, "1" to 4f, "1.5" to 6f, "2" to 8f,
+            "2.5" to 10f, "3" to 12f, "3.5" to 14f, "4" to 16f, "5" to 20f,
+            "6" to 24f, "7" to 28f, "8" to 32f, "9" to 36f, "10" to 40f,
+            "11" to 44f, "12" to 48f, "14" to 56f, "16" to 64f, "20" to 80f,
+            "24" to 96f, "28" to 112f, "32" to 128f, "36" to 144f, "40" to 160f,
+            "44" to 176f, "48" to 192f, "52" to 208f, "56" to 224f, "60" to 240f,
+            "64" to 256f, "72" to 288f, "80" to 320f, "96" to 384f
+        )
+        return scale[name] ?: (name.toFloatOrNull() ?: 0f) * 4f
+    }
+
+    private fun tailwindTextSize(name: String): Float {
+        return when (name) {
+            "xs" -> 10f; "sm" -> 12f; "base" -> 14f; "lg" -> 16f
+            "xl" -> 20f; "2xl" -> 24f; "3xl" -> 30f
+            else -> 14f
+        }
+    }
+
+    private fun applyTailwindSpacing(view: View, cls: String) {
+        // parse p/m [x/y/t/r/b/l] -{n}
+        // contoh: p-4, px-2, py-3, mt-2, mb-4, ml-6, mr-8, mx-4, my-2
+        if (cls.length < 3) return
+        val dir = when {
+            cls[1] == 'x' -> 'x'; cls[1] == 'y' -> 'y'
+            cls[1] == 't' -> 't'; cls[1] == 'b' -> 'b'
+            cls[1] == 'l' -> 'l'; cls[1] == 'r' -> 'r'
+            else -> 'a' // all
+        }
+        val name = if (dir == 'a') cls.substring(2) else cls.substring(3)
+        val size = (tailwindSpacing(name) * density).toInt()
+        try {
+            if (cls[0] == 'p') {
+                val lp = view.layoutParams as? ViewGroup.MarginLayoutParams
+                val curL = view.paddingLeft; val curT = view.paddingTop
+                val curR = view.paddingRight; val curB = view.paddingBottom
+                when (dir) {
+                    'a' -> view.setPadding(size, size, size, size)
+                    'x' -> view.setPadding(size, curT, size, curB)
+                    'y' -> view.setPadding(curL, size, curR, size)
+                    't' -> view.setPadding(curL, size, curR, curB)
+                    'b' -> view.setPadding(curL, curT, curR, size)
+                    'l' -> view.setPadding(size, curT, curR, curB)
+                    'r' -> view.setPadding(curL, curT, size, curB)
+                }
+            } else if (cls[0] == 'm' && view.layoutParams is ViewGroup.MarginLayoutParams) {
+                val lp = view.layoutParams as ViewGroup.MarginLayoutParams
+                when (dir) {
+                    'a' -> lp.setMargins(size, size, size, size)
+                    'x' -> lp.setMargins(size, lp.topMargin, size, lp.bottomMargin)
+                    'y' -> lp.setMargins(lp.leftMargin, size, lp.rightMargin, size)
+                    't' -> lp.topMargin = size; 'b' -> lp.bottomMargin = size
+                    'l' -> lp.leftMargin = size; 'r' -> lp.rightMargin = size
+                }
+                view.requestLayout()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private val TAILWIND_COLORS = mapOf(
+        "slate" to "#64748b", "gray" to "#6b7280", "zinc" to "#71717a",
+        "neutral" to "#737373", "stone" to "#78716c", "red" to "#ef4444",
+        "orange" to "#f97316", "amber" to "#f59e0b", "yellow" to "#eab308",
+        "lime" to "#84cc16", "green" to "#22c55e", "emerald" to "#10b981",
+        "teal" to "#14b8a6", "cyan" to "#06b6d4", "sky" to "#0ea5e9",
+        "blue" to "#3b82f6", "indigo" to "#6366f1", "violet" to "#8b5cf6",
+        "purple" to "#a855f7", "fuchsia" to "#d946ef", "pink" to "#ec4899",
+        "rose" to "#f43f5e", "white" to "#ffffff", "black" to "#000000",
+        "transparent" to "#00000000", "current" to "#000000"
+    )
+
+    private fun loadIconDrawable(name: String, width: Int, height: Int): android.graphics.drawable.Drawable? {
+        val dir = themeDir ?: return null
+        // pola: lucide-send → lucide/send.svg, send.svg, assets/lucide-send.svg, lucide-send.svg
+        val candidates = ArrayList<String>()
+        val family = name.substringBefore("-", "")
+        val icon = name.substringAfter("-", name)
+        candidates.add("$family/$icon.svg")
+        candidates.add("assets/$name.svg")
+        candidates.add("$name.svg")
+        candidates.add("$icon.svg")
+        candidates.add("assets/$family/$icon.svg")
+        for (rel in candidates) {
+            val file = File(dir, rel)
+            if (file.exists()) {
+                try {
+                    return loadSvgAsDrawable(file, width, height)
+                } catch (_: Exception) {}
+            }
+        }
+        return null
+    }
+
+    private fun loadSvgAsDrawable(file: File, reqWidth: Int, reqHeight: Int): android.graphics.drawable.Drawable? {
+        val w = if (reqWidth < 1) 48 else reqWidth
+        val h = if (reqHeight < 1) 48 else reqHeight
+        val svg = com.caverock.androidsvg.SVG.getFromInputStream(java.io.FileInputStream(file))
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        svg.setDocumentWidth(w.toFloat())
+        svg.setDocumentHeight(h.toFloat())
+        svg.renderToCanvas(canvas)
+        return bmp.toDrawable(Utils.application.resources)
     }
 
     override fun getPluginName(): String = "Custom View"
