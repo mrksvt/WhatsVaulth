@@ -90,7 +90,7 @@ public class CustomTickPresetsFragment extends Fragment {
     private MessageHistoryDatabase openDb() {
         return Room.databaseBuilder(requireContext(), MessageHistoryDatabase.class, "MessageHistory.db")
                 .allowMainThreadQueries()
-                .addMigrations(MessageHistoryDatabase.Companion.getMIGRATION_6_7(), MessageHistoryDatabase.Companion.getMIGRATION_7_8())
+                .addMigrations(MessageHistoryDatabase.Companion.getMIGRATION_6_7(), MessageHistoryDatabase.Companion.getMIGRATION_7_8(), MessageHistoryDatabase.Companion.getMIGRATION_8_9(), MessageHistoryDatabase.Companion.getMIGRATION_9_10(), MessageHistoryDatabase.Companion.getMIGRATION_10_11())
                 .build();
     }
 

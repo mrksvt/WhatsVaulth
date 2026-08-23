@@ -60,7 +60,7 @@ class MessageHistoryStore private constructor(context: Context) {
     )
         .allowMainThreadQueries()
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        .addMigrations(MessageHistoryDatabase.MIGRATION_6_7, MessageHistoryDatabase.MIGRATION_7_8)
+        .addMigrations(MessageHistoryDatabase.MIGRATION_6_7, MessageHistoryDatabase.MIGRATION_7_8, MessageHistoryDatabase.MIGRATION_8_9, MessageHistoryDatabase.MIGRATION_9_10, MessageHistoryDatabase.MIGRATION_10_11)
         .build()
 
     private val messageDao = db.messageDao()
