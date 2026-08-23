@@ -52,6 +52,13 @@ export function isShape(type: ThemeElement['type']): boolean {
   return SHAPE_TYPES.includes(type)
 }
 
+// Semua tipe yang bisa jadi wadah (nesting) — container + shape visual
+export const CONTAINER_TYPES: ThemeElement['type'][] = ['container', 'circle', 'rectangle', 'box']
+
+export function isContainerType(type: ThemeElement['type']): boolean {
+  return CONTAINER_TYPES.includes(type)
+}
+
 // CSS clip-path per shape (untuk preview canvas + render)
 export const SHAPE_CLIP: Partial<Record<ThemeElement['type'], string>> = {
   triangle: 'polygon(50% 0%, 0% 100%, 100% 100%)',

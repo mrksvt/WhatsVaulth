@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as Icons from 'lucide-react'
 import { IPhoneMockup, AndroidMockup, IPadMockup } from 'react-device-mockup'
 import type { ThemeElement, DeviceId, ScreenId } from '../types'
-import { styleToTailwind, SCREENS, isShape, SHAPE_CLIP } from '../data'
+import { styleToTailwind, SCREENS, isContainerType, SHAPE_CLIP } from '../data'
 import AlignToolbar from './AlignToolbar'
 import { getBootstrapSvg, getFAPath } from '../lib/iconRegistry'
 
@@ -229,7 +229,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     const dCenterX = dL + dW / 2
     const dCenterY = dT + dH / 2
     const container = screenElements.find((e) => {
-      if (e.id === id || (e.type !== 'container' && !isShape(e.type))) return false
+      if (e.id === id || !isContainerType(e.type)) return false
       if (e.parentId !== undefined) return false
       const cL = e.style.left ?? 10
       const cT = e.style.top ?? 10
@@ -240,8 +240,10 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     if (!container) return
     const cL = container.style.left ?? 10
     const cT = container.style.top ?? 10
+    // icon/text → auto-center (top/left=0), image → absolute posisi
+    const isAutoCenter = dragged.type === 'icon-btn' || dragged.type === 'text'
     onBatchUpdate?.([
-      { id, top: dT - cT, left: dL - cL },
+      { id, top: isAutoCenter ? 0 : dT - cT, left: isAutoCenter ? 0 : dL - cL },
     ])
     onSetParent?.([{ id, parentId: container.id }])
   }
@@ -352,14 +354,16 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'icon-btn' && elem.style.icon ? iconFor(elem.style.icon) : null}
                 {elem.type === 'text' && <span className={cls(elem.id)}>{elem.label}</span>}
                 {elem.type === 'box' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
-                {elem.type === 'image' && <Icons.Image className="w-6 h-6 text-gray-400" />}
+                {elem.type === 'image' && (elem.style.fillImage
+                  ? <img src={elem.style.fillImage} alt={elem.label} className="w-full h-full object-cover" />
+                  : <Icons.Image className="w-6 h-6 text-gray-400" />)}
                 {elem.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'circle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'line' && null}
                 {(elem.type === 'triangle' || elem.type === 'diamond' || elem.type === 'pentagon' || elem.type === 'hexagon' || elem.type === 'star') && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
               </div>
-              {(elem.type === 'container' || isShape(elem.type)) && (
-                <div className="absolute inset-0">
+              {(elem.type === 'container' || isContainerType(elem.type)) && (
+                <div className={`absolute inset-0 ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}>
                   {screenElements.filter((e) => e.parentId === elem.id).map((child) => (
                     <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => e.parentId === elem.id)} onClick={() => onSelect([child.id])}
                       onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
@@ -370,17 +374,29 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                       onDrop={handleDropToNest}
                       onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
                     >
-                      <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''} ${child.type === 'line' ? 'rounded-full' : ''}`}
-                        style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
-                        {child.type === 'icon-btn' && child.style.icon ? iconFor(child.style.icon) : null}
-                        {child.type === 'text' && <span className={cls(child.id)}>{child.label}</span>}
-                        {child.type === 'box' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                        {child.type === 'image' && <Icons.Image className="w-6 h-6 text-gray-400" />}
-                        {child.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                        {child.type === 'circle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                        {child.type === 'line' && null}
-                        {(child.type === 'triangle' || child.type === 'diamond' || child.type === 'pentagon' || child.type === 'hexagon' || child.type === 'star') && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                      </div>
+                      {child.type === 'image' ? (
+                        <img
+                          src={child.style.fillImage ?? child.style.icon ?? ''}
+                          alt={child.label}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : child.type === 'icon-btn' ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {iconFor(child.style.icon)}
+                        </div>
+                      ) : child.type === 'text' ? (
+                        <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                          <span className={`text-center ${cls(child.id)}`}>{child.label}</span>
+                        </div>
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''}`}
+                          style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
+                          {child.type === 'box' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
+                          {child.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
+                          {child.type === 'circle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
+                          {child.type === 'line' && null}
+                        </div>
+                      )}
                     </Box>
                   ))}
                 </div>

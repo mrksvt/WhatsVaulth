@@ -15,6 +15,7 @@ export interface ElementStyle {
   borderWidth?: string; borderColor?: string; borderStyle?: string
   rotate?: string; cornerRadius?: { tl?: string; tr?: string; bl?: string; br?: string }
   customClass?: string
+  fillImage?: string
 }
 
 export interface ThemeElement {
