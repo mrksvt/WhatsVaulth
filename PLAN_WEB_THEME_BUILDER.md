@@ -107,9 +107,9 @@ change_colors = true
 - [x] **T-D** Duplicate offset (elemen copy tidak menumpuk)
 - [x] **T-H** Template elemen (Toolbar, Bottom Nav, Chat Input, Conversation Row)
 - [x] **T-I** Safe area — boundary clamp dinamis per device
-- [ ] **T-E** Engine: top/left arbitrary di Tailwind parser
-- [ ] **T-F** Validasi ID selector export
-- [ ] **T-G** Snap grid / undo-redo (opsional)
+- [x] **T-E** Engine: top/left arbitrary di Tailwind parser
+- [x] **T-F** Validasi ID selector export
+- [x] **T-G** Snap grid / undo-redo
 
 ## Deploy
 

@@ -2,8 +2,8 @@ import JSZip from 'jszip'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import * as Icons from 'lucide-react'
-import type { Theme } from '../types'
-import { styleToCssClass } from '../data'
+import type { Theme, ThemeElement, ScreenId } from '../types'
+import { styleToCssClass, ID_OPTIONS } from '../data'
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, b64] = dataUrl.split(',')
@@ -21,7 +21,19 @@ function iconToSvg(name: string): string | null {
   return renderToStaticMarkup(createElement(Icon, { width: 24, height: 24 }))
 }
 
-function buildStyleCss(theme: Theme): string {
+export interface IdValidation {
+  element: ThemeElement
+  known: boolean
+}
+
+export function validateThemeIds(theme: Theme): IdValidation[] {
+  return theme.elements.map((el) => {
+    const known = ID_OPTIONS[el.screen as ScreenId]?.includes(el.id) ?? false
+    return { element: el, known }
+  })
+}
+
+export function buildStyleCss(theme: Theme): string {
   let css = `/*\nprimary_color = #075E54\ntext_color = #111B21\nbackground_color = #ECE5DD\nbubble_right = #DCF8C6\nbubble_left = #FFFFFF\nchange_colors = true\n*/\n\n`
   for (const el of theme.elements) {
     const cls = styleToCssClass(el.style)

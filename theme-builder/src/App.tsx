@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Theme, ThemeElement, ScreenId, DeviceId } from './types'
 import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE, TEMPLATES } from './data'
 import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
 import ElementModal from './components/ElementModal'
-import { exportThemeZip, downloadBlob } from './lib/export'
+import { exportThemeZip, downloadBlob, validateThemeIds } from './lib/export'
 import './safelist'
 
 export default function App() {
@@ -17,23 +17,70 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showTemplates, setShowTemplates] = useState(false)
   const [canvasHeight, setCanvasHeight] = useState(812)
+  const [history, setHistory] = useState<ThemeElement[][]>([])
+  const [future, setFuture] = useState<ThemeElement[][]>([])
+  const lastCommitRef = useRef(0)
+  const SNAP = 4
+
+  const commitHistory = () => {
+    const now = Date.now()
+    if (now - lastCommitRef.current < 300) return
+    lastCommitRef.current = now
+    setHistory((h) => [...h.slice(-49), elements])
+    setFuture([])
+  }
+
+  const undo = () => {
+    setHistory((h) => {
+      if (h.length === 0) return h
+      const prev = h[h.length - 1]
+      setFuture((f) => [...f, elements])
+      setElements(prev)
+      return h.slice(0, -1)
+    })
+  }
+
+  const redo = () => {
+    setFuture((f) => {
+      if (f.length === 0) return f
+      const next = f[f.length - 1]
+      setHistory((h) => [...h, elements])
+      setElements(next)
+      return f.slice(0, -1)
+    })
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      if (e.key.toLowerCase() === 'z' && e.shiftKey) { e.preventDefault(); redo() }
+      else if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo() }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   const screenElements = elements.filter((e) => e.screen === screen)
   const selected = selectedIds.length > 0 ? elements.find((e) => e.id === selectedIds[0]) : undefined
 
   const updateStyle = (patch: Partial<ThemeElement['style']>) => {
     if (selectedIds.length === 0) return
+    commitHistory()
     setElements((prev) =>
       prev.map((e) => selectedIds.includes(e.id) ? { ...e, style: { ...e.style, ...patch } } : e)
     )
   }
 
   const handleDelete = (ids: string[]) => {
+    commitHistory()
     setElements((prev) => prev.filter((e) => !ids.includes(e.id)))
     setSelectedIds([])
   }
 
   const handleDuplicate = (ids: string[]) => {
+    commitHistory()
     setElements((prev) => {
       const next = [...prev]
       for (const id of ids) {
@@ -55,6 +102,7 @@ export default function App() {
   const handleMove = (id: string, dx: number, dy: number) => {
     const CANVAS_WIDTH = 375
     const CANVAS_HEIGHT = canvasHeight
+    const snap = (v: number) => Math.round(v / SNAP) * SNAP
     setElements((prev) =>
       prev.map((e) => {
         if (e.id !== id) return e
@@ -66,8 +114,8 @@ export default function App() {
           ...e,
           style: {
             ...e.style,
-            top: Math.max(0, Math.min(newTop, CANVAS_HEIGHT - h)),
-            left: Math.max(0, Math.min(newLeft, CANVAS_WIDTH - w)),
+            top: snap(Math.max(0, Math.min(newTop, CANVAS_HEIGHT - h))),
+            left: snap(Math.max(0, Math.min(newLeft, CANVAS_WIDTH - w))),
           },
         }
       })
@@ -97,6 +145,7 @@ export default function App() {
   }
 
   const handleAdd = (type: ThemeElement['type'], label: string, icon?: string) => {
+    commitHistory()
     const usedIds = elements.filter((e) => e.screen === screen).map((e) => e.id)
     const options = ID_OPTIONS[screen]
     let id = options.find((o) => !usedIds.includes(o))
@@ -116,6 +165,7 @@ export default function App() {
   }
 
   const handleInsertTemplate = (templateName: string) => {
+    commitHistory()
     const template = TEMPLATES.find((t) => t.name === templateName && t.screen === screen)
     if (!template) return
     
@@ -157,6 +207,14 @@ export default function App() {
 
   const onExport = async () => {
     const theme: Theme = { name, elements, wallpaper, device }
+    const invalid = validateThemeIds(theme).filter((v) => !v.known)
+    if (invalid.length > 0) {
+      const ids = invalid.map((v) => v.element.id).join(', ')
+      const ok = window.confirm(
+        `ID berikut tidak dikenal engine (CustomView) dan mungkin tidak diterapkan:\n\n${ids}\n\nTetap export?`
+      )
+      if (!ok) return
+    }
     const blob = await exportThemeZip(theme)
     downloadBlob(blob, `${name}.zip`)
   }
@@ -179,6 +237,22 @@ export default function App() {
           {DEVICES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
         </select>
         <div className="flex-1" />
+        <button
+          onClick={undo}
+          disabled={history.length === 0}
+          title="Undo (Ctrl+Z)"
+          className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-40 hover:bg-gray-50"
+        >
+          ↩ Undo
+        </button>
+        <button
+          onClick={redo}
+          disabled={future.length === 0}
+          title="Redo (Ctrl+Shift+Z)"
+          className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-40 hover:bg-gray-50"
+        >
+          ↪ Redo
+        </button>
         <label className="text-sm text-blue-600 cursor-pointer hover:underline">
           Wallpaper
           <input type="file" accept="image/*" className="hidden" onChange={onWallpaper} />
@@ -258,7 +332,7 @@ export default function App() {
               screen={screen}
               style={selected.style}
               onChange={updateStyle}
-              onIdChange={(id) => setElements((prev) => prev.map((e) => (e.id === selected.id ? { ...e, id, customId: true } : e)))}
+              onIdChange={(id) => { commitHistory(); setElements((prev) => prev.map((e) => (e.id === selected.id ? { ...e, id, customId: true } : e))) }}
             />
           ) : (
             <div className="p-4 text-sm text-gray-400 text-center">Pilih elemen di mockup untuk edit</div>

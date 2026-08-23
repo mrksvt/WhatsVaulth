@@ -923,6 +923,54 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
             view.alpha = n.coerceIn(0, 100) / 100f
             return
         }
+        // top-[Xpx] / left-[Xpx] / right-[Xpx] / bottom-[Xpx] / w-[Xpx] / h-[Xpx]
+        val arbitrary = parseArbitrary(cls)
+        if (arbitrary != null) {
+            val value = (arbitrary.second * density).toInt()
+            when (arbitrary.first) {
+                "top" -> {
+                    when (val lp = view.layoutParams) {
+                        is RelativeLayout.LayoutParams -> lp.addRule(RelativeLayout.ALIGN_TOP, value)
+                        is ViewGroup.MarginLayoutParams -> lp.topMargin = value
+                    }
+                    view.requestLayout()
+                }
+                "left" -> {
+                    when (val lp = view.layoutParams) {
+                        is RelativeLayout.LayoutParams -> lp.addRule(RelativeLayout.ALIGN_LEFT, value)
+                        is ViewGroup.MarginLayoutParams -> lp.leftMargin = value
+                    }
+                    view.requestLayout()
+                }
+                "right" -> {
+                    when (val lp = view.layoutParams) {
+                        is RelativeLayout.LayoutParams -> lp.addRule(RelativeLayout.ALIGN_RIGHT, value)
+                        is ViewGroup.MarginLayoutParams -> lp.rightMargin = value
+                    }
+                    view.requestLayout()
+                }
+                "bottom" -> {
+                    when (val lp = view.layoutParams) {
+                        is RelativeLayout.LayoutParams -> lp.addRule(RelativeLayout.ALIGN_BOTTOM, value)
+                        is ViewGroup.MarginLayoutParams -> lp.bottomMargin = value
+                    }
+                    view.requestLayout()
+                }
+                "w" -> {
+                    if (view.layoutParams != null) {
+                        view.layoutParams.width = value
+                        view.requestLayout()
+                    }
+                }
+                "h" -> {
+                    if (view.layoutParams != null) {
+                        view.layoutParams.height = value
+                        view.requestLayout()
+                    }
+                }
+            }
+            return
+        }
         // icon:lucide-{name} → handled by icon property, not class
         // color-tint-{color}
         if (cls.startsWith("color-tint-")) {
@@ -935,6 +983,11 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
     }
 
     private val density by lazy { Utils.application.resources.displayMetrics.density }
+
+    private fun parseArbitrary(cls: String): Pair<String, Float>? {
+        val m = Regex("^(top|left|right|bottom|w|h)-\\[(\\d+(?:\\.\\d+)?)px]$").find(cls) ?: return null
+        return m.groupValues[1] to m.groupValues[2].toFloat()
+    }
 
     private fun parseTailwindColor(name: String): Int? {
         // format: [name]-[shade] atau [hex]
