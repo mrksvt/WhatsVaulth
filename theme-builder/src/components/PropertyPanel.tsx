@@ -1,6 +1,6 @@
 import * as Icons from 'lucide-react'
 import type { ElementStyle } from '../types'
-import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS } from '../data'
+import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS } from '../data'
 
 const LUCIDE_ICONS = [
   'send', 'mic', 'camera', 'attach', 'emoji', 'phone', 'video', 'search',
@@ -10,8 +10,12 @@ const LUCIDE_ICONS = [
 
 interface Props {
   label: string
+  id: string
+  customId?: boolean
+  screen: string
   style: ElementStyle
   onChange: (patch: Partial<ElementStyle>) => void
+  onIdChange: (id: string) => void
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -37,10 +41,43 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
   )
 }
 
-export default function PropertyPanel({ label, style, onChange }: Props) {
+export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange }: Props) {
   return (
     <div className="p-3 text-sm">
       <div className="text-base font-bold mb-2">{label}</div>
+
+      <Section title="Element ID (CSS selector)">
+        <select
+          value={customId ? '__custom__' : id}
+          onChange={(e) => {
+            if (e.target.value === '__custom__') return
+            onIdChange(e.target.value)
+          }}
+          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs mb-1"
+        >
+          <option value="__custom__">{customId ? id : '— custom —'}</option>
+          {ID_OPTIONS[screen as keyof typeof ID_OPTIONS]?.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+        <input
+          value={id}
+          onChange={(e) => onIdChange(e.target.value)}
+          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono"
+          placeholder="#custom_id"
+        />
+      </Section>
+
+      <Section title="Size (px)">
+        <div className="flex gap-2 items-center">
+          <label className="text-xs text-gray-500">W</label>
+          <input type="number" value={style.width ?? 120} onChange={(e) => onChange({ width: Number(e.target.value) || 0 })}
+            className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs" />
+          <label className="text-xs text-gray-500">H</label>
+          <input type="number" value={style.height ?? 40} onChange={(e) => onChange({ height: Number(e.target.value) || 0 })}
+            className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs" />
+        </div>
+      </Section>
 
       {/* Warna */}
       <Section title="Background">
@@ -114,22 +151,6 @@ export default function PropertyPanel({ label, style, onChange }: Props) {
         </div>
       </Section>
 
-      <Section title="Width / Height">
-        <div className="flex flex-wrap gap-1">
-          {[4, 6, 8, 10, 12, 14, 16, 20, 24, 32].map((s) => (
-            <Btn key={`w${s}`} active={style.width === `w-${s}`} onClick={() => onChange({ width: `w-${s}` })}>
-              w{s}
-            </Btn>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-1 mt-1">
-          {[4, 6, 8, 10, 12, 14, 16, 20, 24, 32].map((s) => (
-            <Btn key={`h${s}`} active={style.height === `h-${s}`} onClick={() => onChange({ height: `h-${s}` })}>
-              h{s}
-            </Btn>
-          ))}
-        </div>
-      </Section>
 
       <Section title="Font Size / Weight">
         <div className="flex flex-wrap gap-1">

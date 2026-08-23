@@ -1,31 +1,32 @@
 export type ScreenId = 'home' | 'calls' | 'updates' | 'conversation' | 'groups' | 'communities'
 
+export type DeviceId = 'iphone' | 'android' | 'ipad'
+
 export type ElementType =
-  | 'toolbar' | 'toolbar-title' | 'search' | 'chat-row' | 'chat-name'
-  | 'chat-message' | 'chat-time' | 'avatar' | 'fab' | 'send'
-  | 'bottom-nav' | 'input' | 'input-field'
-  | 'bubble-incoming' | 'bubble-outgoing'
-  | 'call-row' | 'call-name' | 'call-type' | 'call-icon'
-  | 'status-row' | 'status-name' | 'status-time' | 'status-ring'
-  | 'conv-toolbar' | 'conv-name'
-  | 'group-badge' | 'community-header'
-  | 'text' | 'icon-btn'
+  | 'text' | 'icon-btn' | 'image' | 'box' | 'container'
 
 export interface ElementStyle {
   bg?: string; textColor?: string; rounded?: string; shadow?: string
-  padding?: string; margin?: string; width?: string; height?: string
+  padding?: string; margin?: string; width?: number; height?: number
   opacity?: string; fontWeight?: string; fontSize?: string; icon?: string
-  top?: string; left?: string; right?: string; bottom?: string
-  freePosition?: boolean
+  top?: number; left?: number
 }
 
 export interface ThemeElement {
-  id: string; label: string; type: ElementType; screen: ScreenId
-  style: ElementStyle; removable?: boolean
+  id: string          // selector css, contoh: '#toolbar'
+  label: string
+  type: ElementType
+  screen: ScreenId
+  style: ElementStyle
+  removable?: boolean
+  customId?: boolean  // true jika id diinput manual
 }
 
 export interface Theme {
-  name: string; elements: ThemeElement[]; wallpaper: string | null
+  name: string
+  elements: ThemeElement[]
+  wallpaper: string | null
+  device: DeviceId
 }
 
 export interface ScreenInfo { id: ScreenId; label: string }
