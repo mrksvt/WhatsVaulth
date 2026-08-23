@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ElementStyle } from '../types'
-import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS } from '../data'
+import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, styleToTailwind } from '../data'
 import IconPicker from './IconPicker'
 
 interface Props {
@@ -310,12 +310,23 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
 
       <Section title="Custom Tailwind Class" defaultOpen={true}>
         <textarea
-          value={style.customClass ?? ''}
+          value={styleToTailwind(style)}
           onChange={(e) => onChange({ customClass: e.target.value || undefined })}
           className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono"
           rows={2}
-          placeholder="blur-sm hover:opacity-80"
+          placeholder="bg-[#ff0000] w-[200px] ..."
         />
+        {style.customClass && (
+          <button
+            onClick={() => onChange({ customClass: undefined })}
+            className="text-xs text-blue-500 mt-1 hover:underline"
+          >
+            Reset ke auto (dari panel)
+          </button>
+        )}
+        <div className="text-[9px] text-gray-400 mt-1">
+          Auto dari panel: {styleToTailwind({ ...style, customClass: undefined }) || '(kosong)'}
+        </div>
       </Section>
     </div>
   )

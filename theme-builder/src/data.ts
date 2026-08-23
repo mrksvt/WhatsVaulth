@@ -46,6 +46,9 @@ export const ADDABLE: { type: ThemeElement['type']; label: string; icon?: string
 export const DEFAULT_ELEMENTS: ThemeElement[] = []
 
 export function styleToTailwind(style: ElementStyle): string {
+  // customClass = override penuh (bukan append) — kalau user edit textarea,
+  // seluruh string jadi source of truth; kalau kosong → auto-generate dari style
+  if (style.customClass?.trim()) return style.customClass.trim()
   const parts: string[] = []
   if (style.bg) parts.push(style.bg)
   if (style.textColor) parts.push(style.textColor)
@@ -69,7 +72,6 @@ export function styleToTailwind(style: ElementStyle): string {
     if (cr.bl) parts.push(`rounded-bl-${cr.bl}`)
     if (cr.br) parts.push(`rounded-br-${cr.br}`)
   }
-  if (style.customClass) parts.push(style.customClass)
   return parts.join(' ')
 }
 
