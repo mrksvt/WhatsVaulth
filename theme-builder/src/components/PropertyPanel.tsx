@@ -308,7 +308,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       )}
 
-      <Section title="Custom Tailwind Class">
+      <Section title="Custom Tailwind Class" defaultOpen={true}>
         <textarea
           value={style.customClass ?? ''}
           onChange={(e) => onChange({ customClass: e.target.value || undefined })}
