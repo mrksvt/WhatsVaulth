@@ -1,4 +1,4 @@
-import type { ThemeElement, ElementStyle, ScreenId, ScreenInfo, DeviceId } from './types'
+import type { ThemeElement, ElementStyle, ScreenId, ScreenInfo, DeviceId, ShapeType } from './types'
 
 export const SCREENS: ScreenInfo[] = [
   { id: 'home', label: 'Home' },
@@ -38,32 +38,32 @@ export const ADDABLE: { type: ThemeElement['type']; label: string; icon?: string
   { type: 'image', label: 'Image', icon: 'image' },
   { type: 'box', label: 'Box', icon: 'square' },
   { type: 'container', label: 'Container', icon: 'layout' },
-  { type: 'rectangle', label: 'Rectangle', icon: 'square' },
-  { type: 'circle', label: 'Circle', icon: 'circle' },
-  { type: 'triangle', label: 'Triangle', icon: 'triangle' },
-  { type: 'diamond', label: 'Diamond', icon: 'diamond' },
-  { type: 'pentagon', label: 'Pentagon', icon: 'pentagon' },
-  { type: 'hexagon', label: 'Hexagon', icon: 'hexagon' },
-  { type: 'star', label: 'Star', icon: 'star' },
   { type: 'line', label: 'Line', icon: 'minus' },
 ]
 
-// Shape types yang bisa jadi parent (nestable) — selain container
-export const SHAPE_TYPES: ThemeElement['type'][] = [
-  'rectangle', 'circle', 'triangle', 'diamond', 'pentagon', 'hexagon', 'star',
+// Shape yang bisa dipilih untuk Container (via style.shape)
+export const SHAPE_OPTIONS: { id: ShapeType; label: string }[] = [
+  { id: 'rectangle', label: 'Rectangle' },
+  { id: 'circle', label: 'Circle' },
+  { id: 'triangle', label: 'Triangle' },
+  { id: 'diamond', label: 'Diamond' },
+  { id: 'pentagon', label: 'Pentagon' },
+  { id: 'hexagon', label: 'Hexagon' },
+  { id: 'star', label: 'Star' },
 ]
 
-export function isShape(type: ThemeElement['type']): boolean {
-  return SHAPE_TYPES.includes(type)
-}
-
 // CSS clip-path per shape (untuk preview canvas + render)
-export const SHAPE_CLIP: Partial<Record<ThemeElement['type'], string>> = {
+export const SHAPE_CLIP: Partial<Record<ShapeType, string>> = {
+  circle: 'circle(50% at 50% 50%)',
   triangle: 'polygon(50% 0%, 0% 100%, 100% 100%)',
   diamond: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
   pentagon: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)',
   hexagon: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
   star: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+}
+
+export function shapeClip(shape?: ShapeType): string | undefined {
+  return shape ? SHAPE_CLIP[shape] : undefined
 }
 
 export const DEFAULT_ELEMENTS: ThemeElement[] = []
