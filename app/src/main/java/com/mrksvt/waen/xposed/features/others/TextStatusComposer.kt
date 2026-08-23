@@ -87,15 +87,18 @@ class TextStatusComposer(
     }
 
     private fun setCustomColorTextData(textData: Any) {
+        val hasCustomColor = customTextColor != null || customBackgroundColor != null
         customTextColor?.let { color ->
             XposedHelpers.setObjectField(textData, "textColor", color)
         }
         customBackgroundColor?.let { color ->
             XposedHelpers.setObjectField(textData, "backgroundColor", color)
         }
-        textData.javaClass.declaredFields.firstOrNull {
-            it.name == "backgroundColorHasChanged"
-        }?.set(textData, true)
+        if (hasCustomColor) {
+            textData.javaClass.declaredFields.firstOrNull {
+                it.name == "backgroundColorHasChanged"
+            }?.set(textData, true)
+        }
     }
 
     override fun getPluginName(): String {
