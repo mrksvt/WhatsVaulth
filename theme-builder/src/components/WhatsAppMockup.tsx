@@ -4,6 +4,7 @@ import { IPhoneMockup, AndroidMockup, IPadMockup } from 'react-device-mockup'
 import type { ThemeElement, DeviceId, ScreenId } from '../types'
 import { styleToTailwind, SCREENS } from '../data'
 import AlignToolbar from './AlignToolbar'
+import { getBootstrapSvg, getFAPath } from '../lib/iconRegistry'
 
 interface Props {
   elements: ThemeElement[]
@@ -26,6 +27,27 @@ interface Props {
 
 function iconFor(name?: string) {
   if (!name) return null
+  if (name.trim().startsWith('<svg')) {
+    return <div className="w-full h-full p-0.5" dangerouslySetInnerHTML={{ __html: name }} />
+  }
+  if (name.startsWith('bi-')) {
+    const svg = getBootstrapSvg(name.slice(3))
+    if (svg) {
+      return <div className="w-full h-full p-0.5" dangerouslySetInnerHTML={{ __html: svg }} />
+    }
+    return null
+  }
+  if (name.startsWith('fa-')) {
+    const fa = getFAPath(name.slice(3))
+    if (fa) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${fa.width} ${fa.height}`} className="w-full h-full p-0.5">
+          <path d={fa.path} />
+        </svg>
+      )
+    }
+    return null
+  }
   const key = name.charAt(0).toUpperCase() + name.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())
   const Icon = (Icons as unknown as Record<string, typeof Icons.Send>)[key]
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null

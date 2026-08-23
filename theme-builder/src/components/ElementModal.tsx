@@ -2,12 +2,7 @@ import { useState } from 'react'
 import * as Icons from 'lucide-react'
 import type { ThemeElement, ScreenId } from '../types'
 import { ID_OPTIONS } from '../data'
-
-const LUCIDE_ICONS = [
-  'send', 'mic', 'camera', 'attach', 'emoji', 'phone', 'video', 'search',
-  'message-circle', 'plus', 'check', 'check-check', 'more-vertical',
-  'image', 'file', 'smile', 'settings', 'users', 'bell', 'lock', 'trash2',
-]
+import IconPicker from './IconPicker'
 
 interface Props {
   element: ThemeElement
@@ -24,6 +19,7 @@ export default function ElementModal({ element, screen, onSave, onClose }: Props
   const [bg, setBg] = useState(element.style.bg ?? '')
   const [textColor, setTextColor] = useState(element.style.textColor ?? '')
   const [rounded, setRounded] = useState(element.style.rounded ?? 'rounded-md')
+  const [showIconPicker, setShowIconPicker] = useState(false)
 
   const save = () => {
     const style = { ...element.style }
@@ -64,16 +60,27 @@ export default function ElementModal({ element, screen, onSave, onClose }: Props
         {content === 'icon-btn' && (
           <>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Icon</label>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {LUCIDE_ICONS.map((n) => {
-                const Icon = (Icons as unknown as Record<string, typeof Icons.Send>)[n.charAt(0).toUpperCase() + n.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())]
-                return (
-                  <button key={n} onClick={() => setIcon(n)} title={n} className={`p-1 rounded border ${icon === n ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-100'}`}>
-                    {Icon ? <Icon className="w-4 h-4" /> : n}
-                  </button>
-                )
-              })}
-            </div>
+            <button
+              onClick={() => setShowIconPicker(true)}
+              className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 mb-2"
+            >
+              {icon ? `Current: ${icon}` : 'Choose icon (lucide / bootstrap / fa / custom svg)...'}
+            </button>
+            {showIconPicker && (
+              <IconPicker
+                value={icon}
+                onSelect={(label) => { setIcon(label); setShowIconPicker(false) }}
+                onClose={() => setShowIconPicker(false)}
+              />
+            )}
+            {icon && (
+              <button
+                onClick={() => setIcon('')}
+                className="text-xs text-red-500 mb-2 hover:underline"
+              >
+                Clear icon
+              </button>
+            )}
           </>
         )}
 

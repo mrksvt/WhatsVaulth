@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import * as Icons from 'lucide-react'
 import type { Theme, ThemeElement, ScreenId } from '../types'
 import { styleToCssClass, ID_OPTIONS } from '../data'
+import { getIconSvg } from './iconRegistry'
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, b64] = dataUrl.split(',')
@@ -14,8 +15,10 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([arr], { type: mime })
 }
 
-function iconToSvg(name: string): string | null {
-  const key = name.charAt(0).toUpperCase() + name.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())
+function iconToSvg(label: string): string | null {
+  if (label.startsWith('<svg')) return label
+  if (label.startsWith('bi-') || label.startsWith('fa-')) return getIconSvg(label)
+  const key = label.charAt(0).toUpperCase() + label.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())
   const Icon = (Icons as unknown as Record<string, typeof Icons.Send>)[key]
   if (!Icon) return null
   return renderToStaticMarkup(createElement(Icon, { width: 24, height: 24 }))
@@ -31,6 +34,12 @@ export function validateThemeIds(theme: Theme): IdValidation[] {
     const known = ID_OPTIONS[el.screen as ScreenId]?.includes(el.id) ?? false
     return { element: el, known }
   })
+}
+
+function normalizeIconLabel(label: string): string {
+  if (label.startsWith('<svg')) return label
+  if (label.startsWith('lucide-') || label.startsWith('bi-') || label.startsWith('fa-')) return label
+  return `lucide-${label}`
 }
 
 export function buildStyleCss(theme: Theme): string {
@@ -49,16 +58,30 @@ export function buildStyleCss(theme: Theme): string {
   for (const el of theme.elements) {
     const cls = styleToCssClass(el.style)
     const pos = el.parentId ? absOf(el) : null
-    if (!cls && !el.style.icon && !pos) continue
+    const iconLabel = el.style.icon ? normalizeIconLabel(el.style.icon) : null
+    if (!cls && !iconLabel && !pos) continue
     css += `${el.id} {\n`
     if (cls) css += `  class: "${cls}";\n`
-    if (el.style.icon) css += `  icon: lucide-${el.style.icon};\n`
+    if (iconLabel) {
+      if (iconLabel.startsWith('<svg')) {
+        const file = `custom-${Math.abs(hashCode(el.id))}.svg`
+        css += `  icon: assets/${file};\n`
+      } else {
+        css += `  icon: ${iconLabel};\n`
+      }
+    }
     if (pos) {
       css += `  top: ${pos.top}px;\n  left: ${pos.left}px;\n`
     }
     css += `}\n\n`
   }
   return css
+}
+
+function hashCode(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return h
 }
 
 export function buildThemeJson(theme: Theme): string {
@@ -90,8 +113,19 @@ export async function exportThemeZip(theme: Theme): Promise<Blob> {
 
   const usedIcons = new Set(theme.elements.map((e) => e.style.icon).filter(Boolean) as string[])
   for (const icon of usedIcons) {
-    const svg = iconToSvg(icon)
-    if (svg) folder.file(`lucide/${icon}.svg`, svg)
+    const label = normalizeIconLabel(icon)
+    const svg = label.startsWith('<svg') ? label : iconToSvg(label)
+    if (!svg) continue
+    if (label.startsWith('<svg')) {
+      const file = `custom-${Math.abs(hashCode(icon))}.svg`
+      folder.file(`assets/${file}`, svg)
+    } else if (label.startsWith('bi-')) {
+      folder.file(`bi/${label.slice(3)}.svg`, svg)
+    } else if (label.startsWith('fa-')) {
+      folder.file(`fa/${label.slice(3)}.svg`, svg)
+    } else {
+      folder.file(`lucide/${label.replace('lucide-', '')}.svg`, svg)
+    }
   }
 
   return zip.generateAsync({ type: 'blob' })

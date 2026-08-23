@@ -1,13 +1,7 @@
-import * as Icons from 'lucide-react'
 import { useState } from 'react'
 import type { ElementStyle } from '../types'
 import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS } from '../data'
-
-const LUCIDE_ICONS = [
-  'send', 'mic', 'camera', 'attach', 'emoji', 'phone', 'video', 'search',
-  'message-circle', 'plus', 'check', 'check-check', 'chevron-left', 'chevron-right',
-  'more-vertical', 'paperclip', 'image', 'file', 'smile', 'settings', 'users', 'bell',
-]
+import IconPicker from './IconPicker'
 
 interface Props {
   label: string
@@ -47,6 +41,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
 export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent }: Props) {
   const hasCustomCorner = !!(style.cornerRadius && Object.keys(style.cornerRadius).length > 0)
   const [customCorner, setCustomCorner] = useState(hasCustomCorner)
+  const [showIconPicker, setShowIconPicker] = useState(false)
 
   const cornerSet = (corner: 'tl' | 'tr' | 'bl' | 'br', v: string) => {
     const cr = { ...(style.cornerRadius ?? {}), [corner]: v }
@@ -277,23 +272,29 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
       </Section>
 
       <Section title="Icon">
-        <div className="flex flex-wrap gap-1">
-          {LUCIDE_ICONS.map((name) => {
-            const Icon = (Icons as unknown as Record<string, typeof Icons.Send>)[name.charAt(0).toUpperCase() + name.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())]
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => onChange({ icon: name })}
-                className={`p-1 rounded border ${style.icon === name ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-100'}`}
-                title={name}
-              >
-                {Icon ? <Icon className="w-4 h-4" /> : name}
-              </button>
-            )
-          })}
-        </div>
+        <button
+          onClick={() => setShowIconPicker(true)}
+          className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50"
+        >
+          {style.icon ? `Current: ${style.icon}` : 'Choose icon...'}
+        </button>
+        {style.icon && (
+          <button
+            onClick={() => onChange({ icon: undefined })}
+            className="text-xs text-red-500 mt-1 hover:underline"
+          >
+            Clear icon
+          </button>
+        )}
       </Section>
+
+      {showIconPicker && (
+        <IconPicker
+          value={style.icon}
+          onSelect={(label) => { onChange({ icon: label }); setShowIconPicker(false) }}
+          onClose={() => setShowIconPicker(false)}
+        />
+      )}
 
       <Section title="Custom Tailwind Class">
         <textarea
