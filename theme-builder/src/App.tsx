@@ -415,6 +415,20 @@ export default function App() {
               onIdChange={(id) => { commitHistory(); setElements((prev) => prev.map((e) => (e.id === selected.id ? { ...e, id, customId: true } : e))) }}
               parentId={selected.parentId}
               onSelectParent={() => { if (selected.parentId) setSelectedIds([selected.parentId]) }}
+              screenElements={screenElements}
+              onUpdateElements={(updates) => {
+                commitHistory()
+                setElements((prev) => prev.map((e) => {
+                  const cls = updates.get(e.id)
+                  if (cls === undefined) return e
+                  const patch: Partial<ThemeElement['style']> = { customClass: cls || undefined }
+                  const wMatch = cls.match(/w-\[(\d+)px\]/)
+                  const hMatch = cls.match(/h-\[(\d+)px\]/)
+                  if (wMatch) patch.width = parseInt(wMatch[1], 10)
+                  if (hMatch) patch.height = parseInt(hMatch[1], 10)
+                  return { ...e, style: { ...e.style, ...patch } }
+                }))
+              }}
             />
           ) : (
             <div className="p-4 text-sm text-gray-400 text-center">Pilih elemen di mockup untuk edit</div>

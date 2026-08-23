@@ -79,6 +79,32 @@ export function styleToCssClass(style: ElementStyle): string {
   return styleToTailwind(style)
 }
 
+export function cssForElements(elements: ThemeElement[]): string {
+  return elements.map((el) => {
+    const cls = styleToTailwind(el.style)
+    const icon = el.style.icon
+    let css = `${el.id} {\n`
+    if (cls) css += `  class: "${cls}";\n`
+    if (icon) css += `  icon: ${icon};\n`
+    css += `}\n`
+    return css
+  }).join('\n')
+}
+
+export function parseCssUpdates(css: string, knownIds: string[]): Map<string, string> {
+  const updates = new Map<string, string>()
+  // regex: #id { class: "..." }
+  const blockRe = /#([^{]+?)\s*\{\s*(?:class:\s*"([^"]*)"\s*;?\s*)?[^}]*\s*\}/g
+  let m
+  while ((m = blockRe.exec(css)) !== null) {
+    const id = `#${m[1].trim()}`
+    if (!knownIds.includes(id)) continue
+    const cls = (m[2] || '').trim()
+    updates.set(id, cls)
+  }
+  return updates
+}
+
 export const TAILWIND_COLORS = [
   { name: 'slate', shades: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] },
   { name: 'gray', shades: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] },

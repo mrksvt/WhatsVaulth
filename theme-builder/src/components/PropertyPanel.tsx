@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { ElementStyle } from '../types'
-import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, styleToTailwind } from '../data'
+import type { ElementStyle, ThemeElement } from '../types'
+import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, cssForElements, parseCssUpdates } from '../data'
 import IconPicker from './IconPicker'
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   onIdChange: (id: string) => void
   parentId?: string
   onSelectParent?: () => void
+  screenElements?: ThemeElement[]
+  onUpdateElements?: (updates: Map<string, string>) => void
 }
 
 function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
@@ -51,7 +53,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
   )
 }
 
-export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent }: Props) {
+export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent, screenElements, onUpdateElements }: Props) {
   const hasCustomCorner = !!(style.cornerRadius && Object.keys(style.cornerRadius).length > 0)
   const [customCorner, setCustomCorner] = useState(hasCustomCorner)
   const [showIconPicker, setShowIconPicker] = useState(false)
@@ -308,35 +310,26 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       )}
 
-      <Section title="Custom Tailwind Class" defaultOpen={true}>
+      <Section title="CSS Editor (semua elemen)" defaultOpen={true}>
         <textarea
-          value={styleToTailwind(style)}
+          value={cssForElements(screenElements ?? [])}
           onChange={(e) => {
             const v = e.target.value
-            const patch: Partial<ElementStyle> = { customClass: v || undefined }
-            const wMatch = v.match(/w-\[(\d+)px\]/)
-            const hMatch = v.match(/h-\[(\d+)px\]/)
-            if (wMatch) patch.width = parseInt(wMatch[1], 10)
-            if (hMatch) patch.height = parseInt(hMatch[1], 10)
-            onChange(patch)
             e.target.style.height = 'auto'
             e.target.style.height = e.target.scrollHeight + 'px'
+            if (screenElements && onUpdateElements) {
+              const known = screenElements.map((el) => el.id)
+              const updates = parseCssUpdates(v, known)
+              if (updates.size > 0) onUpdateElements(updates)
+            }
           }}
-          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono resize-y min-h-[40px]"
-          rows={1}
-          placeholder="bg-[#ff0000] w-[200px] ..."
+          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono resize-y min-h-[120px]"
+          rows={4}
+          placeholder="#toolbar { class: &quot;bg-teal-600 p-4&quot;; }"
           ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
         />
-        {style.customClass && (
-          <button
-            onClick={() => onChange({ customClass: undefined })}
-            className="text-xs text-blue-500 mt-1 hover:underline"
-          >
-            Reset ke auto (dari panel)
-          </button>
-        )}
         <div className="text-[9px] text-gray-400 mt-1">
-          Auto dari panel: {styleToTailwind({ ...style, customClass: undefined }) || '(kosong)'}
+          Edit class per elemen — perubahan langsung diterapkan ke canvas
         </div>
       </Section>
     </div>
