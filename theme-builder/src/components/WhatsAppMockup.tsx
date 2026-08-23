@@ -334,7 +334,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'line' && null}
               </div>
               {elem.type === 'container' && (
-                <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0">
                   {screenElements.filter((e) => e.parentId === elem.id).map((child) => (
                     <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => e.parentId === elem.id)} onClick={() => onSelect([child.id])}
                       onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
