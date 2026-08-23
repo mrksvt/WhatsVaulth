@@ -15,7 +15,7 @@ interface Props {
   onSelectParent?: () => void
 }
 
-function Section({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="mb-1 border-b border-gray-100 pb-1">
