@@ -186,6 +186,11 @@ export default function App() {
     if (type === 'rectangle') { base.width = 120; base.height = 80; base.borderWidth = 'border-2'; base.borderColor = 'border-gray-500'; base.bg = '' }
     else if (type === 'circle') { base.width = 80; base.height = 80; base.rounded = 'rounded-full'; base.bg = 'bg-gray-100' }
     else if (type === 'line') { base.width = 160; base.height = 4; base.bg = 'bg-gray-500' }
+    else if (type === 'triangle') { base.width = 100; base.height = 100; base.bg = 'bg-gray-100' }
+    else if (type === 'diamond') { base.width = 100; base.height = 100; base.bg = 'bg-gray-100' }
+    else if (type === 'pentagon') { base.width = 110; base.height = 110; base.bg = 'bg-gray-100' }
+    else if (type === 'hexagon') { base.width = 110; base.height = 110; base.bg = 'bg-gray-100' }
+    else if (type === 'star') { base.width = 110; base.height = 110; base.bg = 'bg-gray-100' }
     else { base.width = 120; base.height = 40; base.bg = 'bg-gray-100'; base.rounded = 'rounded-md' }
     const newEl: ThemeElement = {
       id,

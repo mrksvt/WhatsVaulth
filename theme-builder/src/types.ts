@@ -5,6 +5,7 @@ export type DeviceId = 'iphone' | 'android' | 'ipad'
 export type ElementType =
   | 'text' | 'icon-btn' | 'image' | 'box' | 'container'
   | 'rectangle' | 'circle' | 'line'
+  | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
 
 export interface ElementStyle {
   bg?: string; textColor?: string; rounded?: string; shadow?: string
