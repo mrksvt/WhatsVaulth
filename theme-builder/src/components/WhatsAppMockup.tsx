@@ -47,36 +47,48 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
     if (locked) return
     const now = Date.now()
     if (now - lastClickRef.current < 300) {
-      setMode('move')          // klik kedua -> mode move
+      setMode((m) => (m === 'resize' ? 'move' : 'resize'))
     } else {
-      setMode('resize')        // klik pertama -> mode resize
+      setMode('resize')
     }
     lastClickRef.current = now
   }
 
   const handleDblClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setLocked(true)            // dblclick -> lock (bisa move)
+    setLocked(true)
     setMode('move')
   }
 
-  const startDrag = (e: React.PointerEvent) => {
+  // Drag hanya untuk mode move; resize via handle kanan-bawah
+  const startMove = (e: React.PointerEvent) => {
+    if (mode !== 'move') return
     e.stopPropagation()
     e.preventDefault()
     dragRef.current = { x: e.clientX, y: e.clientY, w, h }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
-  const onDragMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return
+  const onMoveDrag = (e: React.PointerEvent) => {
+    if (!dragRef.current || mode !== 'move') return
     const dx = e.clientX - dragRef.current.x
     const dy = e.clientY - dragRef.current.y
-    if (mode === 'move') {
-      onMove?.(dx, dy)
-      dragRef.current = { x: e.clientX, y: e.clientY, w, h }
-    } else {
-      onResize?.(Math.max(20, dragRef.current.w + dx), Math.max(20, dragRef.current.h + dy))
-    }
+    onMove?.(dx, dy)
+    dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+  }
+
+  const startResize = (e: React.PointerEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const onResizeDrag = (e: React.PointerEvent) => {
+    if (!dragRef.current) return
+    const dw = e.clientX - dragRef.current.x
+    const dh = e.clientY - dragRef.current.y
+    onResize?.(Math.max(20, dragRef.current.w + dw), Math.max(20, dragRef.current.h + dh))
   }
 
   const stopDrag = () => { dragRef.current = null }
@@ -97,8 +109,8 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
       onClick={handleClick}
       onDoubleClick={handleDblClick}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onEdit?.() }}
-      onPointerDown={selected ? startDrag : undefined}
-      onPointerMove={onDragMove}
+      onPointerDown={startMove}
+      onPointerMove={onMoveDrag}
       onPointerUp={stopDrag}
       onPointerCancel={stopDrag}
     >
@@ -117,8 +129,8 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
           </div>
           {mode === 'resize' && (
             <div className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 rounded-full cursor-nwse-resize z-20 touch-none select-none"
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); dragRef.current = { x: e.clientX, y: e.clientY, w, h }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }}
-              onPointerMove={(e) => { if (!dragRef.current) return; const dw = e.clientX - dragRef.current.x, dh = e.clientY - dragRef.current.y; onResize?.(Math.max(20, dragRef.current.w + dw), Math.max(20, dragRef.current.h + dh)) }}
+              onPointerDown={startResize}
+              onPointerMove={onResizeDrag}
               onPointerUp={stopDrag} onPointerCancel={stopDrag}
             />
           )}
@@ -154,7 +166,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     <div className="flex flex-col items-center">
       <Toolbar />
       <Device screenWidth={375}>
-        <div className="relative w-full h-full bg-white overflow-hidden">
+        <div className="relative w-full h-full bg-white overflow-hidden" style={{ pointerEvents: 'auto' }}>
           {wallpaper && <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${wallpaper})` }} />}
           {screenElements.map((elem) => (
             <Box key={elem.id} element={elem} selected={isSel(elem.id)} onClick={() => sel(elem.id)}
