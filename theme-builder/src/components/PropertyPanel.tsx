@@ -311,7 +311,15 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
       <Section title="Custom Tailwind Class" defaultOpen={true}>
         <textarea
           value={styleToTailwind(style)}
-          onChange={(e) => onChange({ customClass: e.target.value || undefined })}
+          onChange={(e) => {
+            const v = e.target.value
+            const patch: Partial<ElementStyle> = { customClass: v || undefined }
+            const wMatch = v.match(/w-\[(\d+)px\]/)
+            const hMatch = v.match(/h-\[(\d+)px\]/)
+            if (wMatch) patch.width = parseInt(wMatch[1], 10)
+            if (hMatch) patch.height = parseInt(hMatch[1], 10)
+            onChange(patch)
+          }}
           className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono"
           rows={2}
           placeholder="bg-[#ff0000] w-[200px] ..."
