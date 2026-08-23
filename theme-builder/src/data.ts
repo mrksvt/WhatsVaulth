@@ -40,11 +40,6 @@ export const ADDABLE: { type: ThemeElement['type']; label: string; icon?: string
   { type: 'container', label: 'Container', icon: 'layout' },
   { type: 'rectangle', label: 'Rectangle', icon: 'square' },
   { type: 'circle', label: 'Circle', icon: 'circle' },
-  { type: 'triangle', label: 'Triangle', icon: 'triangle' },
-  { type: 'diamond', label: 'Diamond', icon: 'diamond' },
-  { type: 'pentagon', label: 'Pentagon', icon: 'pentagon' },
-  { type: 'hexagon', label: 'Hexagon', icon: 'hexagon' },
-  { type: 'star', label: 'Star', icon: 'star' },
   { type: 'line', label: 'Line', icon: 'minus' },
 ]
 
