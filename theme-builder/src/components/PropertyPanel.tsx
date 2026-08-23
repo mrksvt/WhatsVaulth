@@ -15,11 +15,24 @@ interface Props {
   onSelectParent?: () => void
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="mb-3">
-      <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{title}</div>
-      {children}
+    <div className="mb-1 border-b border-gray-100 pb-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between py-1.5 text-xs font-semibold text-gray-400 uppercase hover:text-gray-600"
+      >
+        {title}
+        <svg
+          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && <div className="pb-2">{children}</div>}
     </div>
   )
 }
@@ -75,7 +88,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       )}
 
-      <Section title="Element ID (CSS selector)">
+      <Section title="Element ID (CSS selector)" defaultOpen={true}>
         <select
           value={customId ? '__custom__' : id}
           onChange={(e) => {
@@ -97,7 +110,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       </Section>
 
-      <Section title="Size (px)">
+      <Section title="Size (px)" defaultOpen={true}>
         <div className="flex gap-2 items-center">
           <label className="text-xs text-gray-500">W</label>
           <input type="number" value={style.width ?? 120} onChange={(e) => onChange({ width: Number(e.target.value) || 0 })}
@@ -108,8 +121,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      {/* Warna */}
-      <Section title="Background">
+      <Section title="Background" defaultOpen={!!style.bg}>
         <div className="flex flex-wrap gap-1">
           {TAILWIND_COLORS.map((c) =>
             c.shades.length === 0 ? (
@@ -134,7 +146,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Text Color">
+      <Section title="Text Color" defaultOpen={!!style.textColor}>
         <div className="flex flex-wrap gap-1">
           {['white', 'black', 'gray-500', 'gray-900', 'blue-500', 'green-600', 'red-500'].map((c) => (
             <Btn key={c} active={style.textColor === `text-${c}`} onClick={() => onChange({ textColor: `text-${c}` })}>
@@ -150,7 +162,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Radius">
+      <Section title="Radius" defaultOpen={!!style.rounded || !!style.cornerRadius}>
         {customCorner ? (
           renderCornerControls()
         ) : (
@@ -177,7 +189,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Border">
+      <Section title="Border" defaultOpen={!!style.borderWidth || !!style.borderColor || !!style.borderStyle}>
         <div className="flex flex-wrap gap-1">
           {['border-0', 'border-1', 'border-2', 'border-4', 'border-8'].map((b) => (
             <Btn key={b} active={style.borderWidth === b} onClick={() => onChange({ borderWidth: b === 'border-0' ? undefined : b })}>
@@ -208,7 +220,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Rotation">
+      <Section title="Rotation" defaultOpen={!!style.rotate}>
         <input
           type="range"
           min={0}
@@ -223,7 +235,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         <div className="text-xs text-gray-500 text-center">{parseInt(style.rotate?.match(/(\d+)/)?.[1] ?? '0')}°</div>
       </Section>
 
-      <Section title="Shadow">
+      <Section title="Shadow" defaultOpen={!!style.shadow}>
         <div className="flex flex-wrap gap-1">
           {SHADOWS.map((s) => (
             <Btn key={s} active={style.shadow === `shadow-${s}`} onClick={() => onChange({ shadow: `shadow-${s}` })}>
@@ -233,7 +245,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Padding">
+      <Section title="Padding" defaultOpen={!!style.padding}>
         <div className="flex flex-wrap gap-1">
           {SPACING.filter((s) => Number.isInteger(s)).slice(0, 14).map((s) => (
             <Btn key={s} active={style.padding === `p-${s}`} onClick={() => onChange({ padding: `p-${s}` })}>
@@ -244,7 +256,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
       </Section>
 
 
-      <Section title="Font Size / Weight">
+      <Section title="Font Size / Weight" defaultOpen={!!style.fontSize || !!style.fontWeight}>
         <div className="flex flex-wrap gap-1">
           {FONT_SIZES.map((s) => (
             <Btn key={s} active={style.fontSize === `text-${s}`} onClick={() => onChange({ fontSize: `text-${s}` })}>
@@ -261,7 +273,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Opacity">
+      <Section title="Opacity" defaultOpen={!!style.opacity}>
         <div className="flex flex-wrap gap-1">
           {[0, 25, 50, 75, 100].map((o) => (
             <Btn key={o} active={style.opacity === `opacity-${o}`} onClick={() => onChange({ opacity: `opacity-${o}` })}>
@@ -271,7 +283,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Icon">
+      <Section title="Icon" defaultOpen={!!style.icon}>
         <button
           onClick={() => setShowIconPicker(true)}
           className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50"
@@ -296,7 +308,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       )}
 
-      <Section title="Custom Tailwind Class">
+      <Section title="Custom Tailwind Class" defaultOpen={!!style.customClass}>
         <textarea
           value={style.customClass ?? ''}
           onChange={(e) => onChange({ customClass: e.target.value || undefined })}
