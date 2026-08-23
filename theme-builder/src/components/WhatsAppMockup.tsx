@@ -30,6 +30,7 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, classN
   const drag = useRef<{ x: number; y: number } | null>(null)
   return (
     <div
+      style={element.style.freePosition ? { position: 'absolute', top: element.style.top ?? '0px', left: element.style.left ?? '0px' } : undefined}
       className={`relative group cursor-pointer outline outline-2 outline-offset-1 transition-all ${
         selected ? 'outline-blue-500' : 'outline-transparent hover:outline-blue-300'
       } ${className}`}
