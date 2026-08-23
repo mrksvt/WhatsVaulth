@@ -1,4 +1,5 @@
 import * as Icons from 'lucide-react'
+import { useState } from 'react'
 import type { ElementStyle } from '../types'
 import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS } from '../data'
 
@@ -16,6 +17,8 @@ interface Props {
   style: ElementStyle
   onChange: (patch: Partial<ElementStyle>) => void
   onIdChange: (id: string) => void
+  parentId?: string
+  onSelectParent?: () => void
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -41,10 +44,41 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
   )
 }
 
-export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange }: Props) {
+export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent }: Props) {
+  const hasCustomCorner = !!(style.cornerRadius && Object.keys(style.cornerRadius).length > 0)
+  const [customCorner, setCustomCorner] = useState(hasCustomCorner)
+
+  const cornerSet = (corner: 'tl' | 'tr' | 'bl' | 'br', v: string) => {
+    const cr = { ...(style.cornerRadius ?? {}), [corner]: v }
+    onChange({ cornerRadius: cr })
+  }
+
+  const renderCornerControls = () => (
+    <div className="grid grid-cols-2 gap-1 mt-1">
+      {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
+        <div key={c} className="flex items-center gap-1">
+          <span className="text-[9px] text-gray-400 w-5">{c.toUpperCase()}</span>
+          <select
+            value={style.cornerRadius?.[c] ?? 'md'}
+            onChange={(e) => cornerSet(c, e.target.value)}
+            className="flex-1 border border-gray-300 rounded px-1 py-0.5 text-[10px]"
+          >
+            {RADIUS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <div className="p-3 text-sm">
       <div className="text-base font-bold mb-2">{label}</div>
+      {parentId && (
+        <div className="mb-2 text-[10px] text-gray-500 flex items-center gap-1">
+          Inside: <span className="font-mono text-gray-700">{parentId}</span>
+          <button onClick={onSelectParent} className="text-blue-500 hover:underline text-[10px]">Select parent</button>
+        </div>
+      )}
 
       <Section title="Element ID (CSS selector)">
         <select
@@ -122,13 +156,76 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
       </Section>
 
       <Section title="Radius">
+        {customCorner ? (
+          renderCornerControls()
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {RADIUS.map((r) => (
+              <Btn key={r} active={style.rounded === `rounded-${r}`} onClick={() => onChange({ rounded: `rounded-${r}` })}>
+                {r}
+              </Btn>
+            ))}
+          </div>
+        )}
+        <div className="mt-1">
+          <label className="flex items-center gap-1 text-[10px] text-gray-500">
+            <input
+              type="checkbox"
+              checked={customCorner}
+              onChange={(e) => {
+                setCustomCorner(e.target.checked)
+                if (!e.target.checked) onChange({ cornerRadius: undefined })
+              }}
+            />
+            Custom per corner
+          </label>
+        </div>
+      </Section>
+
+      <Section title="Border">
         <div className="flex flex-wrap gap-1">
-          {RADIUS.map((r) => (
-            <Btn key={r} active={style.rounded === `rounded-${r}`} onClick={() => onChange({ rounded: `rounded-${r}` })}>
-              {r}
+          {['border-0', 'border-1', 'border-2', 'border-4', 'border-8'].map((b) => (
+            <Btn key={b} active={style.borderWidth === b} onClick={() => onChange({ borderWidth: b === 'border-0' ? undefined : b })}>
+              {b.replace('border-', '')}
             </Btn>
           ))}
         </div>
+        <div className="flex flex-wrap gap-1 mt-1 items-center">
+          {['border-gray-300', 'border-gray-500', 'border-gray-900', 'border-blue-500', 'border-red-500', 'border-white', 'border-black'].map((c) => (
+            <Btn key={c} active={style.borderColor === c} onClick={() => onChange({ borderColor: c })}>
+              {c.replace('border-', '')}
+            </Btn>
+          ))}
+          <input
+            type="color"
+            value={style.borderColor?.match(/#[0-9a-fA-F]{6}/)?.[0] ?? '#000000'}
+            onChange={(e) => onChange({ borderColor: `border-[${e.target.value}]` })}
+            className="w-6 h-6"
+            title="Custom border color"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {['border-solid', 'border-dashed', 'border-dotted'].map((s) => (
+            <Btn key={s} active={style.borderStyle === s} onClick={() => onChange({ borderStyle: s })}>
+              {s.replace('border-', '')}
+            </Btn>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Rotation">
+        <input
+          type="range"
+          min={0}
+          max={360}
+          value={parseInt(style.rotate?.match(/(\d+)/)?.[1] ?? '0')}
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            onChange({ rotate: v === 0 ? undefined : `rotate-[${v}deg]` })
+          }}
+          className="w-full"
+        />
+        <div className="text-xs text-gray-500 text-center">{parseInt(style.rotate?.match(/(\d+)/)?.[1] ?? '0')}°</div>
       </Section>
 
       <Section title="Shadow">
@@ -196,6 +293,16 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
             )
           })}
         </div>
+      </Section>
+
+      <Section title="Custom Tailwind Class">
+        <textarea
+          value={style.customClass ?? ''}
+          onChange={(e) => onChange({ customClass: e.target.value || undefined })}
+          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono"
+          rows={2}
+          placeholder="blur-sm hover:opacity-80"
+        />
       </Section>
     </div>
   )

@@ -53,10 +53,30 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
-      if (!mod) return
-      if (e.key.toLowerCase() === 'z' && e.shiftKey) { e.preventDefault(); redo() }
-      else if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo() }
-      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
+      const tag = (document.activeElement?.tagName ?? '').toLowerCase()
+      const inInput = tag === 'input' || tag === 'textarea' || tag === 'select'
+      if (inInput && !mod) return
+
+      if (mod && e.key.toLowerCase() === 'z' && e.shiftKey) { e.preventDefault(); redo() }
+      else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); undo() }
+      else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
+      else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); handleDuplicate(selectedIds) }
+      else if (e.key === 'Escape') { setSelectedIds([]) }
+      else if (selectedIds.length > 0 && !inInput) {
+        const step = e.shiftKey ? 10 : 1
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        if (dx !== 0 || dy !== 0) {
+          e.preventDefault()
+          const updates = elements
+            .filter((el) => selectedIds.includes(el.id))
+            .map((el) => ({ id: el.id, top: (el.style.top ?? 10) + dy, left: (el.style.left ?? 10) + dx }))
+          handleBatchUpdate(updates)
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          handleDelete(selectedIds)
+        }
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -75,7 +95,19 @@ export default function App() {
 
   const handleDelete = (ids: string[]) => {
     commitHistory()
-    setElements((prev) => prev.filter((e) => !ids.includes(e.id)))
+    setElements((prev) => {
+      const deleting = new Set(ids)
+      return prev.map((e) => {
+        if (!deleting.has(e.id) || e.parentId === undefined) return e
+        const parent = prev.find((p) => p.id === e.parentId)
+        if (!parent) return { ...e, parentId: undefined }
+        return {
+          ...e,
+          parentId: undefined,
+          style: { ...e.style, left: (e.style.left ?? 10) + (parent.style.left ?? 10), top: (e.style.top ?? 10) + (parent.style.top ?? 10) },
+        }
+      }).filter((e) => !deleting.has(e.id))
+    })
     setSelectedIds([])
   }
 
@@ -150,12 +182,17 @@ export default function App() {
     const options = ID_OPTIONS[screen]
     let id = options.find((o) => !usedIds.includes(o))
     if (!id) id = `#custom_${Date.now()}`
+    const base: Partial<ThemeElement['style']> = { top: 20 + (screenElements.length * 15), left: 20 }
+    if (type === 'rectangle') { base.width = 120; base.height = 80; base.borderWidth = 'border-2'; base.borderColor = 'border-gray-500'; base.bg = '' }
+    else if (type === 'circle') { base.width = 80; base.height = 80; base.rounded = 'rounded-full'; base.bg = 'bg-gray-100' }
+    else if (type === 'line') { base.width = 160; base.height = 4; base.bg = 'bg-gray-500' }
+    else { base.width = 120; base.height = 40; base.bg = 'bg-gray-100'; base.rounded = 'rounded-md' }
     const newEl: ThemeElement = {
       id,
       label,
       type,
       screen,
-      style: { width: 120, height: 40, top: 20 + (screenElements.length * 15), left: 20, bg: 'bg-gray-100', rounded: 'rounded-md' },
+      style: base as ThemeElement['style'],
       removable: true,
       customId: !options.includes(id),
     }
@@ -200,6 +237,46 @@ export default function App() {
     reader.readAsDataURL(file)
   }
 
+  const handleBatchUpdate = (updates: { id: string; top?: number; left?: number }[]) => {
+    commitHistory()
+    setElements((prev) =>
+      prev.map((e) => {
+        const u = updates.find((u) => u.id === e.id)
+        if (!u) return e
+        return { ...e, style: { ...e.style, ...(u.top !== undefined ? { top: u.top } : {}), ...(u.left !== undefined ? { left: u.left } : {}) } }
+      })
+    )
+  }
+
+  const handleSetParent = (updates: { id: string; parentId: string | undefined }[]) => {
+    commitHistory()
+    setElements((prev) =>
+      prev.map((e) => {
+        const u = updates.find((u) => u.id === e.id)
+        if (!u) return e
+        return { ...e, parentId: u.parentId }
+      })
+    )
+  }
+
+  const handleUnnest = (updates: { id: string; parentId: string | undefined }[]) => {
+    commitHistory()
+    setElements((prev) =>
+      prev.map((e) => {
+        const u = updates.find((u) => u.id === e.id)
+        if (!u || e.parentId === undefined) return e
+        const parent = prev.find((p) => p.id === e.parentId)
+        if (!parent) return { ...e, parentId: undefined }
+        const pL = parent.style.left ?? 10
+        const pT = parent.style.top ?? 10
+        return {
+          ...e,
+          parentId: undefined,
+          style: { ...e.style, left: (e.style.left ?? 10) + pL, top: (e.style.top ?? 10) + pT },
+        }
+      })
+    )
+  }
   const handleSaveElement = (patch: Partial<ThemeElement>) => {
     if (!editingId) return
     setElements((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...patch } : e)))
@@ -319,6 +396,9 @@ export default function App() {
               onResize={handleResize}
               onEdit={setEditingId}
               onCanvasHeight={setCanvasHeight}
+              onBatchUpdate={handleBatchUpdate}
+              onSetParent={handleSetParent}
+              onUnnest={handleUnnest}
             />
           </div>
         </main>
@@ -333,6 +413,8 @@ export default function App() {
               style={selected.style}
               onChange={updateStyle}
               onIdChange={(id) => { commitHistory(); setElements((prev) => prev.map((e) => (e.id === selected.id ? { ...e, id, customId: true } : e))) }}
+              parentId={selected.parentId}
+              onSelectParent={() => { if (selected.parentId) setSelectedIds([selected.parentId]) }}
             />
           ) : (
             <div className="p-4 text-sm text-gray-400 text-center">Pilih elemen di mockup untuk edit</div>

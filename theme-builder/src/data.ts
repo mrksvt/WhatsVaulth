@@ -38,6 +38,9 @@ export const ADDABLE: { type: ThemeElement['type']; label: string; icon?: string
   { type: 'image', label: 'Image', icon: 'image' },
   { type: 'box', label: 'Box', icon: 'square' },
   { type: 'container', label: 'Container', icon: 'layout' },
+  { type: 'rectangle', label: 'Rectangle', icon: 'square' },
+  { type: 'circle', label: 'Circle', icon: 'circle' },
+  { type: 'line', label: 'Line', icon: 'minus' },
 ]
 
 export const DEFAULT_ELEMENTS: ThemeElement[] = []
@@ -55,6 +58,18 @@ export function styleToTailwind(style: ElementStyle): string {
   if (style.opacity) parts.push(style.opacity)
   if (style.fontWeight) parts.push(style.fontWeight)
   if (style.fontSize) parts.push(style.fontSize)
+  if (style.borderWidth) parts.push(style.borderWidth)
+  if (style.borderColor) parts.push(style.borderColor)
+  if (style.borderStyle) parts.push(style.borderStyle)
+  if (style.rotate) parts.push(style.rotate)
+  if (style.cornerRadius) {
+    const cr = style.cornerRadius
+    if (cr.tl) parts.push(`rounded-tl-${cr.tl}`)
+    if (cr.tr) parts.push(`rounded-tr-${cr.tr}`)
+    if (cr.bl) parts.push(`rounded-bl-${cr.bl}`)
+    if (cr.br) parts.push(`rounded-br-${cr.br}`)
+  }
+  if (style.customClass) parts.push(style.customClass)
   return parts.join(' ')
 }
 

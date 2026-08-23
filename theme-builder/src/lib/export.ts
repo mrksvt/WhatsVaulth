@@ -35,12 +35,27 @@ export function validateThemeIds(theme: Theme): IdValidation[] {
 
 export function buildStyleCss(theme: Theme): string {
   let css = `/*\nprimary_color = #075E54\ntext_color = #111B21\nbackground_color = #ECE5DD\nbubble_right = #DCF8C6\nbubble_left = #FFFFFF\nchange_colors = true\n*/\n\n`
+  const absOf = (el: ThemeElement): { top: number; left: number } => {
+    let top = el.style.top ?? 10
+    let left = el.style.left ?? 10
+    let parent = theme.elements.find((p) => p.id === el.parentId)
+    while (parent) {
+      top += parent.style.top ?? 10
+      left += parent.style.left ?? 10
+      parent = theme.elements.find((p) => p.id === parent!.parentId)
+    }
+    return { top, left }
+  }
   for (const el of theme.elements) {
     const cls = styleToCssClass(el.style)
-    if (!cls && !el.style.icon) continue
+    const pos = el.parentId ? absOf(el) : null
+    if (!cls && !el.style.icon && !pos) continue
     css += `${el.id} {\n`
     if (cls) css += `  class: "${cls}";\n`
     if (el.style.icon) css += `  icon: lucide-${el.style.icon};\n`
+    if (pos) {
+      css += `  top: ${pos.top}px;\n  left: ${pos.left}px;\n`
+    }
     css += `}\n\n`
   }
   return css
