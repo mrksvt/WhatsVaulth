@@ -414,6 +414,7 @@ export default function App() {
               label={selected.label}
               id={selected.id}
               customId={selected.customId}
+              elementType={selected.type}
               screen={screen}
               style={selected.style}
               onChange={updateStyle}

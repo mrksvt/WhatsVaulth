@@ -15,6 +15,7 @@ interface Props {
   onSelectParent?: () => void
   screenElements?: ThemeElement[]
   onUpdateElements?: (updates: Map<string, string>) => void
+  elementType?: ThemeElement['type']
 }
 
 function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
@@ -53,7 +54,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
   )
 }
 
-export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent, screenElements, onUpdateElements }: Props) {
+export default function PropertyPanel({ label, id, customId, screen, style, onChange, onIdChange, parentId, onSelectParent, screenElements, onUpdateElements, elementType }: Props) {
   const hasCustomCorner = !!(style.cornerRadius && Object.keys(style.cornerRadius).length > 0)
   const [customCorner, setCustomCorner] = useState(hasCustomCorner)
   const [showIconPicker, setShowIconPicker] = useState(false)
@@ -90,6 +91,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       )}
 
+      {elementType !== 'rectangle' && elementType !== 'circle' && elementType !== 'line' && (
       <Section title="Element ID (CSS selector)">
         <select
           value={customId ? '__custom__' : id}
@@ -111,6 +113,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
           placeholder="#custom_id"
         />
       </Section>
+      )}
 
       <Section title="Size (px)">
         <div className="flex gap-2 items-center">

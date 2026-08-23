@@ -45,7 +45,7 @@ export const ADDABLE: { type: ThemeElement['type']; label: string; icon?: string
 
 // Shape types yang bisa jadi parent (nestable) — selain container
 export const SHAPE_TYPES: ThemeElement['type'][] = [
-  'rectangle', 'circle', 'triangle', 'diamond', 'pentagon', 'hexagon', 'star',
+  'rectangle', 'circle', 'line', 'triangle', 'diamond', 'pentagon', 'hexagon', 'star',
 ]
 
 export function isShape(type: ThemeElement['type']): boolean {
