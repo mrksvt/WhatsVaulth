@@ -199,7 +199,6 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
 export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest }: Props) {
   const isSel = (id: string) => selectedIds.includes(id)
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
-  const cls = (id: string) => styleToTailwind(el(id)?.style ?? {})
 
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const marqueeRef = useRef<{ startX: number; startY: number } | null>(null)
@@ -217,6 +216,20 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
   }, [device, screen, onCanvasHeight])
 
   const screenElements = elements.filter((e) => e.screen === screen)
+
+  // Preview-only: customClass pakai important prefix (twind) supaya menang dari preset
+  // Export tetap plain via styleToTailwind
+  const cls = (id: string) => {
+    const style = el(id)?.style ?? {}
+    const base = styleToTailwind({ ...style, customClass: undefined })
+    const custom = style.customClass?.trim()
+    if (!custom) return base
+    const important = custom.split(/\s+/).filter(Boolean).map((c) => {
+      const idx = c.lastIndexOf(':')
+      return idx === -1 ? `!${c}` : `${c.slice(0, idx + 1)}!${c.slice(idx + 1)}`
+    }).join(' ')
+    return [base, important].filter(Boolean).join(' ')
+  }
 
   const handleDropToNest = (id: string) => {
     const dragged = elements.find((e) => e.id === id)
@@ -354,11 +367,6 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'circle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'line' && null}
-                {elem.style.customClass && isSel(elem.id) && (
-                  <div className="absolute -bottom-5 left-0 text-[8px] bg-yellow-100 text-yellow-800 px-1 rounded leading-4 whitespace-nowrap max-w-[200px] truncate pointer-events-none">
-                    custom: {elem.style.customClass}
-                  </div>
-                )}
               </div>
               {elem.type === 'container' && (
                 <div className="absolute inset-0">
@@ -380,11 +388,6 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                         {child.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
                         {child.type === 'circle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
                         {child.type === 'line' && null}
-                        {child.style.customClass && isSel(child.id) && (
-                          <div className="absolute -bottom-5 left-0 text-[8px] bg-yellow-100 text-yellow-800 px-1 rounded leading-4 whitespace-nowrap max-w-[200px] truncate pointer-events-none">
-                            custom: {child.style.customClass}
-                          </div>
-                        )}
                       </div>
                     </Box>
                   ))}
