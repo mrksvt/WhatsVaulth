@@ -15,6 +15,8 @@ export interface ElementStyle {
   bg?: string; textColor?: string; rounded?: string; shadow?: string
   padding?: string; margin?: string; width?: string; height?: string
   opacity?: string; fontWeight?: string; fontSize?: string; icon?: string
+  top?: string; left?: string; right?: string; bottom?: string
+  freePosition?: boolean
 }
 
 export interface ThemeElement {

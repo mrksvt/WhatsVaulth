@@ -80,6 +80,17 @@ export default function App() {
     })
   }
 
+  const handleMove = (id: string, dx: number, dy: number) => {
+    setElements((prev) =>
+      prev.map((e) => {
+        if (e.id !== id) return e
+        const curTop = parseFloat(e.style.top ?? '0') || 0
+        const curLeft = parseFloat(e.style.left ?? '0') || 0
+        return { ...e, style: { ...e.style, freePosition: true, top: `${curTop + dy}px`, left: `${curLeft + dx}px` } }
+      })
+    )
+  }
+
   const handleAdd = (type: ElementType, label: string, icon?: string) => {
     const base = type.replace(/-/g, '_')
     const newEl: ThemeElement = {
@@ -190,6 +201,7 @@ export default function App() {
               onSelect={setSelectedId}
               onDelete={handleDelete}
               onDuplicate={handleDuplicate}
+              onMove={handleMove}
             />
           </div>
           </div>

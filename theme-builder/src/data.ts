@@ -74,6 +74,11 @@ export function styleToTailwind(style: ElementStyle): string {
   if (style.opacity) parts.push(style.opacity)
   if (style.fontWeight) parts.push(style.fontWeight)
   if (style.fontSize) parts.push(style.fontSize)
+  if (style.freePosition) parts.push('absolute')
+  if (style.top) parts.push(`top-[${style.top}]`)
+  if (style.left) parts.push(`left-[${style.left}]`)
+  if (style.right) parts.push(`right-[${style.right}]`)
+  if (style.bottom) parts.push(`bottom-[${style.bottom}]`)
   return parts.join(' ')
 }
 

@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import * as Icons from 'lucide-react'
 import type { ThemeElement, ScreenId } from '../types'
 import { styleToTailwind, SCREENS } from '../data'
@@ -11,6 +12,7 @@ interface Props {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   onDuplicate: (id: string) => void
+  onMove: (id: string, dx: number, dy: number) => void
 }
 
 function iconFor(name?: string) {
@@ -20,10 +22,12 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-5 h-5" /> : null
 }
 
-function Box({ element, selected, onClick, onDelete, onDuplicate, className = '', children }: {
+function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, className = '', children }: {
   element: ThemeElement; selected: boolean; onClick: () => void
-  onDelete: () => void; onDuplicate: () => void; className?: string; children: React.ReactNode
+  onDelete: () => void; onDuplicate: () => void; onMove?: (dx: number, dy: number) => void
+  className?: string; children: React.ReactNode
 }) {
+  const drag = useRef<{ x: number; y: number } | null>(null)
   return (
     <div
       className={`relative group cursor-pointer outline outline-2 outline-offset-1 transition-all ${
@@ -35,6 +39,25 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, className = ''
       {selected && (
         <>
           <div className="absolute -top-3 -right-3 flex gap-1 z-20">
+            <button
+              className="w-6 h-6 bg-gray-700 text-white rounded-full flex items-center justify-center shadow cursor-move touch-none"
+              title="Drag untuk posisikan"
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                drag.current = { x: e.clientX, y: e.clientY }
+                ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+              }}
+              onPointerMove={(e) => {
+                if (!drag.current) return
+                const dx = e.clientX - drag.current.x
+                const dy = e.clientY - drag.current.y
+                drag.current = { x: e.clientX, y: e.clientY }
+                onMove && onMove(dx, dy)
+              }}
+              onPointerUp={() => { drag.current = null }}
+            >
+              <Icons.Move className="w-3.5 h-3.5" />
+            </button>
             {element.removable && (
               <button className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow" onClick={(e) => { e.stopPropagation(); onDelete() }} title="Delete"><Icons.Trash2 className="w-3.5 h-3.5" /></button>
             )}
@@ -49,7 +72,8 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, className = ''
   )
 }
 
-export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, selectedId, onSelect, onDelete, onDuplicate }: Props) {
+export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, selectedId, onSelect, onDelete, onDuplicate, onMove }: Props) {
+  const mv = (id: string, dx: number, dy: number) => onMove(id, dx, dy)
   const by = (type: string) => elements.filter((e) => e.screen === screen && e.type === type)
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
   const cls = (id: string) => styleToTailwind(el(id)?.style ?? {})
@@ -75,7 +99,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
   const NavBar = () => (
     nav ? (
-      <Box element={nav} selected={isSel(nav.id)} onClick={() => sel(nav.id)} onDelete={() => onDelete(nav.id)} onDuplicate={() => onDuplicate(nav.id)}>
+      <Box element={nav} selected={isSel(nav.id)} onClick={() => sel(nav.id)} onDelete={() => onDelete(nav.id)} onDuplicate={() => onDuplicate(nav.id)} onMove={(a,b)=>mv(nav.id,a,b)}>
         <div className={`flex justify-around items-center ${cls(nav.id)}`}>
           {SCREENS.slice(0, 4).map((s, i) => (
             <button key={s.id} onClick={() => onScreen(s.id)} className={`flex flex-col items-center text-[8px] ${i === SCREENS.indexOf(SCREENS.find((x) => x.id === screen)!) ? 'text-green-600' : 'text-gray-400'}`}>
@@ -94,9 +118,9 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
       {screen === 'home' && (
         <>
-          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)}>
+          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)} onMove={(a,b)=>mv(toolbar.id,a,b)}>
             <div className={`relative flex items-center gap-2 px-2 py-3 ${cls(toolbar.id)}`}>
-              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} className="flex-1">
+              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} onMove={(a,b)=>mv(toolbarTitle.id,a,b)} className="flex-1">
                 <div className={cls(toolbarTitle.id)}>WhatsApp</div>
               </Box>}
               <div className="flex gap-2 text-white"><span>🔍</span><span>⋮</span></div>
@@ -128,9 +152,9 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
       {screen === 'calls' && (
         <>
-          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)}>
+          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)} onMove={(a,b)=>mv(toolbar.id,a,b)}>
             <div className={`relative flex items-center gap-2 px-2 py-3 ${cls(toolbar.id)}`}>
-              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} className="flex-1">
+              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} onMove={(a,b)=>mv(toolbarTitle.id,a,b)} className="flex-1">
                 <div className={cls(toolbarTitle.id)}>Panggilan</div>
               </Box>}
               <div className="flex gap-2 text-white"><span>🔍</span></div>
@@ -156,9 +180,9 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
       {screen === 'updates' && (
         <>
-          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)}>
+          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)} onMove={(a,b)=>mv(toolbar.id,a,b)}>
             <div className={`relative flex items-center gap-2 px-2 py-3 ${cls(toolbar.id)}`}>
-              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} className="flex-1">
+              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} onMove={(a,b)=>mv(toolbarTitle.id,a,b)} className="flex-1">
                 <div className={cls(toolbarTitle.id)}>Pembaruan</div>
               </Box>}
               <div className="flex gap-2 text-white"><span>🔍</span></div>
@@ -168,7 +192,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
             {statusRows.map((row, i) => (
               <Box key={row.id} element={row} selected={isSel(row.id)} onClick={() => sel(row.id)} onDelete={() => onDelete(row.id)} onDuplicate={() => onDuplicate(row.id)} className="mx-1">
                 <div className={`flex items-center gap-2 ${cls('updates_row')}`}>
-                  <Box element={statusRing ?? row} selected={isSel(statusRing?.id ?? '')} onClick={() => sel(statusRing?.id ?? row.id)} onDelete={() => onDelete(statusRing?.id ?? row.id)} onDuplicate={() => onDuplicate(statusRing?.id ?? row.id)}>
+                  <Box element={statusRing ?? row} selected={isSel(statusRing?.id ?? '')} onClick={() => sel(statusRing?.id ?? row.id)} onDelete={() => onDelete(statusRing?.id ?? row.id)} onDuplicate={() => onDuplicate(statusRing?.id ?? row.id)} onMove={(a,b)=>mv(statusRing?.id ?? row.id,a,b)}>
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-gray-600 ${cls('updates_ring')}`}>{names[i % names.length][0]}</div>
                   </Box>
                   <div className="flex-1">
@@ -205,7 +229,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
             <Box element={convInput ?? { id: 'conv_input', label: 'Input', type: 'input', screen: 'conversation', style: {} }} selected={isSel('conv_input')} onClick={() => sel('conv_input')} onDelete={() => onDelete('conv_input')} onDuplicate={() => onDuplicate('conv_input')} className="flex-1">
               <div className={`flex items-center gap-2 ${cls('conv_input')}`}><span className="text-gray-400">✚</span><span className="text-gray-400 text-sm">Ketik pesan</span></div>
             </Box>
-            <Box element={convSend ?? { id: 'conv_send', label: 'Send', type: 'send', screen: 'conversation', style: {} }} selected={isSel('conv_send')} onClick={() => sel('conv_send')} onDelete={() => onDelete('conv_send')} onDuplicate={() => onDuplicate('conv_send')}>
+            <Box element={convSend ?? { id: 'conv_send', label: 'Send', type: 'send', screen: 'conversation', style: {} }} selected={isSel('conv_send')} onClick={() => sel('conv_send')} onDelete={() => onDelete('conv_send')} onDuplicate={() => onDuplicate('conv_send')} onMove={(a,b)=>mv('conv_send',a,b)}>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${cls('conv_send')}`}>{iconFor(convSend?.style.icon) ?? <span className="text-white">➤</span>}</div>
             </Box>
           </div>
@@ -214,9 +238,9 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
       {screen === 'groups' && (
         <>
-          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)}>
+          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)} onMove={(a,b)=>mv(toolbar.id,a,b)}>
             <div className={`relative flex items-center gap-2 px-2 py-3 ${cls(toolbar.id)}`}>
-              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} className="flex-1">
+              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} onMove={(a,b)=>mv(toolbarTitle.id,a,b)} className="flex-1">
                 <div className={cls(toolbarTitle.id)}>Grup</div>
               </Box>}
               <div className="flex gap-2 text-white"><span>🔍</span></div>
@@ -224,14 +248,14 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
           </Box>}
           <div className="relative flex-1 overflow-hidden flex flex-col gap-1 p-1">
             {rows.map((row, i) => (
-              <Box key={row.id} element={row} selected={isSel(row.id)} onClick={() => sel(row.id)} onDelete={() => onDelete(row.id)} onDuplicate={() => onDuplicate(row.id)} className="mx-1">
+              <Box key={row.id} element={row} selected={isSel(row.id)} onClick={() => sel(row.id)} onDelete={() => onDelete(row.id)} onDuplicate={() => onDuplicate(row.id)} onMove={(a,b)=>mv(row.id,a,b)} className="mx-1">
                 <div className={`flex items-center gap-2 ${cls('groups_row')}`}>
                   <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700"><Icons.Users className="w-4 h-4" /></div>
                   <div className="flex-1">
                     <div className={cls('home_row_name')}>Grup {names[i % names.length]}</div>
                     <div className={cls('home_row_msg')}>Pesan grup {i + 1}</div>
                   </div>
-                  {groupBadge && <Box element={groupBadge} selected={isSel(groupBadge.id)} onClick={() => sel(groupBadge.id)} onDelete={() => onDelete(groupBadge.id)} onDuplicate={() => onDuplicate(groupBadge.id)}>
+                  {groupBadge && <Box element={groupBadge} selected={isSel(groupBadge.id)} onClick={() => sel(groupBadge.id)} onDelete={() => onDelete(groupBadge.id)} onDuplicate={() => onDuplicate(groupBadge.id)} onMove={(a,b)=>mv(groupBadge.id,a,b)}>
                     <div className={cls('groups_badge')}>Grup</div>
                   </Box>}
                 </div>
@@ -244,15 +268,15 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
 
       {screen === 'communities' && (
         <>
-          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)}>
+          {toolbar && <Box element={toolbar} selected={isSel(toolbar.id)} onClick={() => sel(toolbar.id)} onDelete={() => onDelete(toolbar.id)} onDuplicate={() => onDuplicate(toolbar.id)} onMove={(a,b)=>mv(toolbar.id,a,b)}>
             <div className={`relative flex items-center gap-2 px-2 py-3 ${cls(toolbar.id)}`}>
-              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} className="flex-1">
+              {toolbarTitle && <Box element={toolbarTitle} selected={isSel(toolbarTitle.id)} onClick={() => sel(toolbarTitle.id)} onDelete={() => onDelete(toolbarTitle.id)} onDuplicate={() => onDuplicate(toolbarTitle.id)} onMove={(a,b)=>mv(toolbarTitle.id,a,b)} className="flex-1">
                 <div className={cls(toolbarTitle.id)}>Komunitas</div>
               </Box>}
               <div className="flex gap-2 text-white"><span>🔍</span></div>
             </div>
           </Box>}
-          {comHeader && <Box element={comHeader} selected={isSel(comHeader.id)} onClick={() => sel(comHeader.id)} onDelete={() => onDelete(comHeader.id)} onDuplicate={() => onDuplicate(comHeader.id)} className="mx-2 mt-1">
+          {comHeader && <Box element={comHeader} selected={isSel(comHeader.id)} onClick={() => sel(comHeader.id)} onDelete={() => onDelete(comHeader.id)} onDuplicate={() => onDuplicate(comHeader.id)} onMove={(a,b)=>mv(comHeader.id,a,b)} className="mx-2 mt-1">
             <div className={`flex items-center gap-3 ${cls(comHeader.id)}`}>
               <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700"><Icons.Users className="w-6 h-6" /></div>
               <div>
@@ -263,7 +287,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, onScreen, 
           </Box>}
           <div className="relative flex-1 overflow-hidden flex flex-col gap-1 p-1">
             {rows.map((row, i) => (
-              <Box key={row.id} element={row} selected={isSel(row.id)} onClick={() => sel(row.id)} onDelete={() => onDelete(row.id)} onDuplicate={() => onDuplicate(row.id)} className="mx-1">
+              <Box key={row.id} element={row} selected={isSel(row.id)} onClick={() => sel(row.id)} onDelete={() => onDelete(row.id)} onDuplicate={() => onDuplicate(row.id)} onMove={(a,b)=>mv(row.id,a,b)} className="mx-1">
                 <div className={`flex items-center gap-2 ${cls('com_row')}`}>
                   <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700"><Icons.Users className="w-4 h-4" /></div>
                   <div className="flex-1">
