@@ -68,6 +68,20 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
             }
         });
 
+        toolbar.inflateMenu(R.menu.theme_shop_menu);
+        toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_reload) {
+                loadThemes();
+                Toast.makeText(requireContext(), "Reloaded", Toast.LENGTH_SHORT).show();
+                return true;
+            } else if (id == R.id.action_restore) {
+                resetToDefault();
+                return true;
+            }
+            return false;
+        });
+
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -95,7 +109,27 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
             FilePicker.fileCapture.launch(new String[]{"application/zip"});
         });
 
+        view.findViewById(R.id.btn_restore_theme).setOnClickListener(v -> resetToDefault());
+
         loadThemes();
+    }
+
+    private void resetToDefault() {
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .edit()
+                .putString("folder_theme", "Default Theme")
+                .putString("custom_css", "")
+                .putBoolean("changecolor", false)
+                .putString("changecolor_mode", "manual")
+                .putInt("primary_color", 0)
+                .putInt("text_color", 0)
+                .putInt("background_color", 0)
+                .putBoolean("wallpaper", false)
+                .putBoolean("custom_filters", false)
+                .apply();
+        Toast.makeText(requireContext(), R.string.theme_reset_toast, Toast.LENGTH_SHORT).show();
+        com.mrksvt.waen.App.instance.sendBroadcast(
+                new android.content.Intent(com.mrksvt.waen.BuildConfig.APPLICATION_ID + ".MANUAL_RESTART"));
     }
 
     private static final String DEFAULT_TAG = "__DEFAULT__";
@@ -273,24 +307,6 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                         .addToBackStack(null)
                         .commit();
             });
-        }
-
-        private void resetToDefault() {
-            PreferenceManager.getDefaultSharedPreferences(requireContext())
-                    .edit()
-                    .putString("folder_theme", "Default Theme")
-                    .putString("custom_css", "")
-                    .putBoolean("changecolor", false)
-                    .putString("changecolor_mode", "manual")
-                    .putInt("primary_color", 0)
-                    .putInt("text_color", 0)
-                    .putInt("background_color", 0)
-                    .putBoolean("wallpaper", false)
-                    .putBoolean("custom_filters", false)
-                    .apply();
-            Toast.makeText(requireContext(), R.string.theme_reset_toast, Toast.LENGTH_SHORT).show();
-            com.mrksvt.waen.App.instance.sendBroadcast(
-                    new android.content.Intent(com.mrksvt.waen.BuildConfig.APPLICATION_ID + ".MANUAL_RESTART"));
         }
 
         @Override

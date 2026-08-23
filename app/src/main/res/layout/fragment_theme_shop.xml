@@ -37,4 +37,14 @@
         android:layout_margin="@dimen/spacing_small"
         android:text="@string/import_theme" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_restore_theme"
+        style="@style/ModernButton.Outlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_small"
+        android:layout_marginEnd="@dimen/spacing_small"
+        android:layout_marginBottom="@dimen/spacing_small"
+        android:text="@string/theme_restore" />
+
 </LinearLayout>

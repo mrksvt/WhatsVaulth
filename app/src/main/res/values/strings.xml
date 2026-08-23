@@ -371,6 +371,9 @@
     <string name="theme_default">Default Theme</string>
     <string name="theme_default_sum">Restore WhatsApp default look</string>
     <string name="theme_reset_toast">Theme reset to default</string>
+    <string name="theme_reload">Reload</string>
+    <string name="theme_restore">Restore Default</string>
+    <string name="delete_theme_confirm">Delete this theme?</string>
     <string name="theme_free">FREE</string>
     <string name="theme_premium">PREMIUM</string>
     <string name="theme_applied_toast">Theme applied</string>

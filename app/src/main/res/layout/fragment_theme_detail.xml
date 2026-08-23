@@ -102,8 +102,17 @@
             style="@style/ModernButton.Outlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/spacing_xs"
             android:layout_weight="1"
             android:text="@string/edit" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_delete_theme"
+            style="@style/ModernButton.Outlined"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/delete" />
 
     </LinearLayout>
 

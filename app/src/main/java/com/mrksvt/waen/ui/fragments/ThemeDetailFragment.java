@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -105,6 +106,7 @@ public class ThemeDetailFragment extends Fragment {
 
         view.findViewById(R.id.btn_apply_theme).setOnClickListener(v -> applyTheme(themeDir));
         view.findViewById(R.id.btn_edit_theme).setOnClickListener(v -> editTheme(themeDir));
+        view.findViewById(R.id.btn_delete_theme).setOnClickListener(v -> deleteTheme(themeDir));
     }
 
     private void showScreenshot(ImageView wallpaperView, File img) {
@@ -208,6 +210,59 @@ public class ThemeDetailFragment extends Fragment {
         File[] jsons = themeDir.listFiles((d, n) -> n.toLowerCase().endsWith(".json"));
         if (jsons != null && jsons.length > 0) return jsons[0];
         return null;
+    }
+
+    private void deleteTheme(File themeDir) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.delete)
+                .setMessage(R.string.delete_theme_confirm)
+                .setPositiveButton(R.string.delete, (dialog, which) -> {
+                    deleteRecursive(themeDir);
+                    String active = PreferenceManager.getDefaultSharedPreferences(requireContext())
+                            .getString("folder_theme", "");
+                    if (themeDir.getName().equals(active)) {
+                        resetThemePrefs();
+                    }
+                    Toast.makeText(requireContext(), "Theme deleted", Toast.LENGTH_SHORT).show();
+                    FragmentManager mgr = getParentFragment() != null
+                            ? getParentFragment().getChildFragmentManager()
+                            : getParentFragmentManager();
+                    if (mgr.getBackStackEntryCount() > 0) {
+                        mgr.popBackStack();
+                    } else {
+                        requireActivity().onBackPressed();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void deleteRecursive(File file) {
+        if (file == null || !file.exists()) return;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File c : children) deleteRecursive(c);
+            }
+        }
+        file.delete();
+    }
+
+    private void resetThemePrefs() {
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .edit()
+                .putString("folder_theme", "Default Theme")
+                .putString("custom_css", "")
+                .putBoolean("changecolor", false)
+                .putString("changecolor_mode", "manual")
+                .putInt("primary_color", 0)
+                .putInt("text_color", 0)
+                .putInt("background_color", 0)
+                .putBoolean("wallpaper", false)
+                .putBoolean("custom_filters", false)
+                .apply();
+        com.mrksvt.waen.App.instance.sendBroadcast(
+                new android.content.Intent(com.mrksvt.waen.BuildConfig.APPLICATION_ID + ".MANUAL_RESTART"));
     }
 
     private void editTheme(File themeDir) {
