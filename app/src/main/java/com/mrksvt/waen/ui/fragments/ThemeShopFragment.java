@@ -125,6 +125,9 @@ public class ThemeShopFragment extends Fragment implements FilePicker.OnUriPicke
                 .putInt("text_color", 0)
                 .putInt("background_color", 0)
                 .putBoolean("wallpaper", false)
+                .putBoolean("bubble_color", false)
+                .putInt("bubble_left", 0)
+                .putInt("bubble_right", 0)
                 .putBoolean("custom_filters", false)
                 .apply();
         Toast.makeText(requireContext(), R.string.theme_reset_toast, Toast.LENGTH_SHORT).show();
