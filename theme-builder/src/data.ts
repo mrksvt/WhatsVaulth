@@ -1,21 +1,64 @@
-import type { ThemeElement, ElementStyle } from './types'
+import type { ThemeElement, ElementStyle, ScreenInfo } from './types'
+
+export const SCREENS: ScreenInfo[] = [
+  { id: 'home', label: 'Home / Chat' },
+  { id: 'calls', label: 'Panggilan' },
+  { id: 'updates', label: 'Pembaruan' },
+  { id: 'conversation', label: 'Chat' },
+  { id: 'groups', label: 'Grup' },
+  { id: 'communities', label: 'Komunitas' },
+]
 
 export const DEFAULT_ELEMENTS: ThemeElement[] = [
-  { id: '#toolbar', label: 'Toolbar', type: 'toolbar', style: { bg: 'bg-[#075E54]', padding: 'p-4', shadow: 'shadow-md' } },
-  { id: '#toolbar TextView', label: 'Toolbar Title', type: 'toolbar-title', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
-  { id: '#search_bar_inner_layout', label: 'Search Bar', type: 'search', style: { bg: 'bg-white', rounded: 'rounded-lg', padding: 'p-2', margin: 'm-2' }, removable: true },
-  { id: '#conversations_row_content', label: 'Chat Row', type: 'chat-row', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
-  { id: '#conversations_row_contact_name', label: 'Chat Name', type: 'chat-name', style: { textColor: 'text-gray-900', fontWeight: 'font-bold', fontSize: 'text-base' } },
-  { id: '#single_msg_tv', label: 'Chat Message', type: 'chat-message', style: { textColor: 'text-gray-500', fontSize: 'text-sm' } },
-  { id: '#conversations_row_date', label: 'Chat Time', type: 'chat-time', style: { textColor: 'text-gray-400', fontSize: 'text-xs' } },
-  { id: '#fab', label: 'FAB Button', type: 'fab', style: { bg: 'bg-[#25D366]', rounded: 'rounded-full', shadow: 'shadow-lg', icon: 'message-circle' }, removable: true },
-  { id: '#send', label: 'Send Button', type: 'send', style: { icon: 'send', width: 'w-10', height: 'h-10' }, removable: true },
-  { id: '#bottom_nav', label: 'Bottom Nav', type: 'bottom-nav', style: { bg: 'bg-white', padding: 'p-2', shadow: 'shadow-md' } },
-  { id: '#input_layout', label: 'Input Bar', type: 'input', style: { bg: 'bg-white', padding: 'p-2', rounded: 'rounded-xl' } },
-  { id: '#entry', label: 'Input Field', type: 'input-field', style: { textColor: 'text-gray-700', fontSize: 'text-sm', padding: 'p-2' } },
-  { id: '#conversation_background', label: 'Chat Background', type: 'bubble-incoming', style: { bg: 'bg-[#ECE5DD]' } },
-  { id: '#bubble_incoming', label: 'Incoming Bubble', type: 'bubble-incoming', style: { bg: 'bg-white', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
-  { id: '#bubble_outgoing', label: 'Outgoing Bubble', type: 'bubble-outgoing', style: { bg: 'bg-[#DCF8C6]', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
+  // ── HOME ──
+  { id: 'home_toolbar', label: 'Toolbar', type: 'toolbar', screen: 'home', style: { bg: 'bg-[#075E54]', padding: 'p-4', shadow: 'shadow-md' } },
+  { id: 'home_toolbar_title', label: 'Toolbar Title', type: 'toolbar-title', screen: 'home', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: 'home_search', label: 'Search Bar', type: 'search', screen: 'home', style: { bg: 'bg-white', rounded: 'rounded-lg', padding: 'p-2', margin: 'm-2' }, removable: true },
+  { id: 'home_row', label: 'Chat Row', type: 'chat-row', screen: 'home', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: 'home_row_name', label: 'Chat Name', type: 'chat-name', screen: 'home', style: { textColor: 'text-gray-900', fontWeight: 'font-bold', fontSize: 'text-base' } },
+  { id: 'home_row_msg', label: 'Chat Message', type: 'chat-message', screen: 'home', style: { textColor: 'text-gray-500', fontSize: 'text-sm' } },
+  { id: 'home_row_time', label: 'Chat Time', type: 'chat-time', screen: 'home', style: { textColor: 'text-gray-400', fontSize: 'text-xs' } },
+  { id: 'home_fab', label: 'FAB', type: 'fab', screen: 'home', style: { bg: 'bg-[#25D366]', rounded: 'rounded-full', shadow: 'shadow-lg', icon: 'message-circle' }, removable: true },
+  { id: 'home_nav', label: 'Bottom Nav', type: 'bottom-nav', screen: 'home', style: { bg: 'bg-white', padding: 'p-2', shadow: 'shadow-md' } },
+
+  // ── CALLS ──
+  { id: 'calls_toolbar', label: 'Toolbar', type: 'toolbar', screen: 'calls', style: { bg: 'bg-[#075E54]', padding: 'p-4' } },
+  { id: 'calls_toolbar_title', label: 'Toolbar Title', type: 'toolbar-title', screen: 'calls', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: 'calls_row', label: 'Call Row', type: 'call-row', screen: 'calls', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: 'calls_row_name', label: 'Call Name', type: 'call-name', screen: 'calls', style: { textColor: 'text-gray-900', fontWeight: 'font-semibold', fontSize: 'text-base' } },
+  { id: 'calls_row_type', label: 'Call Type', type: 'call-type', screen: 'calls', style: { textColor: 'text-gray-500', fontSize: 'text-xs' } },
+  { id: 'calls_nav', label: 'Bottom Nav', type: 'bottom-nav', screen: 'calls', style: { bg: 'bg-white', padding: 'p-2' } },
+
+  // ── UPDATES ──
+  { id: 'updates_toolbar', label: 'Toolbar', type: 'toolbar', screen: 'updates', style: { bg: 'bg-[#075E54]', padding: 'p-4' } },
+  { id: 'updates_toolbar_title', label: 'Toolbar Title', type: 'toolbar-title', screen: 'updates', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: 'updates_row', label: 'Status Row', type: 'status-row', screen: 'updates', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: 'updates_row_name', label: 'Status Name', type: 'status-name', screen: 'updates', style: { textColor: 'text-gray-900', fontWeight: 'font-semibold', fontSize: 'text-base' } },
+  { id: 'updates_row_time', label: 'Status Time', type: 'status-time', screen: 'updates', style: { textColor: 'text-gray-500', fontSize: 'text-xs' } },
+  { id: 'updates_ring', label: 'Status Ring', type: 'status-ring', screen: 'updates', style: { width: 'w-12', height: 'h-12', rounded: 'rounded-full', bg: 'bg-green-500' } },
+  { id: 'updates_nav', label: 'Bottom Nav', type: 'bottom-nav', screen: 'updates', style: { bg: 'bg-white', padding: 'p-2' } },
+
+  // ── CONVERSATION ──
+  { id: 'conv_toolbar', label: 'Chat Toolbar', type: 'conv-toolbar', screen: 'conversation', style: { bg: 'bg-[#075E54]', padding: 'p-3' } },
+  { id: 'conv_name', label: 'Chat Name', type: 'conv-name', screen: 'conversation', style: { textColor: 'text-white', fontWeight: 'font-bold', fontSize: 'text-base' } },
+  { id: 'conv_bubble_in', label: 'Incoming Bubble', type: 'bubble-incoming', screen: 'conversation', style: { bg: 'bg-white', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
+  { id: 'conv_bubble_out', label: 'Outgoing Bubble', type: 'bubble-outgoing', screen: 'conversation', style: { bg: 'bg-[#DCF8C6]', rounded: 'rounded-xl', padding: 'p-3' }, removable: true },
+  { id: 'conv_input', label: 'Input Bar', type: 'input', screen: 'conversation', style: { bg: 'bg-white', padding: 'p-2', rounded: 'rounded-xl' } },
+  { id: 'conv_send', label: 'Send Button', type: 'send', screen: 'conversation', style: { icon: 'send', width: 'w-10', height: 'h-10' }, removable: true },
+
+  // ── GROUPS ──
+  { id: 'groups_toolbar', label: 'Toolbar', type: 'toolbar', screen: 'groups', style: { bg: 'bg-[#075E54]', padding: 'p-4' } },
+  { id: 'groups_toolbar_title', label: 'Toolbar Title', type: 'toolbar-title', screen: 'groups', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: 'groups_row', label: 'Group Row', type: 'chat-row', screen: 'groups', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: 'groups_badge', label: 'Group Badge', type: 'group-badge', screen: 'groups', style: { bg: 'bg-green-100', textColor: 'text-green-700', rounded: 'rounded-md', padding: 'p-1', fontSize: 'text-xs' }, removable: true },
+  { id: 'groups_nav', label: 'Bottom Nav', type: 'bottom-nav', screen: 'groups', style: { bg: 'bg-white', padding: 'p-2' } },
+
+  // ── COMMUNITIES ──
+  { id: 'com_toolbar', label: 'Toolbar', type: 'toolbar', screen: 'communities', style: { bg: 'bg-[#075E54]', padding: 'p-4' } },
+  { id: 'com_toolbar_title', label: 'Toolbar Title', type: 'toolbar-title', screen: 'communities', style: { textColor: 'text-white', fontSize: 'text-lg', fontWeight: 'font-bold' } },
+  { id: 'com_header', label: 'Community Header', type: 'community-header', screen: 'communities', style: { bg: 'bg-white', rounded: 'rounded-xl', padding: 'p-4', margin: 'm-2', shadow: 'shadow-md' }, removable: true },
+  { id: 'com_row', label: 'Group Row', type: 'chat-row', screen: 'communities', style: { padding: 'p-4', margin: 'm-1', rounded: 'rounded-lg' }, removable: true },
+  { id: 'com_nav', label: 'Bottom Nav', type: 'bottom-nav', screen: 'communities', style: { bg: 'bg-white', padding: 'p-2' } },
 ]
 
 export function styleToTailwind(style: ElementStyle): string {

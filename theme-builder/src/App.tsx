@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Theme, ThemeElement, ElementType } from './types'
-import { DEFAULT_ELEMENTS } from './data'
+import type { Theme, ThemeElement, ElementType, ScreenId } from './types'
+import { DEFAULT_ELEMENTS, SCREENS } from './data'
 import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
 import { exportThemeZip, downloadBlob } from './lib/export'
@@ -29,11 +29,15 @@ function SortableItem({ element, selectedId, onSelect, onDelete }: {
 
 const ADDABLE: { type: ElementType; label: string; icon?: string }[] = [
   { type: 'chat-row', label: 'Chat Row' },
+  { type: 'call-row', label: 'Call Row' },
+  { type: 'status-row', label: 'Status Row' },
   { type: 'search', label: 'Search Bar' },
   { type: 'fab', label: 'FAB Button', icon: 'message-circle' },
   { type: 'send', label: 'Send Button', icon: 'send' },
   { type: 'bubble-incoming', label: 'Bubble Incoming' },
   { type: 'bubble-outgoing', label: 'Bubble Outgoing' },
+  { type: 'group-badge', label: 'Group Badge' },
+  { type: 'community-header', label: 'Community Header' },
   { type: 'text', label: 'Text Block' },
   { type: 'icon-btn', label: 'Icon Button', icon: 'mic' },
 ]
@@ -41,9 +45,11 @@ const ADDABLE: { type: ElementType; label: string; icon?: string }[] = [
 export default function App() {
   const [name, setName] = useState('my-theme')
   const [elements, setElements] = useState<ThemeElement[]>(DEFAULT_ELEMENTS)
-  const [selectedId, setSelectedId] = useState<string | null>('#toolbar')
+  const [screen, setScreen] = useState<ScreenId>('home')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [wallpaper, setWallpaper] = useState<string | null>(null)
 
+  const screenElements = elements.filter((e) => e.screen === screen)
   const selected = elements.find((e) => e.id === selectedId)
 
   const updateStyle = (patch: Partial<ThemeElement['style']>) => {
@@ -82,6 +88,7 @@ export default function App() {
       type,
       style: { padding: 'p-2', bg: 'bg-gray-100', rounded: 'rounded-md' },
       removable: true,
+      screen,
     }
     if (icon) newEl.style.icon = icon
     setElements((prev) => [...prev, newEl])
@@ -145,8 +152,8 @@ export default function App() {
         <aside className="w-56 bg-white border-r border-gray-200 overflow-y-auto">
           <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Elements (drag ⠿)</div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={elements.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-              {elements.map((el) => (
+            <SortableContext items={screenElements.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+              {screenElements.map((el) => (
                 <SortableItem key={el.id} element={el} selectedId={selectedId} onSelect={setSelectedId} onDelete={handleDelete} />
               ))}
             </SortableContext>
@@ -163,16 +170,28 @@ export default function App() {
           ))}
         </aside>
 
-        <main className="flex-1 flex items-center justify-center bg-gray-200 overflow-auto p-6">
+        <main className="flex-1 flex flex-col bg-gray-200 overflow-hidden">
+          <div className="flex gap-1 px-2 py-1.5 bg-gray-100 border-b border-gray-200">
+            {SCREENS.map((s) => (
+              <button key={s.id} onClick={() => setScreen(s.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${screen === s.id ? 'bg-green-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 flex items-center justify-center overflow-auto p-6">
           <div className="scale-[0.9]">
             <WhatsAppMockup
               elements={elements}
               wallpaper={wallpaper}
+              screen={screen}
+              onScreen={setScreen}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onDelete={handleDelete}
               onDuplicate={handleDuplicate}
             />
+          </div>
           </div>
         </main>
 
