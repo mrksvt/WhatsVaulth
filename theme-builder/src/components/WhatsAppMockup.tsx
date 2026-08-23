@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import * as Icons from 'lucide-react'
 import { IPhoneMockup, AndroidMockup, IPadMockup } from 'react-device-mockup'
 import type { ThemeElement, DeviceId, ScreenId } from '../types'
@@ -16,6 +16,7 @@ interface Props {
   onDuplicate: (id: string) => void
   onMove: (id: string, dx: number, dy: number) => void
   onResize: (id: string, w: number, h: number) => void
+  onEdit: (id: string) => void
 }
 
 function iconFor(name?: string) {
@@ -25,17 +26,61 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null
 }
 
-function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResize, className = '', children }: {
+function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, className = '', children }: {
   element: ThemeElement; selected: boolean; onClick: () => void
   onDelete: () => void; onDuplicate: () => void
   onMove?: (dx: number, dy: number) => void
   onResize?: (w: number, h: number) => void
+  onEdit?: () => void
   className?: string; children: React.ReactNode
 }) {
-  const drag = useRef<{ x: number; y: number } | null>(null)
-  const resize = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [mode, setMode] = useState<'resize' | 'move'>('resize')
+  const [locked, setLocked] = useState(false)
+  const dragRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  const lastClickRef = useRef<number>(0)
   const w = element.style.width ?? 120
   const h = element.style.height ?? 40
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClick()
+    if (locked) return
+    const now = Date.now()
+    if (now - lastClickRef.current < 300) {
+      setMode('move')          // klik kedua -> mode move
+    } else {
+      setMode('resize')        // klik pertama -> mode resize
+    }
+    lastClickRef.current = now
+  }
+
+  const handleDblClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setLocked(true)            // dblclick -> lock (bisa move)
+    setMode('move')
+  }
+
+  const startDrag = (e: React.PointerEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const onDragMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.x
+    const dy = e.clientY - dragRef.current.y
+    if (mode === 'move') {
+      onMove?.(dx, dy)
+      dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+    } else {
+      onResize?.(Math.max(20, dragRef.current.w + dx), Math.max(20, dragRef.current.h + dy))
+    }
+  }
+
+  const stopDrag = () => { dragRef.current = null }
+
   return (
     <div
       style={{
@@ -46,74 +91,44 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
         height: h,
         zIndex: selected ? 10 : 1,
       }}
-      className={`group cursor-pointer outline outline-2 outline-offset-1 transition-all ${
+      className={`group outline outline-2 outline-offset-1 transition-all ${
         selected ? 'outline-blue-500' : 'outline-transparent hover:outline-blue-300'
-      } ${className}`}
-      onClick={(e) => { e.stopPropagation(); onClick() }}
+      } ${mode === 'move' ? 'cursor-move' : 'cursor-default'} ${className}`}
+      onClick={handleClick}
+      onDoubleClick={handleDblClick}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onEdit?.() }}
+      onPointerDown={selected ? startDrag : undefined}
+      onPointerMove={onDragMove}
+      onPointerUp={stopDrag}
+      onPointerCancel={stopDrag}
     >
       {children}
 
       {selected && (
         <>
-          {/* Action toolbar */}
           <div className="absolute -top-8 left-0 flex gap-1 z-20 bg-gray-800 rounded-md px-1 py-0.5">
-            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Select parent" onClick={(e) => { e.stopPropagation(); onClick() }}><Icons.ArrowUp className="w-3 h-3" /></button>
+            <span className="text-white text-[10px] leading-5 px-1 truncate max-w-[110px]">
+              {mode === 'move' ? '✥ ' : ''}{locked ? '🔒 ' : ''}{element.label}
+            </span>
             <div className="w-px bg-white/20" />
-            <span className="text-white text-[10px] leading-5 px-1 truncate max-w-[100px]">{element.label}</span>
-            <div className="w-px bg-white/20" />
+            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Lock/Unlock" onClick={(e) => { e.stopPropagation(); setLocked(!locked) }}><Icons.Lock className="w-3 h-3" /></button>
             <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate() }}><Icons.Copy className="w-3 h-3" /></button>
             <button className="w-5 h-5 text-red-400 hover:bg-red-500/20 rounded flex items-center justify-center" title="Delete" onClick={(e) => { e.stopPropagation(); onDelete() }}><Icons.Trash2 className="w-3 h-3" /></button>
           </div>
-
-          {/* Move handle */}
-          <div
-            className="absolute -top-2 -left-2 w-5 h-5 bg-blue-500 rounded-full cursor-grab z-30 touch-none select-none"
-            onPointerDown={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              drag.current = { x: e.clientX, y: e.clientY }
-              e.currentTarget.setPointerCapture(e.pointerId)
-            }}
-            onPointerMove={(e) => {
-              if (!drag.current) return
-              const dx = e.clientX - drag.current.x
-              const dy = e.clientY - drag.current.y
-              drag.current = { x: e.clientX, y: e.clientY }
-              onMove?.(dx, dy)
-            }}
-            onPointerUp={() => { drag.current = null }}
-            onPointerCancel={() => { drag.current = null }}
-          >
-            <Icons.Move className="w-3 h-3 text-white" />
-          </div>
-
-          {/* Resize handle (bottom-right) */}
-          <div
-            className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 rounded-full cursor-nwse-resize z-30 touch-none select-none"
-            onPointerDown={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              resize.current = { x: e.clientX, y: e.clientY, w, h }
-              e.currentTarget.setPointerCapture(e.pointerId)
-            }}
-            onPointerMove={(e) => {
-              if (!resize.current) return
-              const dw = e.clientX - resize.current.x
-              const dh = e.clientY - resize.current.y
-              onResize?.(Math.max(20, resize.current.w + dw), Math.max(20, resize.current.h + dh))
-            }}
-            onPointerUp={() => { resize.current = null }}
-            onPointerCancel={() => { resize.current = null }}
-          >
-            <Icons.Scan className="w-3 h-3 text-white" />
-          </div>
+          {mode === 'resize' && (
+            <div className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 rounded-full cursor-nwse-resize z-20 touch-none select-none"
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); dragRef.current = { x: e.clientX, y: e.clientY, w, h }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }}
+              onPointerMove={(e) => { if (!dragRef.current) return; const dw = e.clientX - dragRef.current.x, dh = e.clientY - dragRef.current.y; onResize?.(Math.max(20, dragRef.current.w + dw), Math.max(20, dragRef.current.h + dh)) }}
+              onPointerUp={stopDrag} onPointerCancel={stopDrag}
+            />
+          )}
         </>
       )}
     </div>
   )
 }
 
-export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedId, onSelect, onDelete, onDuplicate, onMove, onResize }: Props) {
+export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedId, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit }: Props) {
   const sel = (id: string) => onSelect(id)
   const isSel = (id: string) => selectedId === id
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
@@ -146,6 +161,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
               onDelete={() => onDelete(elem.id)} onDuplicate={() => onDuplicate(elem.id)}
               onMove={(dx, dy) => onMove(elem.id, dx, dy)}
               onResize={(w, h) => onResize(elem.id, w, h)}
+              onEdit={() => onEdit(elem.id)}
             >
               <div className={`w-full h-full flex items-center justify-center ${cls(elem.id)}`}>
                 {elem.type === 'icon-btn' && elem.style.icon ? iconFor(elem.style.icon) : null}

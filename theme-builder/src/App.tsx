@@ -3,6 +3,7 @@ import type { Theme, ThemeElement, ScreenId, DeviceId } from './types'
 import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE } from './data'
 import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
+import ElementModal from './components/ElementModal'
 import { exportThemeZip, downloadBlob } from './lib/export'
 import './safelist'
 
@@ -13,6 +14,7 @@ export default function App() {
   const [device, setDevice] = useState<DeviceId>('iphone')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [wallpaper, setWallpaper] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const screenElements = elements.filter((e) => e.screen === screen)
   const selected = elements.find((e) => e.id === selectedId)
@@ -86,6 +88,11 @@ export default function App() {
     const reader = new FileReader()
     reader.onload = () => setWallpaper(reader.result as string)
     reader.readAsDataURL(file)
+  }
+
+  const handleSaveElement = (patch: Partial<ThemeElement>) => {
+    if (!editingId) return
+    setElements((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...patch } : e)))
   }
 
   const onExport = async () => {
@@ -169,6 +176,7 @@ export default function App() {
               onDuplicate={handleDuplicate}
               onMove={handleMove}
               onResize={handleResize}
+              onEdit={setEditingId}
             />
           </div>
         </main>
@@ -189,6 +197,14 @@ export default function App() {
           )}
         </aside>
       </div>
+      {editingId && selected && (
+        <ElementModal
+          element={selected}
+          screen={screen}
+          onSave={handleSaveElement}
+          onClose={() => setEditingId(null)}
+        />
+      )}
     </div>
   )
 }
