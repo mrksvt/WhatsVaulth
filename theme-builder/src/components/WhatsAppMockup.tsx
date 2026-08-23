@@ -35,6 +35,7 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
   className?: string; children: React.ReactNode
 }) {
   const [mode, setMode] = useState<'resize' | 'move'>('resize')
+  const [count, setCount] = useState(0)
   const [locked, setLocked] = useState(false)
   const dragRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
   const lastClickRef = useRef<number>(0)
@@ -48,16 +49,12 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
     const now = Date.now()
     if (now - lastClickRef.current < 300) {
       setMode((m) => (m === 'resize' ? 'move' : 'resize'))
+      setCount((c) => (c >= 2 ? 1 : c + 1))
     } else {
       setMode('resize')
+      setCount(1)
     }
     lastClickRef.current = now
-  }
-
-  const handleDblClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setLocked(true)
-    setMode('move')
   }
 
   // Drag hanya untuk mode move; resize via handle kanan-bawah
@@ -91,7 +88,10 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
     onResize?.(Math.max(20, dragRef.current.w + dw), Math.max(20, dragRef.current.h + dh))
   }
 
-  const stopDrag = () => { dragRef.current = null }
+  const stopDrag = () => {
+    if (dragRef.current && mode === 'move') setLocked(true)
+    dragRef.current = null
+  }
 
   return (
     <div
@@ -107,7 +107,6 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
         selected ? 'outline-blue-500' : 'outline-transparent hover:outline-blue-300'
       } ${mode === 'move' ? 'cursor-move' : 'cursor-default'} ${className}`}
       onClick={handleClick}
-      onDoubleClick={handleDblClick}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onEdit?.() }}
       onPointerDown={startMove}
       onPointerMove={onMoveDrag}
@@ -120,7 +119,7 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
         <>
           <div className="absolute -top-8 left-0 flex gap-1 z-20 bg-gray-800 rounded-md px-1 py-0.5">
             <span className="text-white text-[10px] leading-5 px-1 truncate max-w-[110px]">
-              {mode === 'move' ? '✥ ' : ''}{locked ? '🔒 ' : ''}{element.label}
+              {count}x {mode === 'resize' ? '↘ resize' : '✥ move'}{locked ? ' 🔒' : ''} · {element.label}
             </span>
             <div className="w-px bg-white/20" />
             <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Lock/Unlock" onClick={(e) => { e.stopPropagation(); setLocked(!locked) }}><Icons.Lock className="w-3 h-3" /></button>
