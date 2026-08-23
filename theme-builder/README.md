@@ -1,32 +1,54 @@
-# React + TypeScript + Vite
+# WhatsVault Theme Builder (Web)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Theme builder berbasis web untuk membuat tema WhatsApp, di luar aplikasi Android WhatsVault. Export memakai **Tailwind class** + **icon** (lucide) yang dipahami engine CSS CustomView.
 
-Currently, two official plugins are available:
+## Cara Pakai
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # produksi (dist/)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Alur
+
+1. **Pilih elemen** (kiri): toolbar, chat row, bubble, fab, send button, dll
+2. **Edit property** (kanan): background/text color, radius, shadow, padding, w/h, font, opacity, icon
+3. **Live preview** (tengah): mockup WhatsApp berubah real-time
+4. **Export ZIP**: `nama-tema.zip` → Import di Theme Shop (WhatsVault)
+
+## Format Export
+
+```
+nama-tema/
+├── style.css          # CSS rules: class (Tailwind) + icon
+├── nama-tema.json     # prefs map (changecolor, custom_filters, custom_css, folder_theme)
+├── wall.png           # wallpaper (opsional)
+└── lucide/{icon}.svg  # icon lucide yang dipakai
+```
+
+### style.css (contoh)
+```css
+/* comment block: warna untuk CustomThemeV2 */
+primary_color = #075E54
+text_color = #111B21
+background_color = #ECE5DD
+bubble_right = #DCF8C6
+bubble_left = #FFFFFF
+change_colors = true
+*/
+
+#toolbar { class: "bg-[#075E54] p-4 shadow-md"; }
+#send { icon: lucide-send; class: "w-10 h-10 color-tint-white"; }
+```
+
+## Dukungan Engine (CustomView)
+
+- **Tailwind utility** (property `class`): `bg-*`, `text-*`, `border-*`, `rounded-*`, `shadow-*`, `p/m [x/y/t/r/b/l]-*`, `w-*`, `h-*`, `opacity-*`, `text-{size}`, `font-{weight}`, `hidden/block/flex`, `color-tint-*`
+- **Warna Tailwind**: palette 26 warna (slate..rose, white, black) + shade 50-950 (interpolasi)
+- **Icon** (property `icon`): `lucide-{name}` → cari `lucide/{name}.svg` di folder tema
+- **background-image**: PNG/JPG/SVG (engine sudah support)
+
+## Teknologi
+
+Vite 8 + React 19 + TypeScript + TailwindCSS v4 + lucide-react + jszip
