@@ -35,7 +35,7 @@ val versionSuffix: String = if (project.hasProperty("versionSuffix")) "-${projec
 
 fun getBuildTypeSuffix(buildType: String): String = when (buildType) {
     "debug" -> "-beta"
-    else -> "-stable"
+    else -> "-beta"
 }
 
 android {
@@ -137,7 +137,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("Boolean", "DONATUR", "true")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-stable ($gitHash)_mrksvt\"")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-beta ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"${donaturToken()}\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"${donaturChatId()}\"")
         }
