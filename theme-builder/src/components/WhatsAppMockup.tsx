@@ -354,6 +354,11 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'circle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'line' && null}
+                {elem.style.customClass && isSel(elem.id) && (
+                  <div className="absolute -bottom-5 left-0 text-[8px] bg-yellow-100 text-yellow-800 px-1 rounded leading-4 whitespace-nowrap max-w-[200px] truncate pointer-events-none">
+                    custom: {elem.style.customClass}
+                  </div>
+                )}
               </div>
               {elem.type === 'container' && (
                 <div className="absolute inset-0">
@@ -375,6 +380,11 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                         {child.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
                         {child.type === 'circle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
                         {child.type === 'line' && null}
+                        {child.style.customClass && isSel(child.id) && (
+                          <div className="absolute -bottom-5 left-0 text-[8px] bg-yellow-100 text-yellow-800 px-1 rounded leading-4 whitespace-nowrap max-w-[200px] truncate pointer-events-none">
+                            custom: {child.style.customClass}
+                          </div>
+                        )}
                       </div>
                     </Box>
                   ))}
