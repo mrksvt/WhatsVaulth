@@ -88,7 +88,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       )}
 
-      <Section title="Element ID (CSS selector)" defaultOpen={true}>
+      <Section title="Element ID (CSS selector)">
         <select
           value={customId ? '__custom__' : id}
           onChange={(e) => {
@@ -110,7 +110,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       </Section>
 
-      <Section title="Size (px)" defaultOpen={true}>
+      <Section title="Size (px)">
         <div className="flex gap-2 items-center">
           <label className="text-xs text-gray-500">W</label>
           <input type="number" value={style.width ?? 120} onChange={(e) => onChange({ width: Number(e.target.value) || 0 })}
@@ -121,7 +121,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Background" defaultOpen={!!style.bg}>
+      <Section title="Background">
         <div className="flex flex-wrap gap-1">
           {TAILWIND_COLORS.map((c) =>
             c.shades.length === 0 ? (
@@ -146,7 +146,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Text Color" defaultOpen={!!style.textColor}>
+      <Section title="Text Color">
         <div className="flex flex-wrap gap-1">
           {['white', 'black', 'gray-500', 'gray-900', 'blue-500', 'green-600', 'red-500'].map((c) => (
             <Btn key={c} active={style.textColor === `text-${c}`} onClick={() => onChange({ textColor: `text-${c}` })}>
@@ -162,7 +162,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Radius" defaultOpen={!!style.rounded || !!style.cornerRadius}>
+      <Section title="Radius">
         {customCorner ? (
           renderCornerControls()
         ) : (
@@ -189,7 +189,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Border" defaultOpen={!!style.borderWidth || !!style.borderColor || !!style.borderStyle}>
+      <Section title="Border">
         <div className="flex flex-wrap gap-1">
           {['border-0', 'border-1', 'border-2', 'border-4', 'border-8'].map((b) => (
             <Btn key={b} active={style.borderWidth === b} onClick={() => onChange({ borderWidth: b === 'border-0' ? undefined : b })}>
@@ -220,7 +220,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Rotation" defaultOpen={!!style.rotate}>
+      <Section title="Rotation">
         <input
           type="range"
           min={0}
@@ -235,7 +235,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         <div className="text-xs text-gray-500 text-center">{parseInt(style.rotate?.match(/(\d+)/)?.[1] ?? '0')}°</div>
       </Section>
 
-      <Section title="Shadow" defaultOpen={!!style.shadow}>
+      <Section title="Shadow">
         <div className="flex flex-wrap gap-1">
           {SHADOWS.map((s) => (
             <Btn key={s} active={style.shadow === `shadow-${s}`} onClick={() => onChange({ shadow: `shadow-${s}` })}>
@@ -245,7 +245,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Padding" defaultOpen={!!style.padding}>
+      <Section title="Padding">
         <div className="flex flex-wrap gap-1">
           {SPACING.filter((s) => Number.isInteger(s)).slice(0, 14).map((s) => (
             <Btn key={s} active={style.padding === `p-${s}`} onClick={() => onChange({ padding: `p-${s}` })}>
@@ -256,7 +256,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
       </Section>
 
 
-      <Section title="Font Size / Weight" defaultOpen={!!style.fontSize || !!style.fontWeight}>
+      <Section title="Font Size / Weight">
         <div className="flex flex-wrap gap-1">
           {FONT_SIZES.map((s) => (
             <Btn key={s} active={style.fontSize === `text-${s}`} onClick={() => onChange({ fontSize: `text-${s}` })}>
@@ -273,7 +273,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Opacity" defaultOpen={!!style.opacity}>
+      <Section title="Opacity">
         <div className="flex flex-wrap gap-1">
           {[0, 25, 50, 75, 100].map((o) => (
             <Btn key={o} active={style.opacity === `opacity-${o}`} onClick={() => onChange({ opacity: `opacity-${o}` })}>
@@ -283,7 +283,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       </Section>
 
-      <Section title="Icon" defaultOpen={!!style.icon}>
+      <Section title="Icon">
         <button
           onClick={() => setShowIconPicker(true)}
           className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50"
@@ -308,7 +308,7 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         />
       )}
 
-      <Section title="Custom Tailwind Class" defaultOpen={!!style.customClass}>
+      <Section title="Custom Tailwind Class">
         <textarea
           value={style.customClass ?? ''}
           onChange={(e) => onChange({ customClass: e.target.value || undefined })}
