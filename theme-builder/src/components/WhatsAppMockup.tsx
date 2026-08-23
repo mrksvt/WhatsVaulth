@@ -229,7 +229,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     const dCenterX = dL + dW / 2
     const dCenterY = dT + dH / 2
     const container = screenElements.find((e) => {
-      if (e.id === id || e.type !== 'container') return false
+      if (e.id === id || (e.type !== 'container' && e.type !== 'circle')) return false
       if (e.parentId !== undefined) return false
       const cL = e.style.left ?? 10
       const cT = e.style.top ?? 10
@@ -356,7 +356,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'circle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'line' && null}
               </div>
-              {elem.type === 'container' && (
+              {(elem.type === 'container' || elem.type === 'circle') && (
                 <div className="absolute inset-0">
                   {screenElements.filter((e) => e.parentId === elem.id).map((child) => (
                     <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => e.parentId === elem.id)} onClick={() => onSelect([child.id])}
