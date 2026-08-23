@@ -67,19 +67,46 @@ function Box({ element, selected, onClick, onDelete, onDuplicate, onMove, onResi
 
           {/* Move handle */}
           <div
-            className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 rounded-full cursor-grab z-20"
-            onPointerDown={(e) => { e.stopPropagation(); drag.current = { x: e.clientX, y: e.clientY }; (e.target as HTMLElement).setPointerCapture(e.pointerId) }}
-            onPointerMove={(e) => { if (!drag.current) return; const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y; drag.current = { x: e.clientX, y: e.clientY }; onMove?.(dx, dy) }}
+            className="absolute -top-2 -left-2 w-5 h-5 bg-blue-500 rounded-full cursor-grab z-30 touch-none select-none"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              drag.current = { x: e.clientX, y: e.clientY }
+              e.currentTarget.setPointerCapture(e.pointerId)
+            }}
+            onPointerMove={(e) => {
+              if (!drag.current) return
+              const dx = e.clientX - drag.current.x
+              const dy = e.clientY - drag.current.y
+              drag.current = { x: e.clientX, y: e.clientY }
+              onMove?.(dx, dy)
+            }}
             onPointerUp={() => { drag.current = null }}
-          />
+            onPointerCancel={() => { drag.current = null }}
+          >
+            <Icons.Move className="w-3 h-3 text-white" />
+          </div>
 
           {/* Resize handle (bottom-right) */}
           <div
-            className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full cursor-nwse-resize z-20"
-            onPointerDown={(e) => { e.stopPropagation(); resize.current = { x: e.clientX, y: e.clientY, w, h }; (e.target as HTMLElement).setPointerCapture(e.pointerId) }}
-            onPointerMove={(e) => { if (!resize.current) return; const dw = e.clientX - resize.current.x, dh = e.clientY - resize.current.y; onResize?.(Math.max(20, resize.current.w + dw), Math.max(20, resize.current.h + dh)) }}
+            className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 rounded-full cursor-nwse-resize z-30 touch-none select-none"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              resize.current = { x: e.clientX, y: e.clientY, w, h }
+              e.currentTarget.setPointerCapture(e.pointerId)
+            }}
+            onPointerMove={(e) => {
+              if (!resize.current) return
+              const dw = e.clientX - resize.current.x
+              const dh = e.clientY - resize.current.y
+              onResize?.(Math.max(20, resize.current.w + dw), Math.max(20, resize.current.h + dh))
+            }}
             onPointerUp={() => { resize.current = null }}
-          />
+            onPointerCancel={() => { resize.current = null }}
+          >
+            <Icons.Scan className="w-3 h-3 text-white" />
+          </div>
         </>
       )}
     </div>
