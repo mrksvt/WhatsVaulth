@@ -319,10 +319,13 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
             if (wMatch) patch.width = parseInt(wMatch[1], 10)
             if (hMatch) patch.height = parseInt(hMatch[1], 10)
             onChange(patch)
+            e.target.style.height = 'auto'
+            e.target.style.height = e.target.scrollHeight + 'px'
           }}
-          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono"
-          rows={2}
+          className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs font-mono resize-y min-h-[40px]"
+          rows={1}
           placeholder="bg-[#ff0000] w-[200px] ..."
+          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
         />
         {style.customClass && (
           <button
