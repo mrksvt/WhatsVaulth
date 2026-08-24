@@ -284,6 +284,17 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     return result
   }
 
+  const countParents = (id: string, all: ThemeElement[]): number => {
+    let depth = 0
+    let cur = all.find((e) => e.id === id)
+    while (cur?.parentId) {
+      depth++
+      const next = all.find((e) => e.id === cur?.parentId)
+      cur = next
+    }
+    return depth
+  }
+
   const byZOrder = (a: ThemeElement, b: ThemeElement) => (a.zOrder ?? 0) - (b.zOrder ?? 0)
 
   const renderElement = (elem: ThemeElement, depth = 0): React.ReactNode => {
@@ -388,12 +399,11 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
         const cH = r.height
         return dCenterX >= cL && dCenterX <= cL + cW && dCenterY >= cT && dCenterY <= cT + cH
       })
+      // pilih container paling dalam (paling nested) — depth = jumlah ancestor
       .sort((a, b) => {
-        const aEl = document.getElementById(`box-${a.id}`)
-        const bEl = document.getElementById(`box-${b.id}`)
-        const aArea = aEl ? aEl.getBoundingClientRect().width * aEl.getBoundingClientRect().height : Infinity
-        const bArea = bEl ? bEl.getBoundingClientRect().width * bEl.getBoundingClientRect().height : Infinity
-        return aArea - bArea
+        const depthA = countParents(a.id, elements)
+        const depthB = countParents(b.id, elements)
+        return depthB - depthA
       })
     const container = overlapping[0]
     if (!container) return
