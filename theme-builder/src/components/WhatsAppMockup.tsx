@@ -54,7 +54,7 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null
 }
 
-function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, isStackedChild = false, className = '', children }: {
+function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, onDropHover, isStackedChild = false, className = '', children }: {
   element: ThemeElement; selected: boolean; selectedIds: string[]; siblings: ThemeElement[]; onClick: () => void
   onDelete: (ids: string[]) => void; onDuplicate: (ids: string[]) => void
   onMove?: (id: string, dx: number, dy: number) => void
@@ -64,6 +64,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   onDrop?: (id: string) => void
   onUnnest?: () => void
   onReorder?: (id: string, dir: -1 | 1) => void
+  onDropHover?: (id: string | null) => void
   isStackedChild?: boolean
   className?: string; children: React.ReactNode
 }) {
@@ -123,6 +124,24 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
     }
 
     onGuides?.([{ x: gx }, { y: gy }].filter((g) => g.x !== undefined || g.y !== undefined))
+    // drop hover: cek overlap dengan shape target (container types)
+    if (onDropHover) {
+      const draggedRect = {
+        left: snappedLeft, top: snappedTop, width: w, height: h,
+        centerX: snappedLeft + w / 2, centerY: snappedTop + h / 2,
+      }
+      const shape = siblings.find((s) => {
+        if (s.id === element.id || s.parentId !== undefined) return false
+        if (s.type !== 'container' && !isContainerType(s.type)) return false
+        const sL = s.style.left ?? 10
+        const sT = s.style.top ?? 10
+        const sW = s.style.width ?? 120
+        const sH = s.style.height ?? 40
+        return draggedRect.centerX >= sL && draggedRect.centerX <= sL + sW &&
+               draggedRect.centerY >= sT && draggedRect.centerY <= sT + sH
+      })
+      onDropHover(shape?.id ?? null)
+    }
     onMove?.(element.id, snappedLeft - curLeft, snappedTop - curTop)
     dragRef.current = { x: e.clientX, y: e.clientY, w, h }
   }
@@ -146,6 +165,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
 
   const stopDrag = () => {
     if (dragRef.current && onDrop) onDrop(element.id)
+    onDropHover?.(null)
     dragRef.current = null
     resizingRef.current = false
     onGuides?.([])
@@ -214,6 +234,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
   const marqueeRef = useRef<{ startX: number; startY: number } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [guides, setGuides] = useState<{ x?: number; y?: number }[]>([])
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
 
   useEffect(() => {
     if (!canvasRef.current || !onCanvasHeight) return
@@ -357,6 +378,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
               onResize={(id, w, h) => onResize(id, w, h)}
               onEdit={() => onEdit(elem.id)}
               onGuides={setGuides}
+              onDropHover={setDropTarget}
               onDrop={handleDropToNest}
               onUnnest={elem.parentId ? () => onUnnest?.([{ id: elem.id, parentId: undefined }]) : undefined}
             >
@@ -393,6 +415,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                       onResize={(id, w, h) => onResize(id, w, h)}
                       onEdit={() => onEdit(child.id)}
                       onGuides={setGuides}
+                      onDropHover={setDropTarget}
                       onDrop={handleDropToNest}
                       onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
                       onReorder={onReorder}
@@ -421,6 +444,13 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                     </Box>
                   ))}
                 </div>
+              )}
+              {dropTarget === elem.id && (
+                <>
+                  <div className="absolute inset-0 ring-2 ring-blue-500 ring-offset-1 bg-blue-500/10 pointer-events-none z-30" style={{ borderRadius: elem.type === 'circle' ? '9999px' : undefined }} />
+                  <div className="absolute left-0 right-0 top-1/2 h-px bg-blue-500 pointer-events-none z-30" />
+                  <div className="absolute top-0 bottom-0 left-1/2 w-px bg-blue-500 pointer-events-none z-30" />
+                </>
               )}
             </Box>
           ))}
