@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Theme, ThemeElement, ScreenId, DeviceId } from './types'
-import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE, TEMPLATES } from './data'
+import type { Theme, ThemeElement, ScreenId, DeviceId, AnchorPosition } from './types'
+import { DEFAULT_ELEMENTS, DEVICES, ID_OPTIONS, ADDABLE, TEMPLATES, isContainerType } from './data'
 import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
 import ElementModal from './components/ElementModal'
+import InsertIntoShapeDialog from './components/InsertIntoShapeDialog'
 import { exportThemeZip, downloadBlob, validateThemeIds } from './lib/export'
 import './safelist'
 
@@ -21,6 +22,18 @@ export default function App() {
   const [future, setFuture] = useState<ThemeElement[][]>([])
   const lastCommitRef = useRef(0)
   const SNAP = 4
+  const [insertDialogOpen, setInsertDialogOpen] = useState<string | null>(null)
+
+  const handleInsertConfirm = (targetShapeId: string, placement: AnchorPosition, afterElementId?: string) => {
+    if (!insertDialogOpen) return
+    commitHistory()
+    setElements((prev) => prev.map((e) =>
+      e.id === insertDialogOpen
+        ? { ...e, parentId: targetShapeId, placement, afterElementId, style: { ...e.style, top: 0, left: 0 } }
+        : e
+    ))
+    setInsertDialogOpen(null)
+  }
 
   const commitHistory = () => {
     const now = Date.now()
@@ -61,6 +74,15 @@ export default function App() {
       else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); undo() }
       else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
       else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); handleDuplicate(selectedIds) }
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault()
+        if (selectedIds.length === 1) {
+          const el = elements.find((x) => x.id === selectedIds[0])
+          if (el && ['icon-btn', 'image', 'text'].includes(el.type)) {
+            setInsertDialogOpen(el.id)
+          }
+        }
+      }
       else if (e.key === 'Escape') { setSelectedIds([]) }
       else if (selectedIds.length > 0 && !inInput) {
         const step = e.shiftKey ? 10 : 1
@@ -470,6 +492,22 @@ export default function App() {
           onClose={() => setEditingId(null)}
         />
       )}
+      {insertDialogOpen && (() => {
+        const src = elements.find((e) => e.id === insertDialogOpen)
+        if (!src) return null
+        const shapes = screenElements.filter((e) => isContainerType(e.type) && e.id !== src.id)
+        return (
+          <InsertIntoShapeDialog
+            sourceElement={src}
+            shapes={shapes}
+            childrenOfShape={(shapeId, anchor) =>
+              screenElements.filter((e) => e.parentId === shapeId && (e.placement ?? 'center') === anchor)
+            }
+            onConfirm={handleInsertConfirm}
+            onClose={() => setInsertDialogOpen(null)}
+          />
+        )
+      })()}
       {showTemplates && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTemplates(false)}>
           <div className="bg-white rounded-lg shadow-xl w-96 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

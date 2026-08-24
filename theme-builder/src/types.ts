@@ -7,6 +7,12 @@ export type ElementType =
   | 'rectangle' | 'circle' | 'line'
   | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
 
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
+
+export type AnchorPosition =
+  | 'center' | 'top' | 'bottom' | 'left' | 'right'
+  | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
 export interface ElementStyle {
   bg?: string; textColor?: string; rounded?: string; shadow?: string
   padding?: string; margin?: string; width?: number; height?: number
@@ -31,6 +37,8 @@ export interface ThemeElement {
   customId?: boolean  // true jika id diinput manual
   parentId?: string   // id container tempat elemen ini nested; undefined = root-level
   stackOrder?: number // urutan dalam stack layout parent (0, 1, 2...)
+  placement?: AnchorPosition  // posisi anchor dalam shape parent; default 'center'
+  afterElementId?: string     // urutan relatif ke sibling di anchor yang sama
 }
 
 export interface Theme {

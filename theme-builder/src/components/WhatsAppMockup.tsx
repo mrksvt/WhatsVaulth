@@ -3,6 +3,7 @@ import * as Icons from 'lucide-react'
 import { IPhoneMockup, AndroidMockup, IPadMockup } from 'react-device-mockup'
 import type { ThemeElement, DeviceId, ScreenId } from '../types'
 import { styleToTailwind, SCREENS, isContainerType, SHAPE_CLIP } from '../data'
+import type { AnchorPosition } from '../types'
 import AlignToolbar from './AlignToolbar'
 import { getBootstrapSvg, getFAPath } from '../lib/iconRegistry'
 
@@ -226,8 +227,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   )
 }
 
-export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest, onReorder }: Props) {
-  const isSel = (id: string) => selectedIds.includes(id)
+export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest, onReorder }: Props) {  const isSel = (id: string) => selectedIds.includes(id)
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
 
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -248,6 +248,88 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
 
   const screenElements = elements.filter((e) => e.screen === screen)
   const hasChildren = (id: string) => screenElements.some((e) => e.parentId === id)
+
+  const orderByAfterChain = (group: ThemeElement[]): ThemeElement[] => {
+    if (group.length <= 1) return group
+    const byId = new Map(group.map((c) => [c.id, c]))
+    const result: ThemeElement[] = []
+    const used = new Set<string>()
+    const heads = group.filter((c) => !c.afterElementId || !byId.has(c.afterElementId))
+    for (const head of heads) {
+      let cur: ThemeElement | undefined = head
+      while (cur && !used.has(cur.id)) {
+        used.add(cur.id)
+        result.push(cur)
+        cur = cur.afterElementId ? byId.get(cur.afterElementId) : undefined
+      }
+    }
+    for (const c of group) if (!used.has(c.id)) result.push(c)
+    return result
+  }
+
+  const renderChildrenByAnchor = (parentId: string) => {
+    const children = screenElements.filter((e) => e.parentId === parentId)
+    if (children.length === 0) return null
+    const anchors = new Map<AnchorPosition, ThemeElement[]>()
+    for (const c of children) {
+      const a = c.placement ?? 'center'
+      if (!anchors.has(a)) anchors.set(a, [])
+      anchors.get(a)!.push(c)
+    }
+    const ANCHOR_STYLE: Record<AnchorPosition, React.CSSProperties> = {
+      center: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
+      top: { top: 4, left: '50%', transform: 'translateX(-50%)' },
+      bottom: { bottom: 4, left: '50%', transform: 'translateX(-50%)' },
+      left: { left: 4, top: '50%', transform: 'translateY(-50%)' },
+      right: { right: 4, top: '50%', transform: 'translateY(-50%)' },
+      'top-left': { top: 4, left: 4 },
+      'top-right': { top: 4, right: 4 },
+      'bottom-left': { bottom: 4, left: 4 },
+      'bottom-right': { bottom: 4, right: 4 },
+    }
+    return Array.from(anchors.entries()).map(([anchor, group]) => (
+      <div
+        key={anchor}
+        style={{ position: 'absolute', ...ANCHOR_STYLE[anchor], display: 'flex', gap: 4, zIndex: 5 }}
+      >
+        {orderByAfterChain(group).map((child) => (
+          <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={children} onClick={() => onSelect([child.id])}
+            onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
+            onMove={(id, dx, dy) => onMove(id, dx, dy)}
+            onResize={(id, w, h) => onResize(id, w, h)}
+            onEdit={() => onEdit(child.id)}
+            onGuides={setGuides}
+            onDropHover={setDropTarget}
+            onDrop={handleDropToNest}
+            onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
+            onReorder={onReorder}
+            isStackedChild
+          >
+            {child.type === 'image' ? (
+              <img
+                src={child.style.fillImage ?? child.style.icon ?? ''}
+                alt={child.label}
+                className="w-full h-full object-cover"
+              />
+            ) : child.type === 'icon-btn' ? (
+              <div className="w-full h-full flex items-center justify-center">
+                {iconFor(child.style.icon)}
+              </div>
+            ) : child.type === 'text' ? (
+              <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                <span className={`text-center ${cls(child.id)}`}>{child.label}</span>
+              </div>
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''}`}
+                style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
+                {child.type === 'line' && null}
+              </div>
+            )}
+          </Box>
+        ))}
+      </div>
+    ))
+  }
 
   const cls = (id: string) => styleToTailwind(el(id)?.style ?? {})
 
@@ -395,54 +477,8 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {elem.type === 'line' && null}
               </div>
               {(elem.type === 'container' || isContainerType(elem.type)) && (
-                <div
-                  className={`absolute inset-0 flex ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}
-                  style={{
-                    flexDirection: elem.style.stackDirection === 'row' ? 'row' : 'column',
-                    alignItems: elem.style.stackAlign === 'start' ? 'flex-start'
-                      : elem.style.stackAlign === 'end' ? 'flex-end' : 'center',
-                    justifyContent: 'center',
-                    gap: elem.style.stackGap ?? 4,
-                  }}
-                >
-                  {screenElements
-                    .filter((e) => e.parentId === elem.id)
-                    .sort((a, b) => (a.stackOrder ?? 0) - (b.stackOrder ?? 0))
-                    .map((child) => (
-                    <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => e.parentId === elem.id)} onClick={() => onSelect([child.id])}
-                      onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
-                      onMove={(id, dx, dy) => onMove(id, dx, dy)}
-                      onResize={(id, w, h) => onResize(id, w, h)}
-                      onEdit={() => onEdit(child.id)}
-                      onGuides={setGuides}
-                      onDropHover={setDropTarget}
-                      onDrop={handleDropToNest}
-                      onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
-                      onReorder={onReorder}
-                      isStackedChild
-                    >
-                      {child.type === 'image' ? (
-                        <img
-                          src={child.style.fillImage ?? child.style.icon ?? ''}
-                          alt={child.label}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : child.type === 'icon-btn' ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                          {iconFor(child.style.icon)}
-                        </div>
-                      ) : child.type === 'text' ? (
-                        <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
-                          <span className={`text-center ${cls(child.id)}`}>{child.label}</span>
-                        </div>
-                      ) : (
-                        <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''}`}
-                          style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
-                          {child.type === 'line' && null}
-                        </div>
-                      )}
-                    </Box>
-                  ))}
+                <div className={`absolute inset-0 ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}>
+                  {renderChildrenByAnchor(elem.id)}
                 </div>
               )}
               {dropTarget === elem.id && (
