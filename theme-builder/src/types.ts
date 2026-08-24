@@ -3,7 +3,7 @@ export type ScreenId = 'home' | 'calls' | 'updates' | 'conversation' | 'groups' 
 export type DeviceId = 'iphone' | 'android' | 'ipad'
 
 export type ElementType =
-  | 'text' | 'icon-btn' | 'image' | 'box' | 'container'
+  | 'text' | 'icon-btn' | 'image' | 'box' | 'container' | 'group'
   | 'rectangle' | 'circle' | 'line'
   | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
 
@@ -39,6 +39,7 @@ export interface ThemeElement {
   stackOrder?: number // urutan dalam stack layout parent (0, 1, 2...)
   placement?: AnchorPosition  // posisi anchor dalam shape parent; default 'center'
   afterElementId?: string     // urutan relatif ke sibling di anchor yang sama
+  zOrder?: number             // override z-index antar sibling; sort sebelum render
 }
 
 export interface Theme {

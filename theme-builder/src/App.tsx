@@ -5,6 +5,7 @@ import WhatsAppMockup from './components/WhatsAppMockup'
 import PropertyPanel from './components/PropertyPanel'
 import ElementModal from './components/ElementModal'
 import InsertIntoShapeDialog from './components/InsertIntoShapeDialog'
+import LayersPanel from './components/LayersPanel'
 import { exportThemeZip, downloadBlob, validateThemeIds } from './lib/export'
 import './safelist'
 
@@ -94,6 +95,17 @@ export default function App() {
             setInsertDialogOpen(el.id)
           }
         }
+      }
+      else if (mod && e.key.toLowerCase() === 'g' && e.shiftKey) {
+        e.preventDefault()
+        if (selectedIds.length === 1) {
+          const el = elements.find((x) => x.id === selectedIds[0])
+          if (el && el.type === 'group') handleUngroup(el.id)
+        }
+      }
+      else if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        if (selectedIds.length >= 2) handleGroup(selectedIds)
       }
       else if (e.key === 'Escape') { setSelectedIds([]) }
       else if (selectedIds.length > 0 && !inInput) {
@@ -336,6 +348,70 @@ export default function App() {
     })
   }
 
+  const handleReorderZ = (id: string, mode: 'front' | 'forward' | 'backward' | 'back') => {
+    commitHistory()
+    setElements((prev) => {
+      const target = prev.find((e) => e.id === id)
+      if (!target) return prev
+      const siblings = prev.filter((e) => e.parentId === target.parentId && e.id !== id)
+        .sort((a, b) => (a.zOrder ?? 0) - (b.zOrder ?? 0))
+      let z = target.zOrder ?? 0
+      if (mode === 'front') { z = (siblings.length > 0 ? (siblings[siblings.length - 1].zOrder ?? 0) : 0) + 1 }
+      else if (mode === 'back') { z = (siblings.length > 0 ? (siblings[0].zOrder ?? 0) : 0) - 1 }
+      else if (mode === 'forward') {
+        const next = siblings.find((s) => (s.zOrder ?? 0) > (target.zOrder ?? 0))
+        if (next) { const tmp = next.zOrder ?? 0; return prev.map((e) => e.id === id ? { ...e, zOrder: tmp } : e.id === next.id ? { ...e, zOrder: target.zOrder ?? 0 } : e) }
+      } else if (mode === 'backward') {
+        const prevZ = siblings.filter((s) => (s.zOrder ?? 0) < (target.zOrder ?? 0))
+        if (prevZ.length > 0) { const swap = prevZ[prevZ.length - 1]; const tmp = swap.zOrder ?? 0; return prev.map((e) => e.id === id ? { ...e, zOrder: tmp } : e.id === swap.id ? { ...e, zOrder: target.zOrder ?? 0 } : e) }
+      }
+      return prev.map((e) => e.id === id ? { ...e, zOrder: z } : e)
+    })
+  }
+
+  const handleGroup = (ids: string[]) => {
+    commitHistory()
+    const sel = elements.filter((e) => ids.includes(e.id))
+    if (sel.length < 2) return
+    const bbox = {
+      top: Math.min(...sel.map((e) => e.style.top ?? 0)),
+      left: Math.min(...sel.map((e) => e.style.left ?? 0)),
+      width: Math.max(...sel.map((e) => (e.style.left ?? 0) + (e.style.width ?? 0))) - Math.min(...sel.map((e) => e.style.left ?? 0)),
+      height: Math.max(...sel.map((e) => (e.style.top ?? 0) + (e.style.height ?? 0))) - Math.min(...sel.map((e) => e.style.top ?? 0)),
+    }
+    const groupId = `group_${Date.now()}`
+    const newGroup: ThemeElement = {
+      id: groupId,
+      label: 'Group',
+      type: 'group',
+      screen,
+      style: { top: bbox.top, left: bbox.left, width: bbox.width, height: bbox.height },
+      customId: true,
+    }
+    setElements((prev) => [
+      ...prev.map((e) => ids.includes(e.id)
+        ? { ...e, parentId: groupId, style: { ...e.style, top: (e.style.top ?? 0) - bbox.top, left: (e.style.left ?? 0) - bbox.left } }
+        : e
+      ),
+      newGroup,
+    ])
+    setSelectedIds([groupId])
+  }
+
+  const handleUngroup = (groupId: string) => {
+    commitHistory()
+    const group = elements.find((e) => e.id === groupId)
+    if (!group || group.type !== 'group') return
+    setElements((prev) => prev
+      .filter((e) => e.id !== groupId)
+      .map((e) => e.parentId === groupId
+        ? { ...e, parentId: undefined, style: { ...e.style, top: (e.style.top ?? 0) + (group.style.top ?? 0), left: (e.style.left ?? 0) + (group.style.left ?? 0) } }
+        : e
+      )
+    )
+    setSelectedIds([])
+  }
+
   const handleSaveElement = (patch: Partial<ThemeElement>) => {
     if (!editingId) return
     setElements((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...patch } : e)))
@@ -403,23 +479,20 @@ export default function App() {
 
       <div className="flex-1 flex overflow-hidden">
         <aside className="w-56 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Elements ({screen})</div>
-          {screenElements.length === 0 && (
-            <div className="px-3 py-2 text-xs text-gray-400">Kosong — tambah elemen di bawah</div>
-          )}
-          {screenElements.map((el) => (
-            <div
-              key={el.id}
-              onClick={() => setSelectedIds([el.id])}
-              className={`w-full text-left px-3 py-1.5 text-sm flex justify-between items-center cursor-pointer ${
-                selectedIds.includes(el.id) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <span className="truncate flex-1">{el.label}</span>
-              <span className="text-[9px] text-gray-400 font-mono truncate max-w-[80px]">{el.id}</span>
-              <span className="text-gray-300 text-xs cursor-pointer ml-1" onClick={(e) => { e.stopPropagation(); handleDelete([el.id]) }}>✕</span>
-            </div>
-          ))}
+          <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Layers ({screen})</div>
+          <LayersPanel
+            elements={elements}
+            screen={screen}
+            selectedIds={selectedIds}
+            onSelect={(id, isMulti) => {
+              if (isMulti) {
+                setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+              } else {
+                setSelectedIds([id])
+              }
+            }}
+            onDelete={(id) => handleDelete([id])}
+          />
           <div className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Add Element</div>
           {ADDABLE.map((a) => (
             <button
@@ -459,6 +532,7 @@ export default function App() {
               onSetParent={handleSetParent}
               onUnnest={handleUnnest}
               onReorder={handleReorder}
+              onReorderZ={handleReorderZ}
             />
           </div>
         </main>

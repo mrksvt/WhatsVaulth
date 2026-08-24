@@ -25,6 +25,7 @@ interface Props {
   onSetParent?: (updates: { id: string; parentId: string | undefined }[]) => void
   onUnnest?: (updates: { id: string; parentId: string | undefined }[]) => void
   onReorder?: (id: string, dir: -1 | 1) => void
+  onReorderZ?: (id: string, mode: 'front' | 'forward' | 'backward' | 'back') => void
 }
 
 function iconFor(name?: string) {
@@ -55,7 +56,7 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null
 }
 
-function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, onDropHover, isStackedChild = false, isAnchored = false, className = '', children }: {
+function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, onReorderZ, onDropHover, isStackedChild = false, isAnchored = false, className = '', children }: {
   element: ThemeElement; selected: boolean; selectedIds: string[]; siblings: ThemeElement[]; onClick: () => void
   onDelete: (ids: string[]) => void; onDuplicate: (ids: string[]) => void
   onMove?: (id: string, dx: number, dy: number) => void
@@ -65,6 +66,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   onDrop?: (id: string) => void
   onUnnest?: () => void
   onReorder?: (id: string, dir: -1 | 1) => void
+  onReorderZ?: (id: string, mode: 'front' | 'forward' | 'backward' | 'back') => void
   onDropHover?: (id: string | null) => void
   isStackedChild?: boolean
   isAnchored?: boolean
@@ -218,6 +220,10 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
             {element.parentId && (
               <button className="w-5 h-5 text-amber-300 hover:bg-white/20 rounded flex items-center justify-center" title="Remove from container" onClick={(e) => { e.stopPropagation(); onUnnest?.() }}><Icons.ArrowUpFromLine className="w-3 h-3" /></button>
             )}
+            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Bring to Front" onClick={(e) => { e.stopPropagation(); onReorderZ?.(element.id, 'front') }}><Icons.ChevronsUp className="w-3 h-3" /></button>
+            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Forward" onClick={(e) => { e.stopPropagation(); onReorderZ?.(element.id, 'forward') }}><Icons.ChevronUp className="w-3 h-3" /></button>
+            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Backward" onClick={(e) => { e.stopPropagation(); onReorderZ?.(element.id, 'backward') }}><Icons.ChevronDown className="w-3 h-3" /></button>
+            <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Send to Back" onClick={(e) => { e.stopPropagation(); onReorderZ?.(element.id, 'back') }}><Icons.ChevronsDown className="w-3 h-3" /></button>
             {isStackedChild && (
               <>
                 <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Move up in stack" onClick={(e) => { e.stopPropagation(); onReorder?.(element.id, -1) }}><Icons.ChevronUp className="w-3 h-3" /></button>
@@ -238,7 +244,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   )
 }
 
-export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest, onReorder }: Props) {  const isSel = (id: string) => selectedIds.includes(id)
+export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest, onReorder, onReorderZ }: Props) {  const isSel = (id: string) => selectedIds.includes(id)
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
 
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -278,9 +284,14 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     return result
   }
 
-  const renderChildrenByAnchor = (parentId: string) => {
-    const children = screenElements.filter((e) => e.parentId === parentId)
-    if (children.length === 0) return null
+  const byZOrder = (a: ThemeElement, b: ThemeElement) => (a.zOrder ?? 0) - (b.zOrder ?? 0)
+
+  const renderElement = (elem: ThemeElement, depth = 0): React.ReactNode => {
+    const children = screenElements
+      .filter((e) => e.parentId === elem.id)
+      .sort(byZOrder)
+    const isContainer = elem.type === 'container' || isContainerType(elem.type) || elem.type === 'group'
+
     const anchors = new Map<AnchorPosition, ThemeElement[]>()
     for (const c of children) {
       const a = c.placement ?? 'center'
@@ -298,78 +309,93 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
       'bottom-left': { bottom: 4, left: 4 },
       'bottom-right': { bottom: 4, right: 4 },
     }
-    return Array.from(anchors.entries()).map(([anchor, group]) => (
-      <div
-        key={anchor}
-        style={{ position: 'absolute', ...ANCHOR_STYLE[anchor], display: 'flex', gap: 4, zIndex: 5 }}
+
+    return (
+      <Box key={elem.id} element={elem} selected={isSel(elem.id)} selectedIds={selectedIds} siblings={elem.parentId ? children : screenElements.filter((e) => !e.parentId)} onClick={() => onSelect([elem.id])}
+        onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
+        onMove={(id, dx, dy) => onMove(id, dx, dy)}
+        onResize={(id, w, h) => onResize(id, w, h)}
+        onEdit={() => onEdit(elem.id)}
+        onGuides={setGuides}
+        onDropHover={setDropTarget}
+        onDrop={handleDropToNest}
+        onUnnest={elem.parentId ? () => onUnnest?.([{ id: elem.id, parentId: undefined }]) : undefined}
+        onReorder={onReorder}
+        onReorderZ={onReorderZ}
+        isAnchored={!!elem.parentId}
+        isStackedChild={!!elem.parentId}
       >
-        {orderByAfterChain(group).map((child) => (
-          <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={children} onClick={() => onSelect([child.id])}
-            onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
-            onMove={(id, dx, dy) => onMove(id, dx, dy)}
-            onResize={(id, w, h) => onResize(id, w, h)}
-            onEdit={() => onEdit(child.id)}
-            onGuides={setGuides}
-            onDropHover={setDropTarget}
-            onDrop={handleDropToNest}
-            onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
-            onReorder={onReorder}
-            isStackedChild
-            isAnchored
-          >
-            {child.type === 'image' ? (
-              <img
-                src={child.style.fillImage ?? child.style.icon ?? ''}
-                alt={child.label}
-                className="w-full h-full object-cover"
-              />
-            ) : child.type === 'icon-btn' ? (
-              <div className="w-full h-full flex items-center justify-center">
-                {iconFor(child.style.icon)}
-              </div>
-            ) : child.type === 'text' ? (
-              <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
-                <span className={`text-center ${cls(child.id)}`}>{child.label}</span>
-              </div>
-            ) : (
-              <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''}`}
-                style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
-                {child.type === 'line' && null}
-              </div>
+        {elem.type !== 'group' && (
+          <div className={`w-full h-full flex items-center justify-center ${cls(elem.id)} ${elem.type === 'circle' ? 'rounded-full' : ''} ${elem.type === 'line' ? 'rounded-full' : ''}`}
+            style={SHAPE_CLIP[elem.type] ? { clipPath: SHAPE_CLIP[elem.type] } : undefined}>
+            {elem.type === 'icon-btn' && elem.style.icon ? iconFor(elem.style.icon) : null}
+            {elem.type === 'text' && <span className={cls(elem.id)}>{elem.label}</span>}
+            {elem.type === 'image' && (elem.style.fillImage
+              ? <img src={elem.style.fillImage} alt={elem.label} className="w-full h-full object-cover" />
+              : <Icons.Image className="w-6 h-6 text-gray-400" />)}
+            {(elem.type === 'box' || elem.type === 'rectangle' || elem.type === 'circle') && isSel(elem.id) && !hasChildren(elem.id) && !elem.style.fillImage && (
+              <span className="text-gray-400 text-[10px]">{elem.id}</span>
             )}
-          </Box>
-        ))}
-      </div>
-    ))
+            {elem.type === 'line' && null}
+          </div>
+        )}
+        {isContainer && (
+          <div className={`absolute inset-0 ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}>
+            {Array.from(anchors.entries()).map(([anchor, group]) => (
+              <div
+                key={anchor}
+                style={{ position: 'absolute', ...ANCHOR_STYLE[anchor], display: 'flex', gap: 4, zIndex: 5 }}
+              >
+                {orderByAfterChain(group).map((child) => renderElement(child, depth + 1))}
+              </div>
+            ))}
+          </div>
+        )}
+        {dropTarget === elem.id && (
+          <>
+            <div className="absolute inset-0 ring-2 ring-blue-500 ring-offset-1 bg-blue-500/10 pointer-events-none z-30" style={{ borderRadius: elem.type === 'circle' ? '9999px' : undefined }} />
+            <div className="absolute left-0 right-0 top-1/2 h-px bg-blue-500 pointer-events-none z-30" />
+            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-blue-500 pointer-events-none z-30" />
+          </>
+        )}
+      </Box>
+    )
   }
 
   const cls = (id: string) => styleToTailwind(el(id)?.style ?? {})
 
   const handleDropToNest = (id: string) => {
+    const canvasEl = canvasRef.current
+    if (!canvasEl) return
+    const canvasRect = canvasEl.getBoundingClientRect()
     const dragged = elements.find((e) => e.id === id)
     if (!dragged) return
-    const dL = dragged.style.left ?? 10
-    const dT = dragged.style.top ?? 10
-    const dW = dragged.style.width ?? 120
-    const dH = dragged.style.height ?? 40
-    const dCenterX = dL + dW / 2
-    const dCenterY = dT + dH / 2
+    const draggedEl = document.getElementById(`box-${id}`)
+    if (!draggedEl) return
+    const dRect = draggedEl.getBoundingClientRect()
+    const dCenterX = dRect.left - canvasRect.left + dRect.width / 2
+    const dCenterY = dRect.top - canvasRect.top + dRect.height / 2
     const container = screenElements.find((e) => {
       if (e.id === id || !isContainerType(e.type)) return false
-      if (e.parentId !== undefined) return false
-      const cL = e.style.left ?? 10
-      const cT = e.style.top ?? 10
-      const cW = e.style.width ?? 120
-      const cH = e.style.height ?? 40
+      if (e.parentId === dragged.id) return false
+      const el = document.getElementById(`box-${e.id}`)
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      const cL = r.left - canvasRect.left
+      const cT = r.top - canvasRect.top
+      const cW = r.width
+      const cH = r.height
       return dCenterX >= cL && dCenterX <= cL + cW && dCenterY >= cT && dCenterY <= cT + cH
     })
     if (!container) return
-    const cL = container.style.left ?? 10
-    const cT = container.style.top ?? 10
-    // icon/text → auto-center (top/left=0), image → absolute posisi
+    const cEl = document.getElementById(`box-${container.id}`)
+    if (!cEl) return
+    const cRect = cEl.getBoundingClientRect()
+    const cL = cRect.left - canvasRect.left
+    const cT = cRect.top - canvasRect.top
     const isAutoCenter = dragged.type === 'icon-btn' || dragged.type === 'text'
     onBatchUpdate?.([
-      { id, top: isAutoCenter ? 0 : dT - cT, left: isAutoCenter ? 0 : dL - cL },
+      { id, top: isAutoCenter ? 0 : dRect.top - canvasRect.top - cT, left: isAutoCenter ? 0 : dRect.left - canvasRect.left - cL },
     ])
     onSetParent?.([{ id, parentId: container.id }])
   }
@@ -465,43 +491,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
           onPointerCancel={handleCanvasPointerCancel}
         >
           {wallpaper && <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${wallpaper})` }} />}
-          {screenElements.filter((el) => !el.parentId).map((elem) => (
-            <Box key={elem.id} element={elem} selected={isSel(elem.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => !e.parentId)} onClick={() => onSelect([elem.id])}
-              onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
-              onMove={(id, dx, dy) => onMove(id, dx, dy)}
-              onResize={(id, w, h) => onResize(id, w, h)}
-              onEdit={() => onEdit(elem.id)}
-              onGuides={setGuides}
-              onDropHover={setDropTarget}
-              onDrop={handleDropToNest}
-              onUnnest={elem.parentId ? () => onUnnest?.([{ id: elem.id, parentId: undefined }]) : undefined}
-            >
-              <div className={`w-full h-full flex items-center justify-center ${cls(elem.id)} ${elem.type === 'circle' ? 'rounded-full' : ''} ${elem.type === 'line' ? 'rounded-full' : ''}`}
-                style={SHAPE_CLIP[elem.type] ? { clipPath: SHAPE_CLIP[elem.type] } : undefined}>
-                {elem.type === 'icon-btn' && elem.style.icon ? iconFor(elem.style.icon) : null}
-                {elem.type === 'text' && <span className={cls(elem.id)}>{elem.label}</span>}
-                {elem.type === 'image' && (elem.style.fillImage
-                  ? <img src={elem.style.fillImage} alt={elem.label} className="w-full h-full object-cover" />
-                  : <Icons.Image className="w-6 h-6 text-gray-400" />)}
-                {(elem.type === 'box' || elem.type === 'rectangle' || elem.type === 'circle') && isSel(elem.id) && !hasChildren(elem.id) && !elem.style.fillImage && (
-                  <span className="text-gray-400 text-[10px]">{elem.id}</span>
-                )}
-                {elem.type === 'line' && null}
-              </div>
-              {(elem.type === 'container' || isContainerType(elem.type)) && (
-                <div className={`absolute inset-0 ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}>
-                  {renderChildrenByAnchor(elem.id)}
-                </div>
-              )}
-              {dropTarget === elem.id && (
-                <>
-                  <div className="absolute inset-0 ring-2 ring-blue-500 ring-offset-1 bg-blue-500/10 pointer-events-none z-30" style={{ borderRadius: elem.type === 'circle' ? '9999px' : undefined }} />
-                  <div className="absolute left-0 right-0 top-1/2 h-px bg-blue-500 pointer-events-none z-30" />
-                  <div className="absolute top-0 bottom-0 left-1/2 w-px bg-blue-500 pointer-events-none z-30" />
-                </>
-              )}
-            </Box>
-          ))}
+          {screenElements.filter((el) => !el.parentId).sort(byZOrder).map((elem) => renderElement(elem))}
           {guides.map((g, i) => (
             <div key={i}>
               {g.x !== undefined && <div className="absolute bg-pink-500 pointer-events-none z-40" style={{ left: g.x, top: 0, width: 1, height: '100%' }} />}
