@@ -282,6 +282,26 @@ export default function App() {
       })
     )
   }
+  const handleReorder = (id: string, dir: -1 | 1) => {
+    commitHistory()
+    setElements((prev) => {
+      const target = prev.find((e) => e.id === id)
+      if (!target?.parentId) return prev
+      const siblings = prev.filter((e) => e.parentId === target.parentId)
+        .sort((a, b) => (a.stackOrder ?? 0) - (b.stackOrder ?? 0))
+      const idx = siblings.findIndex((e) => e.id === id)
+      const swapIdx = idx + dir
+      if (idx === -1 || swapIdx < 0 || swapIdx >= siblings.length) return prev
+      const a = siblings[idx]
+      const b = siblings[swapIdx]
+      return prev.map((e) => {
+        if (e.id === a.id) return { ...e, stackOrder: b.stackOrder ?? 0 }
+        if (e.id === b.id) return { ...e, stackOrder: a.stackOrder ?? 0 }
+        return e
+      })
+    })
+  }
+
   const handleSaveElement = (patch: Partial<ThemeElement>) => {
     if (!editingId) return
     setElements((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...patch } : e)))
@@ -404,6 +424,7 @@ export default function App() {
               onBatchUpdate={handleBatchUpdate}
               onSetParent={handleSetParent}
               onUnnest={handleUnnest}
+              onReorder={handleReorder}
             />
           </div>
         </main>

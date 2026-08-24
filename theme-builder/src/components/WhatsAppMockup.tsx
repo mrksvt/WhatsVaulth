@@ -23,6 +23,7 @@ interface Props {
   onBatchUpdate?: (updates: { id: string; top?: number; left?: number }[]) => void
   onSetParent?: (updates: { id: string; parentId: string | undefined }[]) => void
   onUnnest?: (updates: { id: string; parentId: string | undefined }[]) => void
+  onReorder?: (id: string, dir: -1 | 1) => void
 }
 
 function iconFor(name?: string) {
@@ -53,7 +54,7 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null
 }
 
-function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, className = '', children }: {
+function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, isStackedChild = false, className = '', children }: {
   element: ThemeElement; selected: boolean; selectedIds: string[]; siblings: ThemeElement[]; onClick: () => void
   onDelete: (ids: string[]) => void; onDuplicate: (ids: string[]) => void
   onMove?: (id: string, dx: number, dy: number) => void
@@ -62,6 +63,8 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   onGuides?: (g: { x?: number; y?: number }[]) => void
   onDrop?: (id: string) => void
   onUnnest?: () => void
+  onReorder?: (id: string, dir: -1 | 1) => void
+  isStackedChild?: boolean
   className?: string; children: React.ReactNode
 }) {
   const [locked, setLocked] = useState(false)
@@ -78,6 +81,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   const startMove = (e: React.PointerEvent) => {
     e.stopPropagation()
     if (!selected || locked) return
+    if (isStackedChild) return
     const target = e.target as HTMLElement
     if (target.closest('button')) return
     e.preventDefault()
@@ -182,6 +186,12 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
             {element.parentId && (
               <button className="w-5 h-5 text-amber-300 hover:bg-white/20 rounded flex items-center justify-center" title="Remove from container" onClick={(e) => { e.stopPropagation(); onUnnest?.() }}><Icons.ArrowUpFromLine className="w-3 h-3" /></button>
             )}
+            {isStackedChild && (
+              <>
+                <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Move up in stack" onClick={(e) => { e.stopPropagation(); onReorder?.(element.id, -1) }}><Icons.ChevronUp className="w-3 h-3" /></button>
+                <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Move down in stack" onClick={(e) => { e.stopPropagation(); onReorder?.(element.id, 1) }}><Icons.ChevronDown className="w-3 h-3" /></button>
+              </>
+            )}
             <button className="w-5 h-5 text-white hover:bg-white/20 rounded flex items-center justify-center" title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(selectedIds) }}><Icons.Copy className="w-3 h-3" /></button>
             <button className="w-5 h-5 text-red-400 hover:bg-red-500/20 rounded flex items-center justify-center" title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(selectedIds) }}><Icons.Trash2 className="w-3 h-3" /></button>
           </div>
@@ -196,7 +206,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   )
 }
 
-export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest }: Props) {
+export default function WhatsAppMockup({ elements, wallpaper, screen, device, onScreen, selectedIds, onSelect, onDelete, onDuplicate, onMove, onResize, onEdit, onCanvasHeight, onBatchUpdate, onSetParent, onUnnest, onReorder }: Props) {
   const isSel = (id: string) => selectedIds.includes(id)
   const el = (id: string) => elements.find((e) => e.screen === screen && e.id === id)
 
@@ -363,8 +373,20 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 {(elem.type === 'triangle' || elem.type === 'diamond' || elem.type === 'pentagon' || elem.type === 'hexagon' || elem.type === 'star') && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
               </div>
               {(elem.type === 'container' || isContainerType(elem.type)) && (
-                <div className={`absolute inset-0 ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}>
-                  {screenElements.filter((e) => e.parentId === elem.id).map((child) => (
+                <div
+                  className={`absolute inset-0 flex ${elem.type === 'circle' ? 'rounded-full overflow-hidden' : ''}`}
+                  style={{
+                    flexDirection: elem.style.stackDirection === 'row' ? 'row' : 'column',
+                    alignItems: elem.style.stackAlign === 'start' ? 'flex-start'
+                      : elem.style.stackAlign === 'end' ? 'flex-end' : 'center',
+                    justifyContent: 'center',
+                    gap: elem.style.stackGap ?? 4,
+                  }}
+                >
+                  {screenElements
+                    .filter((e) => e.parentId === elem.id)
+                    .sort((a, b) => (a.stackOrder ?? 0) - (b.stackOrder ?? 0))
+                    .map((child) => (
                     <Box key={child.id} element={child} selected={isSel(child.id)} selectedIds={selectedIds} siblings={screenElements.filter((e) => e.parentId === elem.id)} onClick={() => onSelect([child.id])}
                       onDelete={(ids) => onDelete(ids)} onDuplicate={(ids) => onDuplicate(ids)}
                       onMove={(id, dx, dy) => onMove(id, dx, dy)}
@@ -373,6 +395,8 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                       onGuides={setGuides}
                       onDrop={handleDropToNest}
                       onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
+                      onReorder={onReorder}
+                      isStackedChild
                     >
                       {child.type === 'image' ? (
                         <img

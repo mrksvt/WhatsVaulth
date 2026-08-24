@@ -16,6 +16,9 @@ export interface ElementStyle {
   rotate?: string; cornerRadius?: { tl?: string; tr?: string; bl?: string; br?: string }
   customClass?: string
   fillImage?: string
+  stackDirection?: 'row' | 'column'
+  stackGap?: number
+  stackAlign?: 'start' | 'center' | 'end'
 }
 
 export interface ThemeElement {
@@ -27,6 +30,7 @@ export interface ThemeElement {
   removable?: boolean
   customId?: boolean  // true jika id diinput manual
   parentId?: string   // id container tempat elemen ini nested; undefined = root-level
+  stackOrder?: number // urutan dalam stack layout parent (0, 1, 2...)
 }
 
 export interface Theme {

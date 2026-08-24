@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ElementStyle, ThemeElement } from '../types'
-import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, cssForElements, parseCssUpdates } from '../data'
+import { TAILWIND_COLORS, SPACING, RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS, ID_OPTIONS, cssForElements, parseCssUpdates, isContainerType } from '../data'
 import IconPicker from './IconPicker'
 
 interface Props {
@@ -125,6 +125,33 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
             className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs" />
         </div>
       </Section>
+
+      {elementType && isContainerType(elementType) && screenElements?.some((e) => e.parentId === id) && (
+        <Section title="Layout (stack children)">
+          <div className="flex gap-1 mb-1">
+            <Btn active={style.stackDirection !== 'row'} onClick={() => onChange({ stackDirection: 'column' })}>
+              Vertikal
+            </Btn>
+            <Btn active={style.stackDirection === 'row'} onClick={() => onChange({ stackDirection: 'row' })}>
+              Horizontal
+            </Btn>
+          </div>
+          <label className="text-xs text-gray-500">Gap (px)</label>
+          <input
+            type="number"
+            value={style.stackGap ?? 4}
+            onChange={(e) => onChange({ stackGap: Number(e.target.value) || 0 })}
+            className="w-20 border border-gray-300 rounded px-1 py-0.5 text-xs ml-2"
+          />
+          <div className="flex gap-1 mt-1">
+            {(['start', 'center', 'end'] as const).map((a) => (
+              <Btn key={a} active={(style.stackAlign ?? 'center') === a} onClick={() => onChange({ stackAlign: a })}>
+                {a}
+              </Btn>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Background">
         <div className="flex flex-wrap gap-1">
