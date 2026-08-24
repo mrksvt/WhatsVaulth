@@ -375,18 +375,27 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
     const dRect = draggedEl.getBoundingClientRect()
     const dCenterX = dRect.left - canvasRect.left + dRect.width / 2
     const dCenterY = dRect.top - canvasRect.top + dRect.height / 2
-    const container = screenElements.find((e) => {
-      if (e.id === id || !isContainerType(e.type)) return false
-      if (e.parentId === dragged.id) return false
-      const el = document.getElementById(`box-${e.id}`)
-      if (!el) return false
-      const r = el.getBoundingClientRect()
-      const cL = r.left - canvasRect.left
-      const cT = r.top - canvasRect.top
-      const cW = r.width
-      const cH = r.height
-      return dCenterX >= cL && dCenterX <= cL + cW && dCenterY >= cT && dCenterY <= cT + cH
-    })
+    const overlapping = screenElements
+      .filter((e) => {
+        if (e.id === id || !isContainerType(e.type)) return false
+        if (e.parentId === dragged.id) return false
+        const el = document.getElementById(`box-${e.id}`)
+        if (!el) return false
+        const r = el.getBoundingClientRect()
+        const cL = r.left - canvasRect.left
+        const cT = r.top - canvasRect.top
+        const cW = r.width
+        const cH = r.height
+        return dCenterX >= cL && dCenterX <= cL + cW && dCenterY >= cT && dCenterY <= cT + cH
+      })
+      .sort((a, b) => {
+        const aEl = document.getElementById(`box-${a.id}`)
+        const bEl = document.getElementById(`box-${b.id}`)
+        const aArea = aEl ? aEl.getBoundingClientRect().width * aEl.getBoundingClientRect().height : Infinity
+        const bArea = bEl ? bEl.getBoundingClientRect().width * bEl.getBoundingClientRect().height : Infinity
+        return aArea - bArea
+      })
+    const container = overlapping[0]
     if (!container) return
     const cEl = document.getElementById(`box-${container.id}`)
     if (!cEl) return
