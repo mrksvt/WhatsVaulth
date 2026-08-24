@@ -226,6 +226,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
   }, [device, screen, onCanvasHeight])
 
   const screenElements = elements.filter((e) => e.screen === screen)
+  const hasChildren = (id: string) => screenElements.some((e) => e.parentId === id)
 
   const cls = (id: string) => styleToTailwind(el(id)?.style ?? {})
 
@@ -363,14 +364,13 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                 style={SHAPE_CLIP[elem.type] ? { clipPath: SHAPE_CLIP[elem.type] } : undefined}>
                 {elem.type === 'icon-btn' && elem.style.icon ? iconFor(elem.style.icon) : null}
                 {elem.type === 'text' && <span className={cls(elem.id)}>{elem.label}</span>}
-                {elem.type === 'box' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
                 {elem.type === 'image' && (elem.style.fillImage
                   ? <img src={elem.style.fillImage} alt={elem.label} className="w-full h-full object-cover" />
                   : <Icons.Image className="w-6 h-6 text-gray-400" />)}
-                {elem.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
-                {elem.type === 'circle' && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
+                {(elem.type === 'box' || elem.type === 'rectangle' || elem.type === 'circle') && isSel(elem.id) && !hasChildren(elem.id) && !elem.style.fillImage && (
+                  <span className="text-gray-400 text-[10px]">{elem.id}</span>
+                )}
                 {elem.type === 'line' && null}
-                {(elem.type === 'triangle' || elem.type === 'diamond' || elem.type === 'pentagon' || elem.type === 'hexagon' || elem.type === 'star') && <span className="text-gray-400 text-[10px]">{elem.id}</span>}
               </div>
               {(elem.type === 'container' || isContainerType(elem.type)) && (
                 <div
@@ -415,9 +415,6 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
                       ) : (
                         <div className={`w-full h-full flex items-center justify-center ${cls(child.id)} ${child.type === 'circle' ? 'rounded-full' : ''}`}
                           style={SHAPE_CLIP[child.type] ? { clipPath: SHAPE_CLIP[child.type] } : undefined}>
-                          {child.type === 'box' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                          {child.type === 'rectangle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
-                          {child.type === 'circle' && <span className="text-gray-400 text-[10px]">{child.id}</span>}
                           {child.type === 'line' && null}
                         </div>
                       )}

@@ -91,7 +91,6 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
         </div>
       )}
 
-      {elementType !== 'rectangle' && elementType !== 'circle' && elementType !== 'line' && (
       <Section title="Element ID (CSS selector)">
         <select
           value={customId ? '__custom__' : id}
@@ -113,7 +112,6 @@ export default function PropertyPanel({ label, id, customId, screen, style, onCh
           placeholder="#custom_id"
         />
       </Section>
-      )}
 
       <Section title="Size (px)">
         <div className="flex gap-2 items-center">
