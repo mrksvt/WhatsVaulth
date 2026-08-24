@@ -27,11 +27,23 @@ export default function App() {
   const handleInsertConfirm = (targetShapeId: string, placement: AnchorPosition, afterElementId?: string) => {
     if (!insertDialogOpen) return
     commitHistory()
-    setElements((prev) => prev.map((e) =>
-      e.id === insertDialogOpen
-        ? { ...e, parentId: targetShapeId, placement, afterElementId, style: { ...e.style, top: 0, left: 0 } }
-        : e
-    ))
+    setElements((prev) => prev.map((e) => {
+      if (e.id !== insertDialogOpen) return e
+      const isIcon = e.type === 'icon-btn'
+      return {
+        ...e,
+        parentId: targetShapeId,
+        placement,
+        afterElementId,
+        style: {
+          ...e.style,
+          top: undefined,
+          left: undefined,
+          width: isIcon ? 24 : (e.style.width ?? 80),
+          height: isIcon ? 24 : (e.style.height ?? 24),
+        },
+      }
+    }))
     setInsertDialogOpen(null)
   }
 

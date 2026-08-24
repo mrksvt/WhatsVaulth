@@ -55,7 +55,7 @@ function iconFor(name?: string) {
   return Icon ? <Icon className="w-full h-full p-0.5" /> : null
 }
 
-function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, onDropHover, isStackedChild = false, className = '', children }: {
+function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDuplicate, onMove, onResize, onEdit, onGuides, onDrop, onUnnest, onReorder, onDropHover, isStackedChild = false, isAnchored = false, className = '', children }: {
   element: ThemeElement; selected: boolean; selectedIds: string[]; siblings: ThemeElement[]; onClick: () => void
   onDelete: (ids: string[]) => void; onDuplicate: (ids: string[]) => void
   onMove?: (id: string, dx: number, dy: number) => void
@@ -67,13 +67,15 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   onReorder?: (id: string, dir: -1 | 1) => void
   onDropHover?: (id: string | null) => void
   isStackedChild?: boolean
+  isAnchored?: boolean
   className?: string; children: React.ReactNode
 }) {
   const [locked, setLocked] = useState(false)
   const dragRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
   const resizingRef = useRef(false)
-  const w = element.style.width ?? 120
-  const h = element.style.height ?? 40
+  const w = element.style.width ?? (isAnchored ? 24 : 120)
+  const h = element.style.height ?? (isAnchored ? 24 : 40)
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -83,13 +85,14 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   const startMove = (e: React.PointerEvent) => {
     e.stopPropagation()
     if (!selected || locked) return
-    if (isStackedChild) return
+    if (isStackedChild || isAnchored) return
     const target = e.target as HTMLElement
     if (target.closest('button')) return
     e.preventDefault()
     resizingRef.current = false
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
   }
 
   const onMoveDrag = (e: React.PointerEvent) => {
@@ -153,6 +156,7 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
     resizingRef.current = true
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     dragRef.current = { x: e.clientX, y: e.clientY, w, h }
+    dragStartRef.current = null
   }
 
   const onResizeDrag = (e: React.PointerEvent) => {
@@ -165,7 +169,14 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
   }
 
   const stopDrag = () => {
-    if (dragRef.current && onDrop) onDrop(element.id)
+    if (dragRef.current && onDrop && !resizingRef.current && dragStartRef.current) {
+      const dist = Math.hypot(
+        dragRef.current.x - dragStartRef.current.x,
+        dragRef.current.y - dragStartRef.current.y
+      )
+      if (dist > 3) onDrop(element.id)
+    }
+    dragStartRef.current = null
     onDropHover?.(null)
     dragRef.current = null
     resizingRef.current = false
@@ -177,9 +188,9 @@ function Box({ element, selected, selectedIds, siblings, onClick, onDelete, onDu
       id={`box-${element.id}`}
       data-box
       style={{
-        position: 'absolute',
-        top: element.style.top ?? 10,
-        left: element.style.left ?? 10,
+        position: isAnchored ? 'relative' : 'absolute',
+        top: isAnchored ? undefined : (element.style.top ?? 10),
+        left: isAnchored ? undefined : (element.style.left ?? 10),
         width: w,
         height: h,
         zIndex: selected ? 10 : 1,
@@ -304,6 +315,7 @@ export default function WhatsAppMockup({ elements, wallpaper, screen, device, on
             onUnnest={() => onUnnest?.([{ id: child.id, parentId: undefined }])}
             onReorder={onReorder}
             isStackedChild
+            isAnchored
           >
             {child.type === 'image' ? (
               <img
