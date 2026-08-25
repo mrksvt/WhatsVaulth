@@ -187,12 +187,19 @@ class SeenTick(
                 }
             })
 
-        val ticktype = prefs.getString("seentick", "0")?.toIntOrNull() ?: 0
-        if (ticktype == 0) return
+        try {
+            hookOnSendMessages()
+        } catch (e: Exception) {
+            logDebug("Error registering blue-on-reply hook: ${e.message}")
+        }
 
-        hookConversationScreen(ticktype)
-        hookViewOnceScreen(ticktype)
-        hookStatusScreen(ticktype)
+        val ticktype = prefs.getString("seentick", "0")?.toIntOrNull() ?: 0
+        val effectiveTicktype = if (ticktype == 0 && prefs.getBoolean("blueonreply", false)) 1 else ticktype
+        if (effectiveTicktype == 0) return
+
+        hookConversationScreen(effectiveTicktype)
+        hookViewOnceScreen(effectiveTicktype)
+        hookStatusScreen(effectiveTicktype)
     }
 
 
@@ -492,26 +499,32 @@ class SeenTick(
         )
         val blueOnReplayEnabled = prefs.getBoolean("blueonreply", false)
 
+        logDebug("BlueOnReply hook registered (enabled=$blueOnReplayEnabled)")
+
         XposedBridge.hookMethod(messageJobMethod, object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
+            override fun afterHookedMethod(param: MethodHookParam) {
                 if (!blueOnReplayEnabled) {
                     return
                 }
-                val obj = messageSendClass.cast(param.thisObject)
-                val rawJid = XposedHelpers.getObjectField(obj, "jid") as String
-                val userJid = FMessageWpp.UserJid(rawJid)
-                if (userJid.isStatus) {
-                    val listStatus = MenuStatusListener.statusData.getCurrentItemList()
+                try {
+                    val obj = messageSendClass?.cast(param.thisObject) ?: return
+                    val rawJid = XposedHelpers.getObjectField(obj, "jid") as String
+                    val userJid = FMessageWpp.UserJid(rawJid)
+                    if (userJid.isStatus) {
+                        val listStatus = MenuStatusListener.statusData.getCurrentItemList()
 
-                    listStatus.forEach { fstatus ->
-                        val view = getRegisteredView(fstatus.messageID)
-                        view?.post {
-                            setSeenButton(view, true)
+                        listStatus.forEach { fstatus ->
+                            val view = getRegisteredView(fstatus.messageID)
+                            view?.post {
+                                setSeenButton(view, true)
+                            }
                         }
+                        sendBlueTickStatus(listStatus)
+                    } else {
+                        sendBlueTick(userJid)
                     }
-                    sendBlueTickStatus(listStatus)
-                } else {
-                    sendBlueTick(userJid)
+                } catch (e: Exception) {
+                    logDebug("BlueOnReply hook error: ${e.message}")
                 }
             }
         })
@@ -597,6 +610,7 @@ class SeenTick(
 
                 val sendJob = constr.newInstance(*args)
                 XposedHelpers.setAdditionalInstanceField(sendJob, "blue_on_reply", true)
+                logDebug("Submitting SendReadReceiptJob for ${groupSize} msgs to $userJidMsg")
                 waJobManagerMethod?.invoke(mWaJobManager, sendJob)
             } catch (ex: Exception) {
                 logDebug(ex)
@@ -648,6 +662,7 @@ class SeenTick(
 
                 val sendJob2 = constr.newInstance(*args)
                 XposedHelpers.setAdditionalInstanceField(sendJob2, "blue_on_reply", true)
+                logDebug("Submitting SendReadReceiptJob for ${size} status msgs to $currentJidTarget")
                 waJobManagerMethod?.invoke(mWaJobManager, sendJob2)
             } catch (e: Exception) {
                 logDebug(e)
