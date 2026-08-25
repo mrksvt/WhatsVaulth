@@ -491,7 +491,18 @@ class SeenTick(
 
     private fun hookOnSendMessages() {
 
-        val messageJobMethod = Unobfuscator.loadBlueOnReplayMessageJobMethod(classLoader)
+        var messageJobMethod = Unobfuscator.loadBlueOnReplayMessageJobMethod(classLoader)
+        if (messageJobMethod.parameterCount != 0) {
+            val onRunMethod = Unobfuscator.findAllMethodUsingStrings(
+                classLoader,
+                StringMatchType.Contains,
+                "SendE2EMessageJob/onRun"
+            ).firstOrNull { it.parameterCount == 0 }
+            if (onRunMethod != null) {
+                logDebug("BlueOnReply fallback: primary method has ${messageJobMethod.parameterCount} params, using onRun ${Unobfuscator.getMethodDescriptor(onRunMethod)}")
+                messageJobMethod = onRunMethod
+            }
+        }
         val messageSendClass = Unobfuscator.findFirstClassUsingName(
             classLoader,
             StringMatchType.Contains,
@@ -499,7 +510,7 @@ class SeenTick(
         )
         val blueOnReplayEnabled = prefs.getBoolean("blueonreply", false)
 
-        logDebug("BlueOnReply hook registered (enabled=$blueOnReplayEnabled)")
+        logDebug("BlueOnReply hook registered (enabled=$blueOnReplayEnabled) method=${Unobfuscator.getMethodDescriptor(messageJobMethod)} class=${messageSendClass?.name}")
 
         XposedBridge.hookMethod(messageJobMethod, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
@@ -510,6 +521,7 @@ class SeenTick(
                     val obj = messageSendClass?.cast(param.thisObject) ?: return
                     val rawJid = XposedHelpers.getObjectField(obj, "jid") as String
                     val userJid = FMessageWpp.UserJid(rawJid)
+                    logDebug("BlueOnReply hook triggered jid=$rawJid isStatus=${userJid.isStatus} isGroup=${userJid.isGroup}")
                     if (userJid.isStatus) {
                         val listStatus = MenuStatusListener.statusData.getCurrentItemList()
 
@@ -544,6 +556,7 @@ class SeenTick(
                     MessageHistoryStore.ReceiptType.READ,
                     false
                 )
+            logDebug("BlueOnReply sendBlueTick jid=${userJid.phoneRawString} hidden=${hiddenMessages?.size}")
 
             hiddenMessages?.forEach { message ->
                 message.fMessage?.let { messages.add(it) }
