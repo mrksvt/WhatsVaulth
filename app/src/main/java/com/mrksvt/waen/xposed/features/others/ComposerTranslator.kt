@@ -117,7 +117,6 @@ class ComposerTranslator(
         }
 
         inputFieldRef = WeakReference(editText)
-        waSendListener = null
 
         val rootView = activity.window.decorView
 
@@ -159,7 +158,6 @@ class ComposerTranslator(
     }
 
     private fun tryHookSendButton(sendBtn: View, pkg: String) {
-        if (sendBtn.getTag(R.id.wae_composer_send_btn_tag) == BUTTON_TAG) return
         val listenerInfoField = try {
             val f = View::class.java.getDeclaredField("mListenerInfo")
             f.isAccessible = true
@@ -175,7 +173,17 @@ class ComposerTranslator(
 
         val candidate = getListener()
         if (candidate != null && candidate.javaClass.name.contains("ComposerTranslator")) return
-        if (candidate != null) waSendListener = candidate
+
+        if (sendBtn.getTag(R.id.wae_composer_send_btn_tag) == BUTTON_TAG) {
+            if (candidate != null) waSendListener = candidate
+            return
+        }
+
+        if (candidate == null) {
+            logDebug("send button: WA listener not captured, skipping hook to keep button functional")
+            return
+        }
+        waSendListener = candidate
         attachSendHook(sendBtn)
         val id = Utils.getIDFromModule("wae_composer_send_btn_tag")
         if (id != 0) {
@@ -220,11 +228,9 @@ class ComposerTranslator(
                         listener.onClick(v)
                         isSendingTranslation = false
                     } else {
-                        logDebug("send hook: null listener, remove hook then performClick")
+                        logDebug("send hook: null listener, releasing hook")
                         sendBtn.setOnClickListener(null)
                         isSendingTranslation = false
-                        sendBtn.performClick()
-                        sendBtn.postDelayed({ attachSendHook(sendBtn) }, 200)
                     }
                     return@setOnClickListener
                 }
@@ -441,6 +447,18 @@ class ComposerTranslator(
             }
         }.exceptionally { err ->
             logDebug("real-time translate error: ${err.message}")
+            mainHandler.post {
+                val msg = err.cause?.message ?: err.message ?: "Translation failed"
+                try {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        rootView,
+                        rootView.context.getString(R.string.translator_failed) + ": $msg",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).show()
+                } catch (_: Exception) {
+                    Toast.makeText(rootView.context, "Gagal: $msg", Toast.LENGTH_SHORT).show()
+                }
+            }
             null
         }
     }
