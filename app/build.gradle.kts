@@ -241,7 +241,7 @@ configurations.all {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk7")
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk8")
     resolutionStrategy {
-        force("com.google.guava:guava:33.3.1-jre")
+        force("com.google.guava:guava:33.7.1-jre")
         eachDependency {
             if (requested.group == "com.google.guava" && requested.name == "guava" && requested.version == "+") {
                 useVersion("33.3.1-jre")
