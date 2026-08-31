@@ -42,6 +42,13 @@ jobs:
       - name: Build WhatsApp Debug
         run: ./gradlew assembleWhatsappDebug
 
+      - name: Verify native libs in APK
+        run: |
+          APK=$(ls app/build/outputs/apk/whatsapp/debug/WhatsVault*.apk | head -1)
+          echo "APK: $APK"
+          ls -lh "$APK"
+          unzip -l "$APK" | grep -E "\.so|lib/" || echo "NO NATIVE LIBS FOUND"
+
       - name: Get APK name
         id: apk
         run: |
