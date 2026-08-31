@@ -42,8 +42,15 @@ jobs:
       - name: Build WhatsApp Debug
         run: ./gradlew assembleWhatsappDebug
 
+      - name: Get APK name
+        id: apk
+        run: |
+          APK=$(ls app/build/outputs/apk/whatsapp/debug/WhatsVault*.apk | head -1)
+          echo "file=$APK" >> $GITHUB_OUTPUT
+          echo "name=$(basename "$APK")" >> $GITHUB_OUTPUT
+
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: WhatsVault
-          path: app/build/outputs/apk/whatsapp/debug/WhatsVault*.apk
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.file }}
