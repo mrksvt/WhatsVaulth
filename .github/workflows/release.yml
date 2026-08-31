@@ -50,8 +50,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build all variants
-        run: ./gradlew assembleWhatsappDebug assembleBusinessDebug -Pminify=true
+      - name: Build WhatsApp Debug
+        run: ./gradlew assembleWhatsappDebug
 
       - name: Upload to GitHub release
         uses: softprops/action-gh-release@v3
@@ -60,8 +60,7 @@ jobs:
           name: WaEnhancer ${{ steps.vars.outputs.version }}
           body_path: changelog.txt
           files: |
-            app/build/outputs/apk/whatsapp/debug/WaEnhancer*.apk
-            app/build/outputs/apk/business/debug/WaEnhancer-Business*.apk
+            app/build/outputs/apk/whatsapp/debug/WhatsVault*.apk
           tag_name: ${{ steps.vars.outputs.tag }}
 
       - name: Read changelog
