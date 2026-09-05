@@ -28,6 +28,9 @@ import java.util.Collections
 import java.util.Date
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
     Feature(loader, preferences) {
@@ -36,6 +39,15 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         private val messageRevokedMap = ConcurrentHashMap<String, MutableSet<String>>()
 
         private val savedMediaPaths = ConcurrentHashMap<String, String>()
+
+        // Debounced trash cache writer: full-table JSON dump is expensive,
+        // coalesce revoke bursts instead of dumping on every single event.
+        private const val TRASH_WRITE_DEBOUNCE_MS = 1500L
+        private val trashWriteGeneration = AtomicInteger(0)
+        private val trashWriteScheduler =
+            Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, "WhatsVault-TrashCacheWrite").apply { isDaemon = true }
+            }
 
         private val dateFormatThreadLocal = ThreadLocal.withInitial {
             DateFormat.getDateTimeInstance(
@@ -409,6 +421,23 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private fun writeTrashCache() {
+        scheduleTrashCacheWrite()
+    }
+
+    private fun scheduleTrashCacheWrite() {
+        // Debounce: coalesce bursts of revoke events into one full-table dump
+        val gen = trashWriteGeneration.incrementAndGet()
+        trashWriteScheduler.schedule({
+            if (trashWriteGeneration.get() != gen) return@schedule
+            try {
+                doWriteTrashCache()
+            } catch (e: Throwable) {
+                logDebug("writeTrashCache failed: ${e.message}")
+            }
+        }, TRASH_WRITE_DEBOUNCE_MS, TimeUnit.MILLISECONDS)
+    }
+
+    private fun doWriteTrashCache() {
         try {
             val messages = DelMessageStore.getInstance(Utils.application).getAllMessages()
             val arr = org.json.JSONArray()

@@ -29,6 +29,17 @@ class MessageStore private constructor() {
         @Volatile
         private var mInstance: MessageStore? = null
 
+        // Bounded LRU cache for rowId -> original key_id (immutable mapping).
+        // Avoids a message_add_on rawQuery per conversation item bind.
+        private const val ORIGINAL_KEY_CACHE_SIZE = 2048
+        private val originalKeyCache =
+            java.util.Collections.synchronizedMap(
+                object : java.util.LinkedHashMap<Long, String>(64, 0.75f, true) {
+                    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, String>) =
+                        size > ORIGINAL_KEY_CACHE_SIZE
+                }
+            )
+
         @JvmStatic
         fun getInstance(): MessageStore {
             return mInstance?.takeIf { it.sqLiteDatabase?.isOpen == true }
@@ -129,6 +140,7 @@ class MessageStore private constructor() {
     }
 
     fun getOriginalMessageKey(id: Long): String {
+        originalKeyCache[id]?.let { return it }
         val db = sqLiteDatabase ?: return ""
         var message = ""
         val sql =
@@ -141,6 +153,13 @@ class MessageStore private constructor() {
             }
         } catch (e: Exception) {
             XposedBridge.log(e)
+        }
+        // rowId -> key_id mapping is immutable; cache to avoid a rawQuery per
+        // conversation item bind (getView hot path)
+        if (message.isNotEmpty()) {
+            synchronized(originalKeyCache) {
+                originalKeyCache[id] = message
+            }
         }
         return message
     }

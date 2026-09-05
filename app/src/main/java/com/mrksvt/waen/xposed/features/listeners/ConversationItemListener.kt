@@ -138,9 +138,13 @@ class ConversationItemListener(
                         val convertView = param.args[1] as? View
                         val viewGroup = param.result as? ViewGroup ?: return
 
-                        XposedBridge.log("[WAE_CIL] getView pos=$position thisObj=${param.thisObject?.javaClass?.simpleName}")
+                        if (Feature.DEBUG) {
+                            XposedBridge.log("[WAE_CIL] getView pos=$position thisObj=${param.thisObject?.javaClass?.simpleName}")
+                        }
                         val fMessageObj = adapter!!.getItem(position) ?: return
-                        XposedBridge.log("[WAE_CIL] fMessageObj class=${fMessageObj.javaClass.simpleName}")
+                        if (Feature.DEBUG) {
+                            XposedBridge.log("[WAE_CIL] fMessageObj class=${fMessageObj.javaClass.simpleName}")
+                        }
                         val fMessage = FMessageWpp(fMessageObj)
 
                         bindViewToMessage(viewGroup, fMessage)
