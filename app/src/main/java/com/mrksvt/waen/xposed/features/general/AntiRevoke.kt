@@ -40,6 +40,16 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
 
         private val savedMediaPaths = ConcurrentHashMap<String, String>()
 
+        // Cache for messageID -> revoke timestamp (immutable once inserted).
+        // Avoids a delmessages Room query per conversation item bind.
+        private const val TIMESTAMP_CACHE_SIZE = 2048
+        private val timestampCache = java.util.Collections.synchronizedMap(
+            object : java.util.LinkedHashMap<String, Long>(128, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>) =
+                    size > TIMESTAMP_CACHE_SIZE
+            }
+        )
+
         // Debounced trash cache writer: full-table JSON dump is expensive,
         // coalesce revoke bursts instead of dumping on every single event.
         private const val TRASH_WRITE_DEBOUNCE_MS = 1500L
@@ -218,8 +228,10 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
 
         if (messageID != null) {
             val appInstance = Utils.application
-            val timestamp =
+            val timestamp = timestampCache.get(messageID) ?: run {
                 DelMessageStore.getInstance(appInstance).getTimestampByMessageId(messageID)
+                    .also { if (it > 0) timestampCache.put(messageID, it) }
+            }
             if (timestamp > 0) {
                 val date = dateFormatThreadLocal.get()?.format(Date(timestamp))
                 dateTextView.paint.isUnderlineText = true

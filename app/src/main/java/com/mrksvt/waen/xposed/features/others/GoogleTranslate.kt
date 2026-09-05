@@ -122,7 +122,9 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
                 TranslatorWrapperAdapter.getOrCreateForJid(conversationJid, prefs)
 
                 val messageTextView = view.findViewById<TextView>(Utils.getID("message_text", "id"))
-                XposedBridge.log("[WAE_GT] onItemBind pos=$position msgId=$messageId textViewNull=${messageTextView == null} jid=$conversationJid")
+                if (Feature.DEBUG) {
+                    XposedBridge.log("[WAE_GT] onItemBind pos=$position msgId=$messageId textViewNull=${messageTextView == null} jid=$conversationJid")
+                }
                 val anchor = messageTextView ?: return
 
                 anchor.setOnClickListener {
