@@ -24,44 +24,56 @@ import de.robv.android.xposed.XC_MethodHook.MethodHookParam
 import android.content.SharedPreferences 
 import de.robv.android.xposed.XposedBridge
 import org.luckypray.dexkit.query.enums.StringMatchType
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
+class ToastViewer(classLoader: ClassLoader, preferences: SharedPreferences) :
     Feature(classLoader, preferences) {
-    init {
-        startCleanupTask()
-    }
 
     override fun doHook() {
-        val toastViewedStatus = prefs.getBoolean("toast_viewed_status", false)
         val toastViewedMessage = prefs.getBoolean("toast_viewed_message", false)
+        val toastViewedStatus = prefs.getBoolean("toast_viewed_status", false)
+        if (!toastViewedMessage && !toastViewedStatus) {
+            return
+        }
+
+        startCleanupTask()
 
         val onInsertReceipt = loadOnInsertReceipt(classLoader)
 
         XposedBridge.hookMethod(onInsertReceipt, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
-                processNewWA(param, toastViewedMessage, toastViewedStatus)
+                processNewWA(
+                    param,
+                    prefs.getBoolean("toast_viewed_message", false),
+                    prefs.getBoolean("toast_viewed_status", false)
+                )
             }
         })
         val onSeenReceiptForStatus = loadSeenReceiptForStatus(classLoader)
         XposedBridge.hookMethod(onSeenReceiptForStatus, object : XC_MethodHook() {
 
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val receiptType = param.args[1] as Int
+                val receiptType = param.args.filterIsInstance<Int>().first()
                 if (receiptType != 13) return
-                val fStatusField = ReflectionUtils.findFieldUsingFilter(param.thisObject.javaClass) {
-                    f -> FStatusWpp.TYPE.isAssignableFrom(f.type)
-                }
-                val fStatus = FStatusWpp(fStatusField.get(param.thisObject))
+                val fStatusObject = param.args.firstOrNull { FStatusWpp.TYPE.isInstance(it) }
+                    ?: runCatching {
+                        val fStatusField = ReflectionUtils.findFieldUsingFilter(param.thisObject.javaClass) {
+                            f -> FStatusWpp.TYPE.isAssignableFrom(f.type)
+                        }
+                        fStatusField.get(param.thisObject)
+                    }.getOrNull()
+                    ?: return
+                val fStatus = FStatusWpp(fStatusObject)
                 if (!fStatus.fStatusKey.isFromMe) return
                 val userjid = UserJid(param.args[0])
-                val waContactWpp = getWaContactFromJid(userjid)
-                val contactName = waContactWpp!!.displayName
-                if (toastViewedStatus) {
+                val contactName = getWaContactFromJid(userjid)?.displayName
+                    ?: getContactName(userjid)
+                if (prefs.getBoolean("toast_viewed_status", false)) {
                     Utils.showToast(
                         Utils.application.getString(R.string.viewed_your_status, contactName),
                         Toast.LENGTH_LONG
@@ -103,14 +115,14 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
             )
             val type = fieldByType!!.getInt(messageStatusUpdateReceipt)
             val id = fieldId!!.getLong(messageStatusUpdateReceipt)
-            if (type != 13) return
+            if (type != 13) continue
             val userJid = UserJid(fieldByUserJid!!.get(messageStatusUpdateReceipt))
             val fmessage = AtomicReference<Any?>()
             try {
                 fmessage.set(fieldMessage!!.get(messageStatusUpdateReceipt))
             } catch (_: Exception) {
             }
-            CompletableFuture.runAsync {
+            Utils.databaseExecutor.execute {
                 var contactName: String? = getContactName(userJid)
                 var rowId = id
 
@@ -138,7 +150,6 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
         return "Toast Viewer"
     }
 
-    @Synchronized
     private fun checkDataBase(
         sql: SQLiteDatabase,
         id: Long,
@@ -147,7 +158,15 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
         toastViewedMessage: Boolean,
         toastViewedStatus: Boolean
     ) {
-        sql.query("message", null, "_id = ?", arrayOf(id.toString()), null, null, null)
+        sql.query(
+            "message",
+            arrayOf("participant_hash", "chat_row_id"),
+            "_id = ?",
+            arrayOf(id.toString()),
+            null,
+            null,
+            null
+        )
             .use { result2 ->
                 if (!result2.moveToNext()) return
                 val participantHash =
@@ -172,7 +191,7 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
                 try {
                     sql.query(
                         "chat",
-                        null,
+                        arrayOf("_id"),
                         "_id = ? AND subject IS NULL",
                         arrayOf(chatId.toString()),
                         null,
@@ -182,9 +201,16 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
                         if (!result3.moveToNext()) return
                         val key = rawJid + "_" + "viewed_message"
                         val currentTime = System.currentTimeMillis()
-                        val lastEventTime: Long? = lastEventTimeMap[key]
-                        if (lastEventTime == null || (currentTime - lastEventTime) >= MIN_INTERVAL) {
-                            lastEventTimeMap[key] = currentTime
+                        val shouldEmit = synchronized(lastEventTimeMap) {
+                            val lastEventTime = lastEventTimeMap[key]
+                            if (lastEventTime == null || (currentTime - lastEventTime) >= MIN_INTERVAL) {
+                                lastEventTimeMap[key] = currentTime
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        if (shouldEmit) {
                             Tasker.sendTaskerEvent(contactName, stripJID(rawJid), "viewed_message")
                             if (toastViewedMessage) {
                                 Utils.showToast(
@@ -202,17 +228,27 @@ class ToastViewer(classLoader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private fun startCleanupTask() {
+        if (!cleanupStarted.compareAndSet(false, true)) return
         scheduler.scheduleWithFixedDelay({
             val currentTime = System.currentTimeMillis()
             synchronized(lastEventTimeMap) {
-                lastEventTimeMap.entries.removeIf { entry: MutableMap.MutableEntry<String?, Long?>? -> (currentTime - entry!!.value!!) >= MIN_INTERVAL }
+                lastEventTimeMap.entries.removeIf { entry ->
+                    currentTime - entry.value >= MIN_INTERVAL
+                }
             }
-        }, MIN_INTERVAL, MIN_INTERVAL, TimeUnit.MILLISECONDS)
+        }, CLEANUP_INTERVAL, CLEANUP_INTERVAL, TimeUnit.SECONDS)
     }
 
     companion object {
         private const val MIN_INTERVAL: Long = 1000
-        private val lastEventTimeMap: MutableMap<String?, Long?> = HashMap()
-        private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+        private const val CLEANUP_INTERVAL: Long = 30
+        private val cleanupStarted = AtomicBoolean(false)
+        private val lastEventTimeMap = ConcurrentHashMap<String, Long>()
+        private val scheduler: ScheduledExecutorService =
+            Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, "WaEnhancer-ToastViewerCleanup").apply {
+                    isDaemon = true
+                }
+            }
     }
 }

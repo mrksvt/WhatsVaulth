@@ -52,6 +52,10 @@ android {
             applicationIdSuffix = ""
             isDefault = true
         }
+        create("business") {
+            dimension = "version"
+            applicationIdSuffix = ".w4b"
+        }
     }
 
     defaultConfig {
@@ -160,13 +164,16 @@ android {
     }
 
     applicationVariants.all {
-        resValue("string", "app_name", "WhatsVault")
+        val isBusiness = flavorName == "business"
+        val appName = if (isBusiness) "WhatsVault Business" else "WhatsVault"
+        resValue("string", "app_name", appName)
 
         val buildSuffix = getBuildTypeSuffix(buildType.name)
         val baseVersion = "1.5.5$versionSuffix$buildSuffix ($gitHash)_mrksvt"
 
         outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "WhatsVault-$baseVersion.apk"
+            val apkName = if (isBusiness) "WhatsVault-Business" else "WhatsVault"
+            (this as BaseVariantOutputImpl).outputFileName = "$apkName-$baseVersion.apk"
         }
     }
 

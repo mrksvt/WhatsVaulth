@@ -3,6 +3,7 @@ package com.mrksvt.waen.xposed.features.media
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.RecordingCanvas
+import android.media.MediaCodecInfo
 import android.os.Build
 import androidx.core.content.edit
 import com.mrksvt.waen.xposed.core.Feature
@@ -52,6 +53,10 @@ class MediaQuality(loader: ClassLoader, preferences: SharedPreferences) :
                     fieldsVideoQuality["videoMaxEdge"]?.setInt(instance, EDGE_WIDTH)
                     fieldsVideoQuality["videoMaxBitrate"]?.setInt(instance, BITRATE * 1000)
                     fieldsVideoQuality["mainHighBitRate"]?.set(instance, null)
+                    fieldsVideoQuality["videoBitrateMode"]?.set(
+                        instance,
+                        MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR
+                    )
                 }
             })
 
