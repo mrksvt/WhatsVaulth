@@ -34,8 +34,8 @@ val gitHash: String = getGitHashCommit().uppercase(Locale.getDefault())
 val versionSuffix: String = if (project.hasProperty("versionSuffix")) "-${project.property("versionSuffix")}" else ""
 
 fun getBuildTypeSuffix(buildType: String): String = when (buildType) {
-    "debug" -> "-beta"
-    else -> "-beta"
+    "debug" -> "-debug"
+    else -> "-release"
 }
 
 android {
@@ -124,7 +124,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("Boolean", "DONATUR", "false")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-beta ($gitHash)_mrksvt\"")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix} ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"\"")
             // buildConfigField("Boolean", "DISABLE_ANTI_UPDATER", "true")  // Nonaktifkan jika tidak diperlukan
@@ -141,7 +141,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("Boolean", "DONATUR", "true")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix}-beta ($gitHash)_mrksvt\"")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.5.5${versionSuffix} ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"${donaturToken()}\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"${donaturChatId()}\"")
         }

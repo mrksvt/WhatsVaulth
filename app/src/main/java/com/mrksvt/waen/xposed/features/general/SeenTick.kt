@@ -513,7 +513,7 @@ class SeenTick(
         logDebug("BlueOnReply hook registered (enabled=$blueOnReplayEnabled) method=${Unobfuscator.getMethodDescriptor(messageJobMethod)} class=${messageSendClass?.name}")
 
         XposedBridge.hookMethod(messageJobMethod, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
+            override fun beforeHookedMethod(param: MethodHookParam) {
                 if (!blueOnReplayEnabled) {
                     return
                 }
