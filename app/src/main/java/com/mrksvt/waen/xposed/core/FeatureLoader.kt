@@ -50,6 +50,7 @@ import com.mrksvt.waen.xposed.features.general.AboutContactPicker
 import com.mrksvt.waen.xposed.features.general.AntiRevoke
 import com.mrksvt.waen.xposed.features.general.TrashRecovery
 import com.mrksvt.waen.xposed.features.general.CallType
+import com.mrksvt.waen.xposed.features.general.CaptureDevice
 import com.mrksvt.waen.xposed.features.general.ChatLimit
 import com.mrksvt.waen.xposed.features.general.DeleteStatus
 import com.mrksvt.waen.xposed.features.general.NewChat
@@ -522,6 +523,7 @@ class FeatureLoader {
                 StatusDownload::class.java,
                 ViewOnce::class.java,
                 CallType::class.java,
+                CaptureDevice::class.java,
                 MediaPreview::class.java,
                 FilterGroups::class.java,
                 Tasker::class.java,

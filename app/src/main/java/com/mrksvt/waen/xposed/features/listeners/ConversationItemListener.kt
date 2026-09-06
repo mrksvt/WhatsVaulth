@@ -90,9 +90,7 @@ class ConversationItemListener(
                 if (listView.id != android.R.id.list) return
 
                 var currentAdapter = param.args[0] as? ListAdapter
-                if (currentAdapter is HeaderViewListAdapter) {
-                    currentAdapter = currentAdapter.wrappedAdapter
-                }
+                currentAdapter = unwrapBaseAdapter(currentAdapter)
                 if (currentAdapter is TranslatorWrapperAdapter) {
                     currentAdapter = currentAdapter.realAdapter
                 }
@@ -181,6 +179,20 @@ class ConversationItemListener(
 
     override fun getPluginName(): String {
         return "Conversation Item Listener"
+    }
+
+    private fun unwrapBaseAdapter(adapter: ListAdapter?): ListAdapter? {
+        return when (adapter) {
+            is HeaderViewListAdapter -> {
+                val wrapped = adapter.wrappedAdapter
+                if (wrapped is BaseAdapter) {
+                    wrapped
+                } else {
+                    adapter
+                }
+            }
+            else -> adapter
+        }
     }
 
     abstract class OnConversationItemListener {

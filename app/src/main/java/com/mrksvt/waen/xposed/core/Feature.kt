@@ -2,6 +2,7 @@ package com.mrksvt.waen.xposed.core
 
 import android.content.SharedPreferences
 import android.util.Log
+import com.mrksvt.waen.BuildConfig
 import de.robv.android.xposed.XposedBridge
 
 abstract class Feature(
@@ -39,12 +40,20 @@ abstract class Feature(
         return if (obj is Throwable) obj.stackTraceToString() else obj.toString()
     }
 
-    fun logDebug(obj: Any?) {
-        if (!DEBUG) return
+    private fun sanitizeLog(message: String): String {
+        return message
+            .replace(Regex("\\+?\\d{10,15}@[a-zA-Z0-9.-]+"), "[REDACTED_JID]")
+            .replace(Regex("\\+?\\d{10,15}"), "[REDACTED_PHONE]")
+            .replace(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"), "[REDACTED_ID]")
+            .replace(Regex("message[_\\s]?(id|ID)['\"]?\\s*[:=]\\s*['\"]?[^'\"\\s]+"), "message_id=[REDACTED]")
+            .replace(Regex("jid['\"]?\\s*[:=]\\s*['\"]?[^'\"\\s]+"), "jid=[REDACTED]")
+    }
 
-        // Passamos o objeto formatado para o log do XposedBridge
+    fun logDebug(obj: Any?) {
+        if (!DEBUG || !BuildConfig.DEBUG) return
+
         val formattedStr = formatObject(obj)
-        log(formattedStr)
+        log(sanitizeLog(formattedStr))
 
         if (obj is Throwable) {
             Log.i("Vector-lsposed", "${getPluginName()}-> ${obj.message}", obj)
@@ -54,10 +63,10 @@ abstract class Feature(
     }
 
     fun logDebug(title: String, obj: Any?) {
-        if (!DEBUG) return
+        if (!DEBUG || !BuildConfig.DEBUG) return
 
         val formattedStr = formatObject(obj)
-        log("$title: $formattedStr")
+        log(sanitizeLog("$title: $formattedStr"))
 
         if (obj is Throwable) {
             Log.i("WAE", "${getPluginName()}-> $title: ${obj.message}", obj)
@@ -71,7 +80,7 @@ abstract class Feature(
             XposedBridge.log(String.format("[%s] Error:", getPluginName()))
             XposedBridge.log(obj)
         } else {
-            XposedBridge.log(String.format("[%s] %s", getPluginName(), formatObject(obj)))
+            XposedBridge.log(String.format("[%s] %s", getPluginName(), sanitizeLog(formatObject(obj))))
         }
     }
 }

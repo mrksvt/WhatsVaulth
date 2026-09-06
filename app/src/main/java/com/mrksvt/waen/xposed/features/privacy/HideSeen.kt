@@ -47,6 +47,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         hookReceiptMethod()
         hookSenderPlayed()
         hookSenderPlayedBusiness()
+        hookEnforceHiding()
     }
 
     private fun loadPreferences() {
@@ -303,6 +304,31 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         }
     }
 
+    private fun hookEnforceHiding() {
+        try {
+            val messageClass = classLoader.loadClass("com.whatsapp.protocol.Message")
+            val methods = messageClass.declaredMethods
+            for (method in methods) {
+                if (method.returnType == Boolean::class.java &&
+                    method.name.contains("isRead", ignoreCase = true)) {
+                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            if (hideRead || ghostMode) {
+                                param.result = null
+                                val message = param.thisObject
+                                val msgId = XposedHelpers.getObjectField(message, "id")?.toString()
+                                logDebug("Enforce hiding read receipt for message: $msgId")
+                            }
+                        }
+                    })
+                    logDebug("HideSeen enforceHiding installed on: ${method.name}")
+                    break
+                }
+            }
+        } catch (e: Exception) {
+            logDebug("HideSeen enforceHiding failed: ${e.message}")
+        }
+    }
 
     override fun getPluginName(): String {
         return "Hide Seen"

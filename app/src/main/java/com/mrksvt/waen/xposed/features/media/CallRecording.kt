@@ -138,7 +138,37 @@ class CallRecording(
             logDebug("WaEnhancer: Could not hook VoipActivity: ${e.message}")
         }
 
+        try {
+            hookPeerJidMethod()
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: Could not hook getPeerJid method: ${e.message}")
+        }
+
         logDebug("WaEnhancer: Call Recording initialized with $hooksInstalled hooks")
+    }
+
+    private fun hookPeerJidMethod() {
+        try {
+            val callClass = classLoader.loadClass("com.whatsapp.voipcalling.VoipCall")
+            val methods = callClass.declaredMethods
+            for (method in methods) {
+                if (method.name == "getPeerJid" && method.parameterCount == 0) {
+                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            val peerJid = param.result
+                            if (peerJid != null) {
+                                setCurrentUserJid(peerJid, "getPeerJid")
+                            }
+                        }
+                    })
+                    logDebug("WaEnhancer: getPeerJid() hooked successfully")
+                    return
+                }
+            }
+            logDebug("WaEnhancer: getPeerJid() method not found")
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: getPeerJid() hook failed: ${e.message}")
+        }
     }
 
     private fun handleCallEnded(reason: String) {
