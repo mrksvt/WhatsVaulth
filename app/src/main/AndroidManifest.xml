@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <uses-permission
@@ -162,5 +164,20 @@
                 <action android:name="android.support.customtabs.action.CustomTabsService"/>
             </intent-filter>
         </receiver>
+
+        <!--
+            Diekspor karena PendingIntent play dibuat di proses WhatsApp (UID
+            berbeda) lewat kode hook. Aksi dibatasi: receiver hanya memutar file
+            di bawah files/tts_cache milik app (divalidasi di TtsPlayReceiver),
+            dan tidak ada data yang diekspos lewat receiver ini.
+        -->
+        <receiver
+            android:name=".receivers.TtsPlayReceiver"
+            android:exported="true" />
+
+        <service
+            android:name=".services.TtsPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>

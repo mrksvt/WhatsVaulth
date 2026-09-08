@@ -17,6 +17,8 @@ nav = "2.9.6"
 kotlin = "2.2.21"
 markwon = "4.6.2"
 remotePreferences = "0.8"
+workRuntime = "2.10.2"
+junit = "4.13.2"
 androidsvg = "1.4"
 
 [libraries]
@@ -50,6 +52,8 @@ rikkax-widget-borderview = { module = "dev.rikka.rikkax.widget:borderview", vers
 material = { module = "com.google.android.material:material", version = "1.13.0" }
 markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
 remote-preferences = { module = "com.crossbowffs.remotepreferences:remotepreferences", version.ref = "remotePreferences" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "workRuntime" }
+junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

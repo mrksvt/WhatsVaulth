@@ -34,6 +34,12 @@
         app:title="@string/translator_menu"
         app:summary="@string/translator_menu_sum" />
 
+    <rikka.material.preference.MaterialSwitchPreference
+        app:key="contact_voice_tts"
+        app:iconSpaceReserved="false"
+        app:title="@string/voice_tts_enable_setting"
+        app:summary="@string/voice_tts_enable_setting_sum" />
+
     <PreferenceCategory
         app:iconSpaceReserved="false"
         app:title="@string/status">

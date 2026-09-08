@@ -49,6 +49,7 @@ import com.mrksvt.waen.xposed.features.customization.ShowOnline
 import com.mrksvt.waen.xposed.features.general.AboutContactPicker
 import com.mrksvt.waen.xposed.features.general.AntiRevoke
 import com.mrksvt.waen.xposed.features.general.TrashRecovery
+import com.mrksvt.waen.xposed.features.voice_tts.hooks.VoiceTTSFeature
 import com.mrksvt.waen.xposed.features.general.CallType
 import com.mrksvt.waen.xposed.features.general.CaptureDevice
 import com.mrksvt.waen.xposed.features.general.ChatLimit
@@ -555,6 +556,7 @@ class FeatureLoader {
                 DefaultEmoji::class.java,
                 pluginIfPresent("com.mrksvt.waen.xposed.features.others.ViewInspector"),
                 CustomTick::class.java,
+                VoiceTTSFeature::class.java,
                 pluginIfPresent("com.mrksvt.waen.xposed.features.customization.CustomFont")
             )
 

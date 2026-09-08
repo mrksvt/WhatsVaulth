@@ -593,6 +593,27 @@
     <string name="dev_engineering">DevEngineering</string>
     <string name="dev_engineering_sum">Hook semua tap/klik di WhatsApp untuk inspeksi view ID</string>
     <string name="dev_log_display">Log Klik</string>
+    <!-- Contact Voice TTS -->
+    <string name="voice_tts_listen">Baca dengan Suara</string>
+    <string name="voice_tts_hide">Sembunyikan suara</string>
+    <string name="voice_tts_loading">Menyiapkan suara...</string>
+    <string name="voice_tts_failed">Gagal membuat suara</string>
+    <string name="voice_tts_retry">Coba Lagi</string>
+    <string name="voice_tts_notification_title">Contact Voice TTS</string>
+    <string name="voice_tts_notification_playing">Memutar suara...</string>
+    <string name="voice_tts_stop">Stop</string>
+    <string name="voice_tts_play">Putar</string>
+    <string name="voice_tts_auto_tts_toggle">Auto TTS untuk kontak ini</string>
+    <string name="voice_tts_voice_profile_none">Belum ada voice profile (suara default)</string>
+    <string name="voice_tts_auto_for_contact">Auto TTS untuk kontak ini</string>
+    <string name="voice_tts_no_profile_hint">Auto TTS (suara default)</string>
+    <string name="voice_tts_profile_hint">Auto TTS diaktifkan</string>
+    <string name="voice_tts_auto_off">Auto TTS dinonaktifkan</string>
+    <string name="translator_groq_key_missing">API key Groq belum diisi di pengaturan translator</string>
+    <string name="voice_tts_voice_profile_has">Profil suara tersedia</string>
+    <string name="voice_tts_enable_setting">Aktifkan Contact Voice TTS</string>
+    <string name="voice_tts_enable_setting_sum">Baca pesan dengan suara khas kontak (semua proses lokal)</string>
+
     <string name="translator_action_translate">Terjemahkan</string>
     <string name="translator_action_hide">Sembunyikan terjemahan</string>
     <string name="translator_loading">⏳ Menerjemahkan...</string>
