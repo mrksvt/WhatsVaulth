@@ -71,21 +71,9 @@ class FallbackTtsEngine(context: Context) : TtsEngine {
 
         val synthLatch = CountDownLatch(1)
         var synthResult = TextToSpeech.ERROR
-        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String) {}
-            override fun onDone(utteranceId: String) {
-                synthResult = TextToSpeech.SUCCESS
-                synthLatch.countDown()
-            }
-            @Deprecated("Deprecated")
-            override fun onError(utteranceId: String) {
-                synthResult = TextToSpeech.ERROR
-                synthLatch.countDown()
-            }
-            override fun onError(utteranceId: String, errorCode: Int) {
-                synthResult = TextToSpeech.ERROR
-                synthLatch.countDown()
-            }
+        engine.setOnUtteranceProgressListener(SynthProgressListener { ok ->
+            synthResult = if (ok) TextToSpeech.SUCCESS else TextToSpeech.ERROR
+            synthLatch.countDown()
         })
 
         val params = Bundle().apply {
@@ -107,5 +95,31 @@ class FallbackTtsEngine(context: Context) : TtsEngine {
         tts?.stop()
         tts?.shutdown()
         tts = null
+    }
+}
+
+/**
+ * Listener untuk synthesizeToFile. onDone/onError(String) wajib di-override
+ * (abstract di base class); onError(String) deprecated di API 34+ tapi tetap
+ * harus ada, jadi di-suppress di level class.
+ */
+@Suppress("OVERRIDING_DEPRECATED_MEMBER")
+private class SynthProgressListener(
+    private val onComplete: (Boolean) -> Unit,
+) : UtteranceProgressListener() {
+    override fun onStart(utteranceId: String?) {}
+
+    override fun onDone(utteranceId: String?) {
+        onComplete(true)
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onError(utteranceId: String?) {
+        onComplete(false)
+    }
+
+    override fun onError(utteranceId: String?, errorCode: Int) {
+        if (BuildConfig.DEBUG) Log.d("TtsEngine", "synthesize error($errorCode): $utteranceId")
+        onComplete(false)
     }
 }

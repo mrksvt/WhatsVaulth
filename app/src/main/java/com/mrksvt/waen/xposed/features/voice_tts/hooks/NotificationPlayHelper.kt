@@ -235,8 +235,11 @@ object NotificationPlayHelper {
                 context, ready.messageId.hashCode(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            // varian Icon (API 23+, minSdk 28 aman) - bukan ctor int deprecated
             Notification.Action.Builder(
-                android.R.drawable.ic_media_play,
+                android.graphics.drawable.Icon.createWithResource(
+                    context, android.R.drawable.ic_media_play
+                ),
                 "\uD83D\uDD0A " + context.getString(R.string.voice_tts_play),
                 pi
             ).build()
