@@ -170,6 +170,22 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
                 binding.emptyView.setVisibility(View.GONE);
                 binding.recyclerView.setVisibility(View.VISIBLE);
 
+                // Resolve nomor telepon / JID ke nama kontak perangkat.
+                // Cache per identifier supaya tidak query konten provider
+                // berkali-kali untuk file yang sama dari kontak yang sama.
+                java.util.Map<String, String> resolvedCache = new java.util.HashMap<>();
+                for (Recording r : allRecordings) {
+                    String key = r.getContactName();
+                    if (key == null) continue;
+                    String cached = resolvedCache.get(key);
+                    if (cached != null) {
+                        r.setContactName(cached);
+                    } else {
+                        r.resolveContactName(requireContext());
+                        resolvedCache.put(key, r.getContactName());
+                    }
+                }
+
                 // Apply sorting
                 applySort();
 

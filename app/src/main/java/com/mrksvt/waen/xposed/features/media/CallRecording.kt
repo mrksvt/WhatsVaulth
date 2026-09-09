@@ -49,6 +49,7 @@ class CallRecording(
     private val outputStreamRef = AtomicReference<FileOutputStream?>()
     private val outputFileRef = AtomicReference<File?>()
     private val currentUserJid = AtomicReference<FMessageWpp.UserJid?>()
+    private val lastCallCallback = AtomicReference<Any?>()
     private val delayedStartFuture = AtomicReference<ScheduledFuture<*>?>()
 
     private val delayedStartScheduler: ScheduledExecutorService =
@@ -103,6 +104,7 @@ class CallRecording(
                     object : XC_MethodHook() {
                         override fun afterHookedMethod(param: MethodHookParam) {
                             logDebug("WaEnhancer: soundPortCreated - will record after 3s")
+                            lastCallCallback.set(param.thisObject)
                             extractUserJid(param.thisObject)
                             isCallConnected.set(true)
                             scheduleDelayedStart()
@@ -242,6 +244,13 @@ class CallRecording(
         val userJid = FMessageWpp.UserJid(jidObject)
         if (userJid.isNull) return false
 
+        // Bukan lawan bicara个人: skip grup & broadcast supaya nama file
+        // tidak salah ambil peserta termuda dari map participants.
+        val raw = userJid.phoneRawString
+        if (raw != null && (raw.endsWith("@g.us") || raw.endsWith("@broadcast"))) {
+            return false
+        }
+
         currentUserJid.set(userJid)
         logDebug("WaEnhancer: Found phone from $source: ${userJid.phoneNumber}")
         return true
@@ -297,6 +306,17 @@ class CallRecording(
             return
         }
 
+        // Fallback: kalau JID belum ke-capture (hook getPeerJid belum fire
+        // atau participants belum tersedia di soundPortCreated), retry
+        // dari callback yang tersimpan.
+        if (cUserJid == null) {
+            val cb = lastCallCallback.get()
+            if (cb != null) {
+                logDebug("WaEnhancer: Retrying extractUserJid from saved callback")
+                extractUserJid(cb)
+            }
+        }
+
         try {
             val app = FeatureLoader.mApp ?: run {
                 logDebug("WaEnhancer: Skipping recording, app context is null")
@@ -326,7 +346,7 @@ class CallRecording(
             ensureOutputDirectory(appDir, bridge)
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val fileName = buildFileName(cUserJid, timestamp)
+            val fileName = buildFileName(currentUserJid.get(), timestamp)
             val outputTarget = openOutputTarget(bridge, appDir, fileName)
 
             outputFileRef.set(outputTarget.file)
@@ -403,15 +423,16 @@ class CallRecording(
     private fun buildFileName(userJid: FMessageWpp.UserJid?, timestamp: String): String {
         if (userJid == null) return "Call_$timestamp.m4a"
 
-        val contactName = runCatching {
+        // Fallback berjenjang: nama kontak -> nomor -> LID raw -> Unknown.
+        // "Whatsapp Contact" adalah placeholder dari getContactName saat DB null,
+        // bukan nama asli - jangan dipakai sebagai identifier.
+        val identifier = runCatching {
             WppCore.getContactName(userJid)
         }.getOrNull()
-
-        val identifier = if (contactName.isNullOrEmpty()) {
-            userJid.phoneNumber
-        } else {
-            contactName
-        }
+            ?.takeIf { it.isNotBlank() && it != "Whatsapp Contact" }
+            ?: userJid.phoneNumber
+            ?: userJid.userRawString
+            ?: "Unknown"
 
         return "Call_${sanitizeFileNamePart(identifier)}_$timestamp.m4a"
     }

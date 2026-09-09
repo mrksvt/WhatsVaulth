@@ -1,44 +1,91 @@
 package com.mrksvt.waen.model;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.media.MediaMetadataRetriever;
+
+import com.mrksvt.waen.utils.ContactHelper;
 
 import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Model class representing a call recording with metadata.
+ *
+ * Nama kontak di-derive dari nama file dengan regex longgar, lalu
+ * di-resolve ke kontak perangkat via ContactsContract (kalau identifier
+ * adalah nomor telepon / JID).
  */
 @Getter
 public class Recording {
 
     private final File file;
-    private String contactName;
+    @Setter private String contactName;
     private long duration;
     private final long date;
     private final long size;
 
-    private static final Pattern PHONE_PATTERN = Pattern.compile("Call_([+\\w\\s]+)_\\d{8}_\\d{6}.(wav|m4a)");
+    // Nama file: Call_{identifier}_{yyyyMMdd}_{HHmmss}.(wav|m4a)
+    // Identifier bisa apa saja setelah sanitasi (nama, nomor, LID, "Unknown").
+    // Regex longgar: match sampai underscore terakhir sebelum timestamp.
+    private static final Pattern FILE_PATTERN =
+            Pattern.compile("(?i)Call_(.+?)_(\\d{8}_\\d{6})\\.(wav|m4a)");
+
+    // Regex khusus pola tanpa identifier: Call_{timestamp}.{ext}
+    private static final Pattern NO_IDENTIFIER_PATTERN =
+            Pattern.compile("(?i)Call_(\\d{8}_\\d{6})\\.(wav|m4a)");
 
     public Recording(File file) {
         this.file = file;
         this.date = file.lastModified();
         this.size = file.length();
-        extractContactName();
+        this.contactName = extractContactName();
         parseDuration();
     }
 
-    private void extractContactName() {
+    private String extractContactName() {
         String filename = file.getName();
-        Matcher matcher = PHONE_PATTERN.matcher(filename);
+
+        // Pola normal: identifier ada
+        Matcher matcher = FILE_PATTERN.matcher(filename);
         if (matcher.matches() && matcher.groupCount() >= 1) {
             String extracted = matcher.group(1);
-            contactName = (extracted != null && !extracted.isEmpty()) ? extracted : "Unknown";
-        } else {
-            contactName = "Unknown";
+            if (extracted != null && !extracted.isEmpty()) {
+                // Restore _ -> spasi untuk tampilan, kecuali kalau terlalu
+                // banyak underscore (kemungkinan benar-benar bagian nama file)
+                String display = extracted.replace("_", " ");
+                return display;
+            }
+        }
+
+        // Pola tanpa identifier: Call_{timestamp}.{ext}
+        if (NO_IDENTIFIER_PATTERN.matcher(filename).matches()) {
+            return "Unknown";
+        }
+
+        // Bukan pola recording sama sekali — tampilkan nama file apa adanya
+        int dotIdx = filename.lastIndexOf('.');
+        return dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
+    }
+
+    public void resolveContactName(Context context) {
+        if (contactName == null || contactName.equals("Unknown")) return;
+
+        String identifier = contactName;
+
+        // Deteksi JID / nomor telepon (digits-only, atau ends with @s.whatsapp.net / @lid)
+        boolean looksLikeJid = identifier.contains("@")
+                || (identifier.matches("\\+?\\d{5,15}"));  // E.164-ish
+
+        if (!looksLikeJid) return;  // Sudah nama asli, skip lookup
+
+        String resolved = ContactHelper.getContactName(context, identifier);
+        if (resolved != null && !resolved.isEmpty()) {
+            contactName = resolved;
         }
     }
 
