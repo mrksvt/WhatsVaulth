@@ -244,7 +244,7 @@ class CallRecording(
         val userJid = FMessageWpp.UserJid(jidObject)
         if (userJid.isNull) return false
 
-        // Bukan lawan bicara个人: skip grup & broadcast supaya nama file
+        // Bukan lawan bicara personal: skip grup & broadcast supaya nama file
         // tidak salah ambil peserta termuda dari map participants.
         val raw = userJid.phoneRawString
         if (raw != null && (raw.endsWith("@g.us") || raw.endsWith("@broadcast"))) {
