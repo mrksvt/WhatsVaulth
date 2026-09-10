@@ -40,16 +40,18 @@ class TtsPlaybackService : Service() {
         private const val CHANNEL_ID = "wae_tts_playback"
         private const val NOTIFICATION_ID = 9821777
 
-        fun startPlay(context: Context, audioPath: String, messageId: String) {
+        fun startPlay(context: Context, audioPath: String, messageId: String): Boolean {
             val intent = Intent(context, TtsPlaybackService::class.java).apply {
                 action = ACTION_PLAY
                 putExtra(EXTRA_AUDIO_PATH, audioPath)
                 putExtra(EXTRA_MESSAGE_ID, messageId)
             }
-            try {
+            return try {
                 context.startForegroundService(intent)
+                true
             } catch (t: Throwable) {
                 if (BuildConfig.DEBUG) android.util.Log.w("TtsPlaybackService", "startPlay failed: ${t.message}")
+                false
             }
         }
 
@@ -69,6 +71,9 @@ class TtsPlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Android 8+ contract: if started via startForegroundService(), must call
+        // startForeground() within ~5s regardless of whether we will play anything.
+        startForeground(NOTIFICATION_ID, buildNotification(intent?.getStringExtra(EXTRA_MESSAGE_ID) ?: ""))
         when (intent?.action) {
             ACTION_PLAY -> handlePlay(intent)
             ACTION_STOP -> {
@@ -89,8 +94,6 @@ class TtsPlaybackService : Service() {
             stopSelf()
             return
         }
-
-        startForeground(NOTIFICATION_ID, buildNotification(intent.getStringExtra(EXTRA_MESSAGE_ID) ?: ""))
 
         releasePlayer()
 
@@ -125,10 +128,8 @@ class TtsPlaybackService : Service() {
             .build()
 
         val result = am.requestAudioFocus(request)
-        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return
+        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED && BuildConfig.DEBUG) {
+            android.util.Log.d("TtsPlaybackService", "focus not granted (result=$result), playing anyway")
         }
         focusRequest = request
 

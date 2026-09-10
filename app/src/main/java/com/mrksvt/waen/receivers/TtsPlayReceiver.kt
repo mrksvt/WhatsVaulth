@@ -31,9 +31,12 @@ class TtsPlayReceiver : BroadcastReceiver() {
                 // PendingIntent dibuat di proses WhatsApp (UID berbeda), jadi
                 // input eksternal wajib divalidasi sebelum start service.
                 if (!isAllowedTtsPath(context, audioPath)) return
-                TtsPlaybackService.startPlay(context, audioPath, messageId)
+                if (!TtsPlaybackService.startPlay(context, audioPath, messageId)) {
+                    com.mrksvt.waen.services.TtsInlinePlayer.play(context, audioPath)
+                }
             }
             ACTION_STOP_TTS -> {
+                com.mrksvt.waen.services.TtsInlinePlayer.stop()
                 TtsPlaybackService.stop(context)
             }
         }

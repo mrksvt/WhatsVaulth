@@ -403,6 +403,22 @@ object WppCore {
     }
 
     @JvmStatic
+    fun getAddressBookName(rawJid: String?): String {
+        loadWADatabase()
+        if (mWaDatabase == null || rawJid.isNullOrBlank()) return ""
+        return try {
+            var name = ""
+            mWaDatabase?.query(
+                "wa_address_book", arrayOf("display_name"), "jid = ?",
+                arrayOf(rawJid), null, null, null
+            )?.use { c -> if (c.moveToFirst()) name = c.getString(0) ?: "" }
+            name
+        } catch (_: Throwable) {
+            ""
+        }
+    }
+
+    @JvmStatic
     fun getFMessageFromKey(messageKey: Any?): Any? {
         if (messageKey == null) return null
         return try {

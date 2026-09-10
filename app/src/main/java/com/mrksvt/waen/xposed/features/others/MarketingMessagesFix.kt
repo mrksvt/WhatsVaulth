@@ -147,38 +147,47 @@ class MarketingMessagesFix(classLoader: ClassLoader, preferences: SharedPreferen
 
     private fun migrateMarketingBackgroundSend(db: SQLiteDatabase) {
         if (schemaMigrated.get()) return
-        synchronized(migrateLock) {
-            if (schemaMigrated.get()) return
-            try {
-                if (!db.isOpen) return
-                val path = try {
-                    db.path.orEmpty()
-                } catch (_: Throwable) {
-                    ""
-                }
-                val hasTable = tableExists(db, TABLE)
-                if (!hasTable) {
-                    if (path.contains("smb.db", ignoreCase = true)) {
-                        logDebug("smb.db open but $TABLE missing — skip migrate")
+        // columnNames()/tableExists() run PRAGMA & SELECT through the same
+        // rawQuery hook we installed; without this guard the nested query calls
+        // migrate() again and it recurses to StackOverflowError.
+        if (migrating.get()) return
+        migrating.set(true)
+        try {
+            synchronized(migrateLock) {
+                if (schemaMigrated.get()) return
+                try {
+                    if (!db.isOpen) return
+                    val path = try {
+                        db.path.orEmpty()
+                    } catch (_: Throwable) {
+                        ""
                     }
-                    return
-                }
-                val existing = columnNames(db, TABLE)
-                for ((col, decl) in MISSING_COLUMNS) {
-                    if (col !in existing) {
-                        val sql = "ALTER TABLE $TABLE ADD COLUMN $col $decl"
-                        try {
-                            db.execSQL(sql)
-                            log("Added column $col to $TABLE")
-                        } catch (e: SQLiteException) {
-                            logDebug("ALTER TABLE $col skipped (already exists): ${e.message}")
+                    val hasTable = tableExists(db, TABLE)
+                    if (!hasTable) {
+                        if (path.contains("smb.db", ignoreCase = true)) {
+                            logDebug("smb.db open but $TABLE missing — skip migrate")
+                        }
+                        return
+                    }
+                    val existing = columnNames(db, TABLE)
+                    for ((col, decl) in MISSING_COLUMNS) {
+                        if (col !in existing) {
+                            val sql = "ALTER TABLE $TABLE ADD COLUMN $col $decl"
+                            try {
+                                db.execSQL(sql)
+                                log("Added column $col to $TABLE")
+                            } catch (e: SQLiteException) {
+                                logDebug("ALTER TABLE $col skipped (already exists): ${e.message}")
+                            }
                         }
                     }
+                    schemaMigrated.set(true)
+                } catch (e: Throwable) {
+                    log("migrateMarketingBackgroundSend: ${e.message}")
                 }
-                schemaMigrated.set(true)
-            } catch (e: Throwable) {
-                log("migrateMarketingBackgroundSend: ${e.message}")
             }
+        } finally {
+            migrating.set(false)
         }
     }
 
@@ -213,6 +222,7 @@ class MarketingMessagesFix(classLoader: ClassLoader, preferences: SharedPreferen
 
         private val migrateLock = Any()
         private val schemaMigrated = AtomicBoolean(false)
+        private val migrating = ThreadLocal.withInitial { false }
 
         private val MISSING_COLUMNS = linkedMapOf(
             "scheduled_batch_id" to "TEXT",

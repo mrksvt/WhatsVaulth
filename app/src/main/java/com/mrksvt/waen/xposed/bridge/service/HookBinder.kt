@@ -83,8 +83,13 @@ object HookBinder : WaeIIFace.Stub() {
             val ctx = getApplicationContext() ?: return -1
             val db = VoiceTtsStore.getInstance(ctx)
             db.voiceProfileDao().ensureRow(contactId)
-            db.voiceProfileDao().setAutoTtsEnabled(contactId, enabled == 1)
-            0
+            val changed = db.voiceProfileDao().setAutoTtsEnabled(contactId, enabled == 1)
+            if (changed == 0) {
+                Log.w(TAG, "setAutoTtsEnabled: row missing/unupdated for $contactId")
+                -1
+            } else {
+                0
+            }
         } catch (e: Exception) {
             Log.w(TAG, "setAutoTtsEnabled failed: ${e.message}")
             -1

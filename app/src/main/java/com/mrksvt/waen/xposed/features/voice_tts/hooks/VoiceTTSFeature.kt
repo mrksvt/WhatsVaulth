@@ -1,9 +1,11 @@
 package com.mrksvt.waen.xposed.features.voice_tts.hooks
 
 import android.app.Activity
+import android.content.Context
 import android.content.SharedPreferences
 import android.view.Gravity
 import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ListAdapter
@@ -23,6 +25,7 @@ import com.mrksvt.waen.xposed.features.voice_tts.core.SyntheticBubbleStore
 import com.mrksvt.waen.xposed.features.voice_tts.core.TtsCachePaths
 import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
+import com.mrksvt.waen.xposed.features.others.GoogleTranslate
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -49,6 +52,14 @@ class VoiceTTSFeature(
 ) : Feature(classLoader, preferences) {
 
     companion object {
+        private const val MAX_INCOMING_HOOK_DEPTH = 3
+
+        private const val ITEM_LISTEN = 1
+        private const val ITEM_HIDE_TTS = 2
+        private const val ITEM_TRANSLATE = 3
+        private const val ITEM_HIDE_TRANSLATION = 4
+        private const val AUTO_TTS_MENU_ID = 1001
+
         /** Shared generic bubble store per conversation (same one the wrapper adapter renders). */
         @JvmStatic
         fun bubbleStoreFor(jid: String): SyntheticBubbleStore =
@@ -79,9 +90,34 @@ class VoiceTTSFeature(
                 if (id == 0) -1 else id
             }
         }
+
+        private val autoTtsCache = ConcurrentHashMap<String, Boolean>()
+
+        @JvmStatic
+        fun putAutoTtsCache(contactId: String, enabled: Boolean) {
+            autoTtsCache[contactId] = enabled
+        }
     }
 
+    private fun isAutoTtsCached(contactId: String): Boolean {
+        autoTtsCacheHit(contactId)?.let { return it }
+        val enabled = try {
+            WppCore.getClientBridge()?.isAutoTtsEnabled(contactId) == 1
+        } catch (_: Exception) { false }
+        Companion.autoTtsCache[contactId] = enabled
+        return enabled
+    }
+
+    private fun autoTtsCacheHit(contactId: String): Boolean? = Companion.autoTtsCache[contactId]
+
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    // Guard re-entrancy: FMessageWpp.messageStr() meng-invoke method yang sama
+    // dengan target hook ini (loadNewMessageWithMediaMethod dipakai di
+    // FMessageWpp.messageWithMediaMethod). Method.invoke dari getter tidak
+    // bypass hook chain LSPosed, tanpa guard afterHookedMethod saling panggil
+    // terus-menerus sampai StackOverflow.
+    private val incomingHookDepth = ThreadLocal.withInitial { 0 }
 
     override fun doHook() {
         if (!prefs.getBoolean("contact_voice_tts", false)) return
@@ -91,12 +127,6 @@ class VoiceTTSFeature(
             logDebug("NotificationPlayHelper.install failed: ${t.message}")
         }
 
-        // --- Tugas A: hook incoming media messages ---
-        try { hookVoiceNoteCapture() } catch (t: Throwable) {
-            logDebug("hookVoiceNoteCapture setup failed: ${t.message}")
-        }
-
-        // --- Tugas D: synthetic bubble injection on item bind ---
         ConversationItemListener.conversationListeners.add(
             object : ConversationItemListener.OnConversationItemListener() {
                 override fun onItemBind(
@@ -112,112 +142,155 @@ class VoiceTTSFeature(
                     }
                 }
 
-                override fun onAttachAdapter(adapter: ListAdapter?) {
-                    // store persists per jid; wrapper adapter rebuilds its index on attach
-                }
+                override fun onAttachAdapter(adapter: ListAdapter?) {}
             }
         )
 
-        // --- Tugas E#1: tap popup with "Dengarkan" option ---
-        hookBubbleTap()
+        // --- Tugas A + E#3: satu hook gabungan untuk media masuk & pesan teks masuk ---
+        try { hookIncomingMessages() } catch (t: Throwable) {
+            logDebug("hookIncomingMessages setup failed: ${t.message}")
+        }
 
-        // --- Tugas E#2: conversation header3-dot menu items ---
+        // --- Tugas E#2: conversation header 3-dot menu items ---
         try { hookConversationOptionsMenu() } catch (t: Throwable) {
             logDebug("hookConversationOptionsMenu setup failed: ${t.message}")
         }
+    }
 
-        // --- Tugas E#3: auto-TTS on incoming message ---
-        try { hookAutoTtsOnIncoming() } catch (t: Throwable) {
-            logDebug("hookAutoTtsOnIncoming setup failed: ${t.message}")
+    private fun hookIncomingMessages() {
+        val targets: List<java.lang.reflect.Method> = try {
+            Unobfuscator.loadMessageTextGetterOverrides(classLoader).toList()
+        } catch (_: Throwable) {
+            listOf(Unobfuscator.loadNewMessageWithMediaMethod(classLoader))
+        }
+        log("hookIncomingMessages: ${targets.joinToString { "${it.declaringClass.name}.${it.name}" }}")
+
+        val callback = object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val depth = incomingHookDepth.get() ?: 0
+                if (depth >= MAX_INCOMING_HOOK_DEPTH) {
+                    log("hookIncomingMessages: maximum re-entry depth reached, aborting nested TTS processing")
+                    return
+                }
+                if (depth > 0) {
+                    logDebug("hookIncomingMessages: re-entry detected at depth=$depth, skipping nested invocation")
+                    return
+                }
+                incomingHookDepth.set(depth + 1)
+                try {
+                    processIncomingMessage(param)
+                } catch (t: Throwable) {
+                    logDebug("hookIncomingMessages error: ${t.message}")
+                } finally {
+                    incomingHookDepth.set(depth)
+                }
+            }
+        }
+        targets.forEach { XposedBridge.hookMethod(it, callback) }
+    }
+
+    private fun processIncomingMessage(param: XC_MethodHook.MethodHookParam) {
+        val fMessageObj = if (FMessageWpp.TYPE.isInstance(param.thisObject)) {
+            param.thisObject
+        } else {
+            ReflectionUtils.getArg(param.args, FMessageWpp.TYPE, 0)
+        } ?: run {
+            logDebug(
+                "hookIncomingMessages: no FMessage in this/args (this=${param.thisObject?.javaClass?.name}, args=${param.args?.size})"
+            )
+            return
+        }
+        val fMessage = FMessageWpp(fMessageObj)
+        if (fMessage.key.isFromMe) return
+        val contactId = extractContactId(fMessage) ?: return
+
+        logDebug("hookIncomingMessages: processing contact=$contactId")
+        if (fMessage.isMediaFile) {
+            captureVoiceNote(fMessage, contactId)
+        } else {
+            autoTtsIfEnabled(fMessage, contactId)
         }
     }
 
-    // ========================================================================
-    // Tugas A: Voice Note Capture Hook
-    // ========================================================================
+    private fun captureVoiceNote(fMessage: FMessageWpp, contactId: String) {
+        val mediaType = fMessage.mediaType ?: return
+        if (mediaType != 2 && mediaType != 82) return
+        val msgId = fMessage.key.messageID ?: return
+        val file = fMessage.mediaFile ?: return
+        val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
+        if (bridge == null) {
+            logDebug("Bridge unavailable, cannot copy voice note")
+            return
+        }
+        val destFolder = "/data/data/${com.mrksvt.waen.BuildConfig.APPLICATION_ID}/files/voice_notes"
+        val destName = "${contactId}_${msgId}.opus"
+        val destPath = "$destFolder/$destName"
 
-    /**
-     * Hooks loadNewMessageWithMediaMethod (same pattern as AntiRevoke) to
-     * intercept incoming voice notes before they are further processed by WA.
-     *
-     * For every incoming voice note from a contact:
-     *   1. Compute SHA-256 of audio file (dedup guard)
-     *   2. Copy file to app-side storage via bridge (Utils.copyFile)
-     *   3. Call bridge.registerIncomingVoiceNote(metadata) -> WorkManager enqueue
-     */
-    private fun hookVoiceNoteCapture() {
-        val method = Unobfuscator.loadNewMessageWithMediaMethod(classLoader)
-        log("hookVoiceNoteCapture: ${method.declaringClass.name}.${method.name}")
-
-        XposedBridge.hookMethod(method, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                try {
-                    val fMessageObj = if (FMessageWpp.TYPE.isInstance(param.thisObject)) {
-                        param.thisObject
-                    } else {
-                        ReflectionUtils.getArg(param.args, FMessageWpp.TYPE, 0)
-                    } ?: return
-                    val fMessage = FMessageWpp(fMessageObj)
-
-                    if (!fMessage.isMediaFile) return
-                    val mediaType = fMessage.mediaType ?: return
-                    // voice note: mediaType == 2 (voice) or 82 (view-once voice)
-                    if (mediaType != 2 && mediaType != 82) return
-
-                    // only incoming messages (not from us)
-                    if (fMessage.key.isFromMe) return
-
-                    val contactId = extractContactId(fMessage) ?: return
-                    val msgId = fMessage.key.messageID ?: return
-                    val file = fMessage.mediaFile ?: return
-
-                    val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
-                    if (bridge == null) {
-                        logDebug("Bridge unavailable, cannot copy voice note")
-                        return
-                    }
-
-                    // Copy + register di background thread: hash membaca seluruh
-                    // file, tidak boleh memblokir thread pemanggil WhatsApp.
-                    val destFolder = "/data/data/${com.mrksvt.waen.BuildConfig.APPLICATION_ID}/files/voice_notes"
-                    val destName = "${contactId}_${msgId}.opus"
-                    val destPath = "$destFolder/$destName"
-                    val durationMs = 0L
-
-                    Utils.executor.execute {
-                        try {
-                            // Guard duplikat sisi hook: file tujuan sudah ada ->
-                            // voice note ini pernah diproses, lewati copy & register.
-                            if (bridge.exists(destPath)) {
-                                logDebug("Voice note already captured, skip: $destName")
-                                return@execute
-                            }
-
-                            val fileHash = computeFileHash(file)
-
-                            val error = Utils.copyFile(file, destFolder, destName)
-                            if (!error.isNullOrEmpty()) {
-                                logDebug("Voice note copy error: $error")
-                                return@execute
-                            }
-
-                            val err = bridge.registerIncomingVoiceNote(
-                                contactId, fileHash, destPath, durationMs, System.currentTimeMillis()
-                            )
-                            if (err.isNotEmpty()) {
-                                logDebug("registerIncomingVoiceNote error: $err")
-                            } else {
-                                logDebug("Voice note registered: contact=$contactId hash=${fileHash.take(12)}")
-                            }
-                        } catch (t: Throwable) {
-                            logDebug("Voice note capture background error: ${t.message}")
-                        }
-                    }
-                } catch (t: Throwable) {
-                    logDebug("hookVoiceNoteCapture afterHookedMethod error: ${t.message}")
+        Utils.executor.execute {
+            try {
+                if (bridge.exists(destPath)) {
+                    logDebug("Voice note already captured, skip: $destName")
+                    return@execute
                 }
+                val fileHash = computeFileHash(file)
+                val error = Utils.copyFile(file, destFolder, destName)
+                if (!error.isNullOrEmpty()) {
+                    logDebug("Voice note copy error: $error")
+                    return@execute
+                }
+                val err = bridge.registerIncomingVoiceNote(
+                    contactId, fileHash, destPath, 0L, System.currentTimeMillis()
+                )
+                if (err.isNotEmpty()) {
+                    logDebug("registerIncomingVoiceNote error: $err")
+                } else {
+                    logDebug("Voice note registered: contact=$contactId hash=${fileHash.take(12)}")
+                }
+            } catch (t: Throwable) {
+                logDebug("Voice note capture background error: ${t.message}")
             }
-        })
+        }
+    }
+
+    private fun autoTtsIfEnabled(fMessage: FMessageWpp, contactId: String) {
+        val messageId = fMessage.key.messageID ?: return
+        // messageStr meng-invoke method yang sama dengan target hook: baca
+        // teks LAST, setelah semua guard murah, supaya panggilan getter
+        // ke method ter-hook tidak terjadi untuk pesan yang pasti dilewati.
+        if (!isAutoTtsCached(contactId)) return
+        val store = bubbleStoreFor(contactId)
+        if (store.hasBubbleFor(messageId, BubbleType.TTS)) return
+        val messageText = fMessage.messageStr ?: return
+        if (messageText.isBlank()) return
+
+        logDebug("Auto TTS triggered for contact=$contactId msg=$messageId")
+        rememberRequestedText(messageId, messageText)
+        NotificationPlayHelper.markRequested(messageId, messageText)
+        val bubble = store.addBubble(messageId, BubbleType.TTS, BubbleState.LOADING)
+        TranslatorWrapperAdapter.refreshBubbles(contactId)
+
+        val contactName = try {
+            val n = WppCore.getContactName(fMessage.key.remoteJid)
+            if (n.isBlank() || n == "Whatsapp Contact")
+                WppCore.getAddressBookName(fMessage.key.remoteJid.userRawString)
+            else n
+        } catch (_: Exception) { null }
+        val speakText = if (contactName.isNullOrBlank() || contactName == "Whatsapp Contact")
+            messageText
+        else
+            "$contactName, $messageText"
+
+        val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
+        try {
+            bridge?.requestTTS(contactId, messageId, speakText)
+        } catch (t: Throwable) {
+            logDebug("Auto TTS requestTTS failed: ${t.message}")
+            store.updateBubble(bubble.bubbleId, BubbleState.ERROR, t.message ?: "IPC error")
+            TranslatorWrapperAdapter.requestBubbleRefresh(contactId)
+            return
+        }
+
+        startAudioPoll(contactId, speakText, bubble, matchText = messageText, autoPlay = true)
     }
 
     private fun extractContactId(fMessage: FMessageWpp): String? {
@@ -277,21 +350,40 @@ class VoiceTTSFeature(
         val popup = PopupMenu(anchor.context, anchor)
         popup.gravity = if (isFromMe) Gravity.END else Gravity.START
 
-        popup.menu.add(0, 1, 0, anchor.context.getString(R.string.voice_tts_listen))
+        var order = 0
+        val gt = GoogleTranslate.instance
+        if (gt != null && prefs.getBoolean("google_translate", false)) {
+            popup.menu.add(0, ITEM_TRANSLATE, order++,
+                anchor.context.getString(R.string.translator_action_translate))
+            if (TranslatorWrapperAdapter.hasTranslation(conversationJid, messageId)) {
+                popup.menu.add(0, ITEM_HIDE_TRANSLATION, order++,
+                    anchor.context.getString(R.string.translator_action_hide))
+            }
+        }
+
+        popup.menu.add(0, ITEM_LISTEN, order++, anchor.context.getString(R.string.voice_tts_listen))
 
         if (bubbleStoreFor(conversationJid).hasBubbleFor(messageId, BubbleType.TTS)) {
-            popup.menu.add(0, 2, 1, anchor.context.getString(R.string.voice_tts_hide))
+            popup.menu.add(0, ITEM_HIDE_TTS, order++, anchor.context.getString(R.string.voice_tts_hide))
         }
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                1 -> {
+                ITEM_LISTEN -> {
                     triggerTts(rootView, messageText, messageId, conversationJid, isFromMe)
                     true
                 }
-                2 -> {
+                ITEM_HIDE_TTS -> {
                     bubbleStoreFor(conversationJid).removeBubblesForMessage(messageId)
                     TranslatorWrapperAdapter.refreshBubbles(conversationJid)
+                    true
+                }
+                ITEM_TRANSLATE -> {
+                    gt?.triggerTranslate(rootView, messageText, messageId, conversationJid, isFromMe)
+                    true
+                }
+                ITEM_HIDE_TRANSLATION -> {
+                    TranslatorWrapperAdapter.hideTranslation(conversationJid, messageId)
                     true
                 }
                 else -> false
@@ -312,6 +404,8 @@ class VoiceTTSFeature(
         val store = bubbleStoreFor(conversationJid)
         val bubble = store.addBubble(messageId, BubbleType.TTS, BubbleState.LOADING)
         TranslatorWrapperAdapter.refreshBubbles(conversationJid)
+        rememberRequestedText(messageId, messageText)
+        NotificationPlayHelper.markRequested(messageId, messageText)
 
         val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
         if (bridge == null) {
@@ -339,7 +433,9 @@ class VoiceTTSFeature(
     private fun startAudioPoll(
         contactId: String,
         text: String,
-        bubble: SyntheticBubble
+        bubble: SyntheticBubble,
+        matchText: String = text,
+        autoPlay: Boolean = false
     ) {
         val textHash = sha256Hex(text)
         val expectedPath = TtsCachePaths.cacheFile(contactId, textHash)
@@ -354,11 +450,12 @@ class VoiceTTSFeature(
                     TranslatorWrapperAdapter.requestBubbleRefresh(contactId)
                     try {
                         NotificationPlayHelper.cacheForNotificationPlayback(
-                            bubble.originalMessageId, text, expectedPath
+                            bubble.originalMessageId, matchText, expectedPath
                         )
                     } catch (t: Throwable) {
                         logDebug("cacheForNotificationPlayback EX: ${t.message}")
                     }
+                    if (autoPlay) playViaModule(expectedPath, bubble.originalMessageId)
                     return
                 }
                 if (attempts > 60) { // 30 seconds max
@@ -370,6 +467,22 @@ class VoiceTTSFeature(
             }
         }
         mainHandler.postDelayed(pollRunnable, 500)
+    }
+
+    private fun playViaModule(audioPath: String, messageId: String) {
+        try {
+            val intent = android.content.Intent(
+                com.mrksvt.waen.receivers.TtsPlayReceiver.ACTION_PLAY_TTS
+            ).setClassName(
+                com.mrksvt.waen.BuildConfig.APPLICATION_ID,
+                com.mrksvt.waen.receivers.TtsPlayReceiver::class.java.name
+            ).putExtra(com.mrksvt.waen.receivers.TtsPlayReceiver.EXTRA_AUDIO_PATH, audioPath)
+                .putExtra(com.mrksvt.waen.receivers.TtsPlayReceiver.EXTRA_MESSAGE_ID, messageId)
+            Utils.application.sendBroadcast(intent)
+            logDebug("Auto TTS play broadcast sent for msg=$messageId")
+        } catch (t: Throwable) {
+            logDebug("playViaModule EX: ${t.message}")
+        }
     }
 
     /**
@@ -396,7 +509,6 @@ class VoiceTTSFeature(
             return
         }
 
-        // Hook onCreateOptionsMenu to inject "Auto TTS" menu item
         val onCreateOptionsMenu = try {
             conversationClass.getDeclaredMethod("onCreateOptionsMenu", Menu::class.java)
         } catch (_: NoSuchMethodException) {
@@ -409,50 +521,15 @@ class VoiceTTSFeature(
                 try {
                     val activity = param.thisObject as? Activity ?: return
                     val menu = param.args[0] as? Menu ?: return
+                    val conversationJid = currentConversationJid() ?: return
 
-                    // JID percakapan aktif via WppCore (sudah dipakai fitur lain)
-                    val conversationJid = try {
-                        WppCore.getCurrentUserJid()?.userRawString
-                    } catch (_: Exception) { null }
-                    if (conversationJid.isNullOrBlank()) return
-
-                    val group = Menu.FIRST + 99 // unique group
-                    val autoTtsItem = menu.add(group, 1001, 100,
+                    val autoTtsItem = menu.add(Menu.FIRST + 99, AUTO_TTS_MENU_ID, 100,
                         activity.getString(R.string.voice_tts_auto_for_contact))
-
-                    // Check current state
-                    val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
-                    val isEnabled = try {
-                        bridge?.isAutoTtsEnabled(conversationJid) == 1
-                    } catch (_: Exception) { false }
-
                     autoTtsItem.setCheckable(true)
-                    autoTtsItem.setChecked(isEnabled)
+                    refreshAutoTtsItem(autoTtsItem, conversationJid, activity)
 
-                    // Show voice profile status hint
-                    val hasProfile = try {
-                        bridge?.getContactVoiceProfileStatus(conversationJid) == 1
-                    } catch (_: Exception) { false }
-                    autoTtsItem.setTitle(if (hasProfile) {
-                        activity.getString(R.string.voice_tts_auto_for_contact)
-                    } else {
-                        activity.getString(R.string.voice_tts_no_profile_hint)
-                    })
-
-                    autoTtsItem.setOnMenuItemClickListener { _ ->
-                        try {
-                            val newState = if (isEnabled) 0 else 1
-                            bridge?.setAutoTtsEnabled(conversationJid, newState)
-                            autoTtsItem.setChecked(!isEnabled)
-                            Utils.showToast(
-                                if (!isEnabled)
-                                    activity.getString(R.string.voice_tts_profile_hint)
-                                else
-                                    "Auto TTS dinonaktifkan"
-                            )
-                        } catch (t: Throwable) {
-                            logDebug("Auto TTS toggle error: ${t.message}")
-                        }
+                    autoTtsItem.setOnMenuItemClickListener {
+                        toggleAutoTts(conversationJid, autoTtsItem, activity)
                         true
                     }
                 } catch (t: Throwable) {
@@ -460,97 +537,88 @@ class VoiceTTSFeature(
                 }
             }
         })
+
+        // WA biasanya hanya memanggil onCreate sekali per Activity; tanpa refresh
+        // di prepare, checklist menampilkan state basi setelah toggle/return.
+        try {
+            val onPrepare = conversationClass.getDeclaredMethod(
+                "onPrepareOptionsMenu", Menu::class.java
+            )
+            XposedBridge.hookMethod(onPrepare, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    try {
+                        val activity = param.thisObject as? Activity ?: return
+                        val menu = param.args[0] as? Menu ?: return
+                        val item = menu.findItem(AUTO_TTS_MENU_ID) ?: return
+                        val jid = currentConversationJid() ?: return
+                        refreshAutoTtsItem(item, jid, activity)
+                    } catch (_: Throwable) { }
+                }
+            })
+        } catch (_: NoSuchMethodException) {
+            logDebug("onPrepareOptionsMenu not found; checklist tidak auto-refresh")
+        }
     }
 
-    // ========================================================================
-    // Tugas E#3: Auto-TTS on incoming message
-    // ========================================================================
+    private fun currentConversationJid(): String? {
+        return try {
+            WppCore.getCurrentUserJid()?.userRawString?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
-    private fun hookAutoTtsOnIncoming() {
-        val method = Unobfuscator.loadNewMessageWithMediaMethod(classLoader)
-        XposedBridge.hookMethod(method, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                try {
-                    val fMessageObj = if (FMessageWpp.TYPE.isInstance(param.thisObject)) {
-                        param.thisObject
-                    } else {
-                        ReflectionUtils.getArg(param.args, FMessageWpp.TYPE, 0)
-                    } ?: return
-                    val fMessage = FMessageWpp(fMessageObj)
+    private fun isAutoTtsNow(jid: String): Boolean {
+        autoTtsCacheHit(jid)?.let { return it }
+        val db = try {
+            WppCore.getClientBridge()?.isAutoTtsEnabled(jid) == 1
+        } catch (_: Throwable) {
+            false
+        }
+        putAutoTtsCache(jid, db)
+        return db
+    }
 
-                    if (fMessage.key.isFromMe) return
-                    val contactId = extractContactId(fMessage) ?: return
-                    val messageText = fMessage.messageStr ?: return
-                    if (messageText.isBlank()) return
-                    val messageId = fMessage.key.messageID ?: return
-
-                    val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
-                    val isAuto = try {
-                        bridge?.isAutoTtsEnabled(contactId) == 1
-                    } catch (_: Exception) { false }
-                    if (!isAuto) return
-
-                    logDebug("Auto TTS triggered for contact=$contactId msg=$messageId")
-
-                    rememberRequestedText(messageId, messageText)
-                    NotificationPlayHelper.markRequested(messageId, messageText)
-                    val store = bubbleStoreFor(contactId)
-                    val bubble = store.addBubble(messageId, BubbleType.TTS, BubbleState.LOADING)
-                    TranslatorWrapperAdapter.refreshBubbles(contactId)
-
-                    try {
-                        bridge?.requestTTS(contactId, messageId, messageText)
-                    } catch (t: Throwable) {
-                        logDebug("Auto TTS requestTTS failed: ${t.message}")
-                        store.updateBubble(bubble.bubbleId, BubbleState.ERROR, t.message ?: "IPC error")
-                        TranslatorWrapperAdapter.requestBubbleRefresh(contactId)
-                        return
-                    }
-
-                    startAudioPoll(contactId, messageText, bubble)
-                } catch (t: Throwable) {
-                    logDebug("hookAutoTtsOnIncoming error: ${t.message}")
-                }
-            }
+    private fun refreshAutoTtsItem(item: MenuItem, jid: String, activity: Activity) {
+        item.setChecked(isAutoTtsNow(jid))
+        val hasProfile = try {
+            WppCore.getClientBridge()?.getContactVoiceProfileStatus(jid) == 1
+        } catch (_: Throwable) {
+            false
+        }
+        item.setTitle(if (hasProfile) {
+            activity.getString(R.string.voice_tts_auto_for_contact)
+        } else {
+            activity.getString(R.string.voice_tts_no_profile_hint)
         })
     }
 
-    // ========================================================================
-    // Tugas E#1 (continued): onFinishInflate hook for bubble tap
-    // ========================================================================
-
-    private fun hookBubbleTap() {
-        val targetId = Utils.getID("conversation_text_row", "id")
-        if (targetId == 0) return
-
-        XposedBridge.hookAllMethods(
-            View::class.java, "onFinishInflate",
-            object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val frameLayout = param.thisObject as? ViewGroup ?: return
-                    if (frameLayout.id != targetId) return
-                    attachTtsTrigger(frameLayout)
-                }
+    private fun toggleAutoTts(jid: String, item: MenuItem, activity: Activity) {
+        val bridge = try { WppCore.getClientBridge() } catch (_: Throwable) { null }
+        if (bridge == null) {
+            logDebug("AutoTts toggle: bridge NULL jid=$jid")
+            Utils.showToast("Gagal menyimpan pengaturan Auto TTS")
+            return
+        }
+        try {
+            val newState = if (isAutoTtsNow(jid)) 0 else 1
+            val rc = bridge.setAutoTtsEnabled(jid, newState)
+            val readBack = try { bridge.isAutoTtsEnabled(jid) } catch (_: Throwable) { -2 }
+            logDebug("AutoTts toggle jid=$jid write=$newState rc=$rc readBack=$readBack")
+            if (rc != 0 || readBack != newState) {
+                Utils.showToast("Gagal menyimpan pengaturan Auto TTS")
+                return
             }
-        )
-    }
-
-    private fun attachTtsTrigger(frameLayout: ViewGroup) {
-        val messageTextView = frameLayout.findViewById<TextView>(getAudioViewId("message_text"))
-            ?: return
-        val messageText = messageTextView.text?.toString()
-        if (messageText.isNullOrBlank()) return
-
-        messageTextView.setOnClickListener {
-            val currentText = messageTextView.text?.toString() ?: return@setOnClickListener
-            if (currentText.isBlank()) return@setOnClickListener
-
-            val boundItem = ConversationItemListener.listItems[frameLayout]
-            val messageId = boundItem?.messageId ?: return@setOnClickListener
-            val isFromMe = boundItem.message.key.isFromMe
-            val conversationJid = extractContactId(boundItem.message) ?: return@setOnClickListener
-
-            showTtsPopup(messageTextView, frameLayout, currentText, messageId, isFromMe, conversationJid)
+            putAutoTtsCache(jid, newState == 1)
+            item.setChecked(newState == 1)
+            Utils.showToast(
+                if (newState == 1)
+                    activity.getString(R.string.voice_tts_profile_hint)
+                else
+                    activity.getString(R.string.voice_tts_auto_off)
+            )
+        } catch (t: Throwable) {
+            logDebug("Auto TTS toggle error: ${t.message}")
         }
     }
 

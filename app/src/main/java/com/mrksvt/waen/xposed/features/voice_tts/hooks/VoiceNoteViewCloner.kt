@@ -4,6 +4,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +13,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -51,6 +53,8 @@ object VoiceNoteViewCloner {
     private var voiceNoteLayoutId: Int = 0
 
     private val players = WeakHashMap<View, MediaPlayer>()
+    // fd sumber audio (dibuka via bridge, file hidup di private dir modul)
+    private val audioFds = WeakHashMap<View, ParcelFileDescriptor>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var hookInstalled = false
 
@@ -132,6 +136,8 @@ object VoiceNoteViewCloner {
             runCatching { player.release() }
         }
         players.clear()
+        audioFds.values.forEach { runCatching { it.close() } }
+        audioFds.clear()
     }
 
     private fun containsVoiceAnchors(root: View): Boolean {
@@ -174,6 +180,30 @@ object VoiceNoteViewCloner {
         }
     }
 
+    /**
+     * Audio TTS disimpan di private dir modul. Proses WhatsApp (UID berbeda) tidak
+     * bisa membuka path itu langsung -> open failed: ENOENT. Ambil fd dari sisi
+     * app via bridge openFile, lalu lewatkan fileDescriptor ke MediaPlayer.
+     */
+    private fun MediaPlayer.setBridgeDataSource(view: View, audioPath: String) {
+        val pfd = try {
+            WppCore.getClientBridge()?.openFile(audioPath, false)
+        } catch (t: Throwable) {
+            if (BuildConfig.DEBUG)
+                XposedBridge.log("[WAE_TTS] cloner src=direct err=${t.message}")
+            null
+        }
+        if (pfd != null) {
+            if (BuildConfig.DEBUG)
+                XposedBridge.log("[WAE_TTS] cloner src=bridge-fd ok")
+            runCatching { audioFds.remove(view)?.close() }
+            audioFds[view] = pfd
+            setDataSource(pfd.fileDescriptor)
+        } else {
+            setDataSource(audioPath)
+        }
+    }
+
     private fun togglePlayback(
         view: View,
         audioPath: String,
@@ -195,7 +225,7 @@ object VoiceNoteViewCloner {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )
-            setDataSource(audioPath)
+            setBridgeDataSource(view, audioPath)
             setOnPreparedListener {
                 durationText?.text = formatDuration(it.duration)
                 seekBar?.max = it.duration

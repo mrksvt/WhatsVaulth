@@ -83,6 +83,7 @@ class ConversationItemListener(
         val setAdapterHook = object : XC_MethodHook() {
             @Throws(Throwable::class)
             override fun beforeHookedMethod(param: MethodHookParam) {
+                if (conversationListeners.isEmpty()) return
                 val currentActivity = WppCore.getCurrentActivity()
                 if (currentActivity == null || currentActivity.javaClass.simpleName != "Conversation") return
 

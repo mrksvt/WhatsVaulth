@@ -37,6 +37,18 @@ import java.util.concurrent.CompletableFuture
 
 class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) :
     Feature(classLoader, preferences) {
+
+    companion object {
+        @Volatile
+        @JvmStatic
+        var instance: GoogleTranslate? = null
+            private set
+    }
+
+    init {
+        instance = this
+    }
+
     private var client: OkHttpClient? = null
 
     override fun doHook() {
@@ -215,7 +227,7 @@ class GoogleTranslate(classLoader: ClassLoader, preferences: SharedPreferences) 
         popup.show()
     }
 
-    private fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String, conversationJid: String, isFromMe: Boolean = false) {
+    internal fun triggerTranslate(rootView: ViewGroup, messageText: String, messageId: String, conversationJid: String, isFromMe: Boolean = false) {
         val prefLang = prefs.getString("translator_target_lang", "auto") ?: "auto"
         val lang = if (prefLang == "auto") Locale.getDefault().language else prefLang
         val provider = prefs.getString("translator_provider", "google") ?: "google"

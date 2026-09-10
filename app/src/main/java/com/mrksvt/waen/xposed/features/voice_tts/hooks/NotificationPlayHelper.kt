@@ -112,7 +112,7 @@ object NotificationPlayHelper {
         // jangan sentuh notifikasi kita sendiri (channel playback)
         val pkg = try {
             XposedHelpers.getObjectField(notification, "mPackage") as? String
-        } catch (_: Exception) { null }
+        } catch (_: Throwable) { null }
         if (pkg != null && pkg == BuildConfig.APPLICATION_ID) return
 
         val notifText = extractText(notification) ?: return

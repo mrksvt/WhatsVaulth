@@ -92,13 +92,31 @@ VoiceTtsWorker.doGenerateTts()
 ### Notification playback (Tugas F)
 
 ```
-TtsPlayReceiver (BroadcastReceiver, app process)
-  ACTION_PLAY_TTS → NotificationPlayHelper.playAudioFile()
-    ├─ AudioFocusRequest GAIN_TRANSIENT_MAY_DUCK
-    ├─ MediaPlayer.start(audioPath)
-    ├─ foreground notification (channel: wae_voice_tts_play)
-    ├─ onCompletion → cancel notif, abandon focus
-    └─ ACTION_STOP_TTS → cancel()
+SISI HOOK (proses WhatsApp):
+  NotificationManager.notify() hooked by NotificationPlayHelper.install()
+    ├─ extractText(notification) → textHash = sha256(text)
+    ├─ audio READY di readyByHash[hash]? 
+    │    ya → addActionToNotification(notification, hash)
+    │          buildPlayAction() → mActions.add(action)
+    │          [PendingIntent broadcast → TtsPlayReceiver]
+    └─ audio belum siap + requestedHashes[hash] ada?
+         ya → parkir notifikasi di pendingRepost[hash]
+              begitu cacheForNotificationPlayback() dipanggil:
+              → repost notification ID sama + play action
+
+SISI APP (proses WhatsVault):
+  TtsPlayReceiver (BroadcastReceiver)
+    ACTION_PLAY_TTS
+      ├─ validasi path: canonicalFile.startsWith(tts_cache/) && endsWith .wav
+      └─ TtsPlaybackService.startPlay(audioPath, messageId)
+           ├─ startForeground(channel: wae_tts_playback)
+           ├─ AudioFocusRequest GAIN_TRANSIENT_MAY_DUCK
+           ├─ MediaPlayer(path) → start()
+           ├─ onCompletion / ACTION_STOP
+           │    ├─ abandonAudioFocusRequest
+           │    ├─ stopForeground(REMOVE)
+           │    └─ stopSelf()
+           └─ AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK → volume 0.2
 ```
 
 ## Schema Database (Room, sisi app)

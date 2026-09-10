@@ -8,6 +8,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -23,6 +24,7 @@ import android.widget.ProgressBar
 import android.widget.SectionIndexer
 import android.widget.TextView
 import com.mrksvt.waen.R
+import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.db.TranslationCacheStore
 import com.mrksvt.waen.xposed.features.voice_tts.core.BubbleState
@@ -358,8 +360,10 @@ class TranslatorWrapperAdapter(
                 val localIdx = wrappedPos - slotStart - 1
                 return Triple(true, rp, bubbles[localIdx])
             }
-            offset += bubbles.size
+            // Ordering matters: subtract offset BEFORE adding this anchor's bubbles,
+            // otherwise positions between anchors map to a shifted realPos (blank rows).
             if (wrappedPos < slotStart) return Triple(false, (wrappedPos - offset).coerceAtLeast(0), null)
+            offset += bubbles.size
         }
         return Triple(false, (wrappedPos - offset).coerceAtLeast(0), null)
     }
@@ -411,7 +415,8 @@ class TranslatorWrapperAdapter(
         )
 
         if (!isSynthetic || bubble == null) {
-            return realAdapter.getView(realPos, convertView, parent)
+            val clamped = realPos.coerceIn(0, (realCount - 1).coerceAtLeast(0))
+            return realAdapter.getView(clamped, convertView, parent)
         }
 
         val context = parent.context
@@ -537,13 +542,28 @@ class TranslatorWrapperAdapter(
         val player = MediaPlayer()
         var prepared = false
         var playing = false
+        var fdHolder: ParcelFileDescriptor? = null
 
         playBtn.setOnClickListener {
             try {
                 if (!playing) {
                     if (!prepared) {
                         player.reset()
-                        player.setDataSource(audioPath)
+                        // File di private dir modul: WhatsApp UID tidak bisa buka
+                        // path langsung (ENOENT). Ambil fd dari proses app via bridge.
+                        var openErr: String? = null
+                        val bridge = try {
+                            WppCore.getClientBridge()?.openFile(audioPath, false)
+                        } catch (t: Throwable) {
+                            openErr = t.message
+                            null
+                        }
+                        if (com.mrksvt.waen.BuildConfig.DEBUG)
+                            XposedBridge.log("WAE_TTS fallback src=${if (bridge != null) "bridge-fd" else "direct"} err=$openErr")
+                        runCatching { fdHolder?.close() }
+                        fdHolder = bridge
+                        if (bridge != null) player.setDataSource(bridge.fileDescriptor)
+                        else player.setDataSource(audioPath)
                         player.setAudioAttributes(
                             AudioAttributes.Builder()
                                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -553,6 +573,10 @@ class TranslatorWrapperAdapter(
                         player.setOnCompletionListener {
                             playing = false
                             playBtn.setImageResource(android.R.drawable.ic_media_play)
+                        }
+                        player.setOnPreparedListener { mp ->
+                            val totalSec = mp.duration / 1000
+                            durationLabel.text = "%d:%02d".format(totalSec / 60, totalSec % 60)
                         }
                         player.prepare()
                         prepared = true

@@ -1334,6 +1334,34 @@ object Unobfuscator {
 
     @Throws(Exception::class)
     @JvmStatic
+    fun loadMessageTextGetterOverrides(loader: ClassLoader): Array<Method> {
+        return UnobfuscatorCache.getInstance().getMethods(loader) {
+            val abstractGetter = loadNewMessageWithMediaMethod(loader)
+            val subclasses = bridge.findClass {
+                matcher {
+                    superClass(abstractGetter.declaringClass.name)
+                }
+            }
+            val overrides = ArrayList<Method>()
+            for (classData in subclasses) {
+                try {
+                    val clazz = classData.getInstance(loader)
+                    val override = clazz.declaredMethods.firstOrNull {
+                        it.name == abstractGetter.name &&
+                                it.parameterCount == 0 &&
+                                it.returnType == String::class.java
+                    }
+                    if (override != null) overrides.add(override)
+                } catch (_: Throwable) {
+                }
+            }
+            if (overrides.isEmpty()) throw NoSuchMethodException("No concrete text-getter override")
+            overrides.toTypedArray()
+        }
+    }
+
+    @Throws(Exception::class)
+    @JvmStatic
     fun loadMessageEditMethod(loader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(loader) {
             findFirstMethodUsingStrings(
