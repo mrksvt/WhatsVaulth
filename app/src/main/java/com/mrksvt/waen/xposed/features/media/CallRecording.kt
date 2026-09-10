@@ -214,9 +214,16 @@ class CallRecording(
         if (callback == null) return
 
         try {
-            val callInfo = XposedHelpers.callMethod(callback, "getCallInfo") ?: return
+            val callInfo = XposedHelpers.callMethod(callback, "getCallInfo") ?: run {
+                logDebug("WaEnhancer: extractUserJid: getCallInfo returned null")
+                return
+            }
 
+            // 2.26.x: nama field "peerJid" ikut ter-obfuscate, tapi method
+            // getPeerJid() masih literal (dipakai juga oleh Others.callInfo()).
             val peerJid = runCatching {
+                XposedHelpers.callMethod(callInfo, "getPeerJid")
+            }.getOrNull() ?: runCatching {
                 XposedHelpers.getObjectField(callInfo, "peerJid")
             }.getOrNull()
 
@@ -423,13 +430,17 @@ class CallRecording(
     private fun buildFileName(userJid: FMessageWpp.UserJid?, timestamp: String): String {
         if (userJid == null) return "Call_$timestamp.m4a"
 
-        // Fallback berjenjang: nama kontak -> nomor -> LID raw -> Unknown.
-        // "Whatsapp Contact" adalah placeholder dari getContactName saat DB null,
-        // bukan nama asli - jangan dipakai sebagai identifier.
+        // Fallback berjenjang: nama kontak -> nama address book (LID) -> nomor
+        // -> LID raw -> Unknown. "Whatsapp Contact" adalah placeholder dari
+        // getContactName saat DB null, bukan nama asli - jangan dipakai.
         val identifier = runCatching {
             WppCore.getContactName(userJid)
         }.getOrNull()
             ?.takeIf { it.isNotBlank() && it != "Whatsapp Contact" }
+            ?: runCatching {
+                WppCore.getAddressBookName(userJid.userRawString)
+            }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
             ?: userJid.phoneNumber
             ?: userJid.userRawString
             ?: "Unknown"
