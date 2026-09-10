@@ -609,6 +609,9 @@
     <string name="voice_tts_no_profile_hint">Auto TTS (suara default)</string>
     <string name="voice_tts_profile_hint">Auto TTS diaktifkan</string>
     <string name="voice_tts_auto_off">Auto TTS dinonaktifkan</string>
+    <string name="voice_tts_train_voice_note">Jadikan data suara</string>
+    <string name="voice_tts_train_voice_note_saved">Voice note disimpan untuk data suara</string>
+    <string name="voice_tts_train_voice_note_failed">Voice note gagal disimpan</string>
     <string name="translator_groq_key_missing">API key Groq belum diisi di pengaturan translator</string>
     <string name="voice_tts_voice_profile_has">Profil suara tersedia</string>
     <string name="voice_tts_enable_setting">Aktifkan Contact Voice TTS</string>

@@ -73,8 +73,8 @@ class VoiceTtsWorker(
         val durationMs = inputData.getLong(KEY_DURATION_MS, 0L)
 
         val db = VoiceTtsStore.getInstance(applicationContext)
-        if (db.messageHashDao().exists(messageHash)) {
-            logD("Already processed: $messageHash")
+        if (db.voiceProfileDao().findByContact(contactId)?.lastSourceMessageHash == messageHash) {
+            logD("Already trained for this note: $messageHash")
             return Result.success()
         }
 

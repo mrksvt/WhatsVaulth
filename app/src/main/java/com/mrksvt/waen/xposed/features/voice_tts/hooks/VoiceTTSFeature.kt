@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.ListAdapter
 import android.widget.PopupMenu
 import android.widget.TextView
+import android.widget.Toast
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
@@ -58,6 +59,7 @@ class VoiceTTSFeature(
         private const val ITEM_HIDE_TTS = 2
         private const val ITEM_TRANSLATE = 3
         private const val ITEM_HIDE_TRANSLATION = 4
+        private const val ITEM_TRAIN_VOICE = 5
         private const val AUTO_TTS_MENU_ID = 1001
 
         /** Shared generic bubble store per conversation (same one the wrapper adapter renders). */
@@ -205,21 +207,26 @@ class VoiceTTSFeature(
         val contactId = extractContactId(fMessage) ?: return
 
         logDebug("hookIncomingMessages: processing contact=$contactId")
-        if (fMessage.isMediaFile) {
-            captureVoiceNote(fMessage, contactId)
-        } else {
-            autoTtsIfEnabled(fMessage, contactId)
-        }
+        if (fMessage.isMediaFile) return
+        autoTtsIfEnabled(fMessage, contactId)
     }
 
-    private fun captureVoiceNote(fMessage: FMessageWpp, contactId: String) {
+    private fun captureVoiceNote(
+        fMessage: FMessageWpp,
+        contactId: String,
+        notifyUser: Boolean = false
+    ) {
         val mediaType = fMessage.mediaType ?: return
         if (mediaType != 2 && mediaType != 82) return
         val msgId = fMessage.key.messageID ?: return
-        val file = fMessage.mediaFile ?: return
+        val file = fMessage.mediaFile ?: run {
+            if (notifyUser) toastOnMain(R.string.voice_tts_train_voice_note_failed)
+            return
+        }
         val bridge = try { WppCore.getClientBridge() } catch (_: Exception) { null }
         if (bridge == null) {
             logDebug("Bridge unavailable, cannot copy voice note")
+            if (notifyUser) toastOnMain(R.string.voice_tts_train_voice_note_failed)
             return
         }
         val destFolder = "/data/data/${com.mrksvt.waen.BuildConfig.APPLICATION_ID}/files/voice_notes"
@@ -243,12 +250,20 @@ class VoiceTTSFeature(
                 )
                 if (err.isNotEmpty()) {
                     logDebug("registerIncomingVoiceNote error: $err")
+                    if (notifyUser) toastOnMain(R.string.voice_tts_train_voice_note_failed)
                 } else {
                     logDebug("Voice note registered: contact=$contactId hash=${fileHash.take(12)}")
+                    if (notifyUser) toastOnMain(R.string.voice_tts_train_voice_note_saved)
                 }
             } catch (t: Throwable) {
                 logDebug("Voice note capture background error: ${t.message}")
             }
+        }
+    }
+
+    private fun toastOnMain(msgRes: Int) {
+        mainHandler.post {
+            Toast.makeText(Utils.application, msgRes, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -322,10 +337,26 @@ class VoiceTTSFeature(
 
     private fun handleItemBind(fMessage: FMessageWpp, view: ViewGroup, position: Int) {
         val messageId = fMessage.key.messageID ?: return
+        val jid = extractContactId(fMessage) ?: ""
+
+        // Trigger di label durasi, bukan bubble root: long-press di root
+        // dipakai WA untuk menu konteks native (reply/forward) - jangan dibajak.
+        val durationView = view.findViewById<View>(getAudioViewId("audio_file_duration"))
+        if (durationView != null) {
+            val mediaType = fMessage.mediaType ?: -1
+            if ((mediaType == 2 || mediaType == 82) && !fMessage.key.isFromMe && jid.isNotEmpty()) {
+                durationView.setOnLongClickListener {
+                    if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return@setOnLongClickListener false
+                    showVoiceNotePopup(durationView, fMessage, jid)
+                    true
+                }
+            } else {
+                durationView.setOnLongClickListener(null)
+            }
+        }
+
         val messageText = fMessage.messageStr ?: return
         if (messageText.isBlank()) return
-
-        val jid = extractContactId(fMessage) ?: ""
 
         val anchor = view.findViewById<TextView>(getAudioViewId("message_text")) ?: return
 
@@ -333,6 +364,23 @@ class VoiceTTSFeature(
             if (!ConversationItemListener.isViewBoundToMessage(view, messageId)) return@setOnClickListener
             showTtsPopup(anchor, view, messageText, messageId, fMessage.key.isFromMe, jid)
         }
+    }
+
+    private fun showVoiceNotePopup(anchor: View, fMessage: FMessageWpp, contactId: String) {
+        val popup = PopupMenu(anchor.context, anchor)
+        popup.menu.add(
+            0, ITEM_TRAIN_VOICE, 0,
+            anchor.context.getString(R.string.voice_tts_train_voice_note)
+        )
+        popup.setOnMenuItemClickListener { item ->
+            if (item.itemId == ITEM_TRAIN_VOICE) {
+                captureVoiceNote(fMessage, contactId, notifyUser = true)
+                true
+            } else {
+                false
+            }
+        }
+        popup.show()
     }
 
     // ========================================================================
