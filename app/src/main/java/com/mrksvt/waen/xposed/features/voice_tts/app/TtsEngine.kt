@@ -61,6 +61,9 @@ class FallbackTtsEngine(context: Context) : TtsEngine {
         val engine = tts ?: return false
         if (!initSuccess) return false
 
+        engine.setPitch(1.0f)
+        engine.setSpeechRate(0.85f)
+
         if (voiceId != null) {
             val voices = engine.voices
             val match = voices?.firstOrNull { it.name.contains(voiceId, ignoreCase = true) }
