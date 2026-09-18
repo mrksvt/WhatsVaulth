@@ -76,4 +76,24 @@
     <string name="screen_capture_stop">Stop</string>
     <string name="screen_capture_consent_required">Android needs your permission to record the screen. Grant it when asked, or video will not be recorded.</string>
     <string name="screen_capture_permission_needed">Allow "Display over other apps" so the permission dialog can appear during a call.</string>
+
+    <!-- Video call recording settings (WP-10) -->
+    <string name="call_recording_path_summary">Recordings are stored in video_call/ and voice_call/ under this folder</string>
+    <string name="call_recording_audio_profile">Audio Quality</string>
+    <string name="call_recording_audio_profile_summary">Bitrate for voice call recordings</string>
+    <string name="call_recording_audio_profile_aac96">AAC 96 kbps (smallest)</string>
+    <string name="call_recording_audio_profile_aac192">AAC 192 kbps</string>
+    <string name="call_recording_audio_profile_aac256">AAC 256 kbps (best)</string>
+    <string name="call_recording_video_enable">Record Video Calls (Screen)</string>
+    <string name="call_recording_video_summary">Record the whole screen during video calls. Android asks for permission once per call.</string>
+    <string name="call_recording_video_quality">Video Quality</string>
+    <string name="call_recording_video_quality_summary">Resolution and bitrate for screen recording</string>
+    <string name="call_recording_video_quality_auto">Auto (match screen)</string>
+    <string name="call_recording_video_quality_1080">1080p, 8 Mbps</string>
+    <string name="call_recording_video_quality_720">720p, 5 Mbps</string>
+    <string name="call_recording_video_quality_480">480p, 2.5 Mbps</string>
+    <string name="call_recording_video_info_summary">The whole screen is recorded, including your own preview. Voice is recorded separately and merged into one MP4 when the call ends. If the permission is denied, the voice recording still works.</string>
+    <string name="screen_capture_consent_title">Screen recording permission</string>
+    <string name="screen_capture_consent_message">Android 14 and newer requires you to allow screen recording for every video call. The dialog appears when a video call connects. Voice recording works even if you deny it.</string>
+    <string name="screen_capture_consent_ok">Got it</string>
 </resources>

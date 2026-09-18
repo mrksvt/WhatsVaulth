@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Video call recording settings (WP-10) -->
+    <string name="call_recording_path_summary">Rekaman disimpan di video_call/ dan voice_call/ di dalam folder ini</string>
+    <string name="call_recording_audio_profile">Kualitas Audio</string>
+    <string name="call_recording_audio_profile_summary">Bitrate untuk rekaman panggilan suara</string>
+    <string name="call_recording_audio_profile_aac96">AAC 96 kbps (paling kecil)</string>
+    <string name="call_recording_audio_profile_aac192">AAC 192 kbps</string>
+    <string name="call_recording_audio_profile_aac256">AAC 256 kbps (terbaik)</string>
+    <string name="call_recording_video_enable">Rekam Video Call (Layar)</string>
+    <string name="call_recording_video_summary">Rekam seluruh layar saat video call. Android meminta izin sekali per panggilan.</string>
+    <string name="call_recording_video_quality">Kualitas Video</string>
+    <string name="call_recording_video_quality_summary">Resolusi dan bitrate untuk rekaman layar</string>
+    <string name="call_recording_video_quality_auto">Otomatis (ikut layar)</string>
+    <string name="call_recording_video_quality_1080">1080p, 8 Mbps</string>
+    <string name="call_recording_video_quality_720">720p, 5 Mbps</string>
+    <string name="call_recording_video_quality_480">480p, 2.5 Mbps</string>
+    <string name="call_recording_video_info_summary">Seluruh layar direkam, termasuk pratinjau diri sendiri. Suara direkam terpisah lalu digabung jadi satu MP4 saat panggilan berakhir. Kalau izin ditolak, rekaman suara tetap jalan.</string>
+    <string name="screen_capture_consent_title">Izin rekam layar</string>
+    <string name="screen_capture_consent_message">Android 14 ke atas meminta izin rekam layar untuk setiap video call. Dialog muncul saat video call tersambung. Rekaman suara tetap jalan walau izin ditolak.</string>
+    <string name="screen_capture_consent_ok">Mengerti</string>
+
+    <!-- Recordings manager (WP-12) -->
+    <string name="play_video">Putar video</string>
+    <string name="video_badge">Video</string>
+</resources>

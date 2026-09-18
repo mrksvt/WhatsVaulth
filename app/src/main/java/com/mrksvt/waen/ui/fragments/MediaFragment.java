@@ -1,17 +1,20 @@
 package com.mrksvt.waen.ui.fragments;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.preference.PreferenceManager;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.activities.CallRecordingSettingsActivity;
 import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
 
 public class MediaFragment extends BasePreferenceFragment {
+
+    private static final String CONSENT_DIALOG_SHOWN = "screen_capture_consent_shown";
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -39,9 +42,28 @@ public class MediaFragment extends BasePreferenceFragment {
             });
         }
 
-        var videoCallScreenRec = findPreference("video_call_screen_rec");
-        if (videoCallScreenRec != null) {
-            videoCallScreenRec.setEnabled(false);
+        var videoEnable = findPreference("call_recording_video_enable");
+        if (videoEnable != null) {
+            videoEnable.setOnPreferenceChangeListener((preference, newValue) -> {
+                if (Boolean.TRUE.equals(newValue)) {
+                    maybeShowConsentDialog();
+                }
+                return true;
+            });
         }
+    }
+
+    private void maybeShowConsentDialog() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return;
+
+        var prefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
+        if (prefs.getBoolean(CONSENT_DIALOG_SHOWN, false)) return;
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.screen_capture_consent_title)
+                .setMessage(R.string.screen_capture_consent_message)
+                .setPositiveButton(R.string.screen_capture_consent_ok, (dialog, which) ->
+                        prefs.edit().putBoolean(CONSENT_DIALOG_SHOWN, true).apply())
+                .show();
     }
 }

@@ -75,11 +75,21 @@
             app:title="@string/call_recording_enable" />
 
         <com.mrksvt.waen.preference.FileSelectPreference
-            android:defaultValue="/sdcard/Music/WhatsVault/Recordings"
+            android:defaultValue="/sdcard/WhatsVault/recordings"
             app:dependency="call_recording_enable"
             app:directory="true"
             app:key="call_recording_path"
+            app:summary="@string/call_recording_path_summary"
             app:title="@string/call_recording_path" />
+
+        <ListPreference
+            android:defaultValue="aac_96"
+            app:dependency="call_recording_enable"
+            app:entries="@array/call_recording_audio_profile_entries"
+            app:entryValues="@array/call_recording_audio_profile_values"
+            app:key="call_recording_audio_profile"
+            app:summary="@string/call_recording_audio_profile_summary"
+            app:title="@string/call_recording_audio_profile" />
 
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
@@ -95,10 +105,27 @@
             app:title="@string/call_recording_settings" />
 
         <rikka.material.preference.MaterialSwitchPreference
-            android:enabled="false"
-            app:key="video_call_screen_rec"
-            app:summary="@string/coming_soon"
-            app:title="@string/video_call_screen_rec" />
+            android:defaultValue="false"
+            app:dependency="call_recording_enable"
+            app:key="call_recording_video_enable"
+            app:summary="@string/call_recording_video_summary"
+            app:title="@string/call_recording_video_enable" />
+
+        <ListPreference
+            android:defaultValue="auto"
+            app:dependency="call_recording_video_enable"
+            app:entries="@array/call_recording_video_quality_entries"
+            app:entryValues="@array/call_recording_video_quality_values"
+            app:key="call_recording_video_quality"
+            app:summary="@string/call_recording_video_quality_summary"
+            app:title="@string/call_recording_video_quality" />
+
+        <Preference
+            app:dependency="call_recording_video_enable"
+            app:key="call_recording_video_info"
+            app:persistent="false"
+            app:selectable="false"
+            app:summary="@string/call_recording_video_info_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory

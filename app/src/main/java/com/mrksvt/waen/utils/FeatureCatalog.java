@@ -735,6 +735,30 @@ public class FeatureCatalog {
                 null,
                 Arrays.asList("recording", "toast", "notification", "show", "hide")));
 
+        catalog.add(new SearchableFeature("call_recording_audio_profile",
+                context.getString(R.string.call_recording_audio_profile),
+                context.getString(R.string.call_recording_audio_profile_summary),
+                SearchableFeature.Category.MEDIA,
+                SearchableFeature.FragmentType.MEDIA,
+                null,
+                Arrays.asList("recording", "audio", "quality", "bitrate", "aac")));
+
+        catalog.add(new SearchableFeature("call_recording_video_enable",
+                context.getString(R.string.call_recording_video_enable),
+                context.getString(R.string.call_recording_video_summary),
+                SearchableFeature.Category.MEDIA,
+                SearchableFeature.FragmentType.MEDIA,
+                null,
+                Arrays.asList("call", "recording", "video", "screen", "mp4")));
+
+        catalog.add(new SearchableFeature("call_recording_video_quality",
+                context.getString(R.string.call_recording_video_quality),
+                context.getString(R.string.call_recording_video_quality_summary),
+                SearchableFeature.Category.MEDIA,
+                SearchableFeature.FragmentType.MEDIA,
+                null,
+                Arrays.asList("recording", "video", "quality", "resolution", "bitrate")));
+
         catalog.add(new SearchableFeature("disable_sensor_proximity",
                 context.getString(R.string.disable_the_proximity_sensor),
                 context.getString(R.string.disable_the_proximity_sensor_sum),

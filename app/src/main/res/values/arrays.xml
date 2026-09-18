@@ -22,6 +22,32 @@
         <item>2.26.36.xx</item>
     </string-array>
 
+    <string-array name="call_recording_audio_profile_entries">
+        <item>@string/call_recording_audio_profile_aac96</item>
+        <item>@string/call_recording_audio_profile_aac192</item>
+        <item>@string/call_recording_audio_profile_aac256</item>
+    </string-array>
+
+    <string-array name="call_recording_audio_profile_values">
+        <item>aac_96</item>
+        <item>aac_192</item>
+        <item>aac_256</item>
+    </string-array>
+
+    <string-array name="call_recording_video_quality_entries">
+        <item>@string/call_recording_video_quality_auto</item>
+        <item>@string/call_recording_video_quality_1080</item>
+        <item>@string/call_recording_video_quality_720</item>
+        <item>@string/call_recording_video_quality_480</item>
+    </string-array>
+
+    <string-array name="call_recording_video_quality_values">
+        <item>auto</item>
+        <item>1080</item>
+        <item>720</item>
+        <item>480</item>
+    </string-array>
+
     <string-array name="scope">
         <item>com.whatsapp</item>
         <item>com.whatsapp.w4b</item>
