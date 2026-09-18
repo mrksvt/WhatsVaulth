@@ -45,7 +45,8 @@ interface WaeIIFace {
     /**
      * Simpan metadata voice note yang masuk (dari sisi hook).
      * contactId, messageHash, audioPath (path di storage sisi app),
-     * durationMs, timestamp.
+     * durationMs, timestamp, displayName (nama kontak hasil resolve sisi WA;
+     * boleh kosong).
      * Return: "" = ok, non-empty = error.
      */
     String registerIncomingVoiceNote(
@@ -53,6 +54,31 @@ interface WaeIIFace {
         String messageHash,
         String audioPath,
         long durationMs,
-        long timestamp
+        long timestamp,
+        String displayName
     );
+
+    // --- Screen capture untuk rekaman video call (WP-09) ---
+
+    /**
+     * Mulai capture layar untuk satu video call.
+     * outputPath = folder tujuan (mis. .../recordings/video_call)
+     * audioPath  = file audio .m4a yang sedang direkam sisi hook, boleh kosong
+     *
+     * Return: "" = ok (consent diminta / capture jalan), non-empty = error.
+     */
+    String startScreenCapture(String outputPath, String audioPath);
+
+    /**
+     * Hentikan capture layar bila sedang jalan. Idempotent.
+     */
+    void stopScreenCapture();
+
+    /**
+     * Kemampuan capture layar saat ini:
+     *   0 = tidak tersedia / context app tidak siap
+     *   1 = butuh consent per panggilan (Android 14+)
+     *   2 = sudah ada projection aktif
+     */
+    int getScreenCaptureCapability();
 }

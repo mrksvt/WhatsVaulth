@@ -1,6 +1,7 @@
 package com.mrksvt.waen.xposed.bridge.service
 
 import android.content.Context
+import android.content.Intent
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.work.Data
@@ -8,6 +9,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mrksvt.waen.App
 import com.mrksvt.waen.BuildConfig
+import com.mrksvt.waen.services.ScreenCapturePermissionActivity
+import com.mrksvt.waen.services.ScreenCaptureService
 import com.mrksvt.waen.xposed.bridge.WaeIIFace
 import com.mrksvt.waen.xposed.features.voice_tts.app.VoiceTtsWorker
 import com.mrksvt.waen.xposed.features.voice_tts.app.db.VoiceTtsStore
@@ -113,11 +116,20 @@ object HookBinder : WaeIIFace.Stub() {
         messageHash: String,
         audioPath: String,
         durationMs: Long,
-        timestamp: Long
+        timestamp: Long,
+        displayName: String?
     ): String {
         return try {
             val ctx = getApplicationContext() ?: return "App context not available"
             val db = VoiceTtsStore.getInstance(ctx)
+            if (!displayName.isNullOrBlank()) {
+                db.contactNameDao().put(
+                    com.mrksvt.waen.xposed.features.voice_tts.app.db.entity.ContactNameEntity(
+                        contactId = contactId,
+                        displayName = displayName
+                    )
+                )
+            }
             val exists = db.messageHashDao().exists(messageHash)
             if (exists) {
                 logD("Voice note already registered: $messageHash")
@@ -133,25 +145,59 @@ object HookBinder : WaeIIFace.Stub() {
                     createdAt = timestamp
                 )
             )
-            // enqueue embedding extraction
-            val workRequest = OneTimeWorkRequestBuilder<VoiceTtsWorker>()
-                .setInputData(
-                    Data.Builder()
-                        .putString(VoiceTtsWorker.KEY_ACTION, VoiceTtsWorker.ACTION_EXTRACT_EMBEDDING)
-                        .putString(VoiceTtsWorker.KEY_CONTACT_ID, contactId)
-                        .putString(VoiceTtsWorker.KEY_AUDIO_PATH, audioPath)
-                        .putString(VoiceTtsWorker.KEY_MESSAGE_HASH, messageHash)
-                        .putLong(VoiceTtsWorker.KEY_DURATION_MS, durationMs)
-                        .build()
-                )
-                .addTag("voice_tts_embedding")
-                .build()
-            WorkManager.getInstance(ctx).enqueue(workRequest)
-            logD("Voice note registered & embedding work enqueued for $contactId")
+            // Training bukan di sini: user train via screen TTS (VoiceNotesFragment
+            // -> WorkManager). Register = registry + nama kontak dari sisi WA.
+            logD("Voice note registered for $contactId (menunggu training manual)")
             ""
         } catch (e: Exception) {
             Log.w(TAG, "registerIncomingVoiceNote failed: ${e.message}")
             e.message ?: "Unknown error"
+        }
+    }
+
+    // ---- screen capture (WP-09) ----
+
+    override fun startScreenCapture(outputPath: String?, audioPath: String?): String {
+        return try {
+            val ctx = getApplicationContext() ?: return "App context not available"
+            if (outputPath.isNullOrBlank()) return "outputPath kosong"
+
+            val intent = ScreenCapturePermissionActivity.intent(ctx, outputPath)
+                .apply {
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    )
+                    putExtra(ScreenCaptureService.EXTRA_AUDIO_PATH, audioPath)
+                }
+
+            ctx.startActivity(intent)
+            logD("startScreenCapture -> $outputPath")
+            ""
+        } catch (e: Exception) {
+            Log.w(TAG, "startScreenCapture failed: ${e.message}")
+            e.message ?: "Unknown error"
+        }
+    }
+
+    override fun stopScreenCapture() {
+        try {
+            val ctx = getApplicationContext() ?: return
+            ScreenCaptureService.stop(ctx)
+        } catch (e: Exception) {
+            Log.w(TAG, "stopScreenCapture failed: ${e.message}")
+        }
+    }
+
+    override fun getScreenCaptureCapability(): Int {
+        return try {
+            if (getApplicationContext() == null) return 0
+            if (ScreenCaptureService.isCapturing) return 2
+            1
+        } catch (e: Exception) {
+            Log.w(TAG, "getScreenCaptureCapability failed: ${e.message}")
+            0
         }
     }
 

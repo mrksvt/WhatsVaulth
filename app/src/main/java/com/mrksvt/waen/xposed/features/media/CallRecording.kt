@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.text.TextUtils
 import android.widget.Toast
@@ -16,6 +17,7 @@ import com.mrksvt.waen.xposed.core.FeatureLoader
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
+import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
@@ -45,6 +47,7 @@ class CallRecording(
     private val isRecording = AtomicBoolean(false)
     private val isCallConnected = AtomicBoolean(false)
     private val isVideoCall = AtomicBoolean(false)
+    private val videoCaptureRequested = AtomicBoolean(false)
     private val mediaRecorderRef = AtomicReference<MediaRecorder?>()
     private val outputPfdRef = AtomicReference<ParcelFileDescriptor?>()
     private val outputStreamRef = AtomicReference<FileOutputStream?>()
@@ -147,6 +150,12 @@ class CallRecording(
             logDebug("WaEnhancer: Could not hook getPeerJid method: ${e.message}")
         }
 
+        try {
+            hookVideoCallFlag()
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: Could not hook video call flag: ${e.message}")
+        }
+
         logDebug("WaEnhancer: Call Recording initialized with $hooksInstalled hooks")
     }
 
@@ -174,11 +183,47 @@ class CallRecording(
         }
     }
 
+    /**
+     * Menandai panggilan ini video call atau bukan.
+     *
+     * Sumbernya bundle `call_confirmation_dialog` yang dipakai WhatsApp saat
+     * membuat panggilan; polanya sama dengan `general/CallType.kt`. Hook ini
+     * best-effort: kalau bundle/flag tidak ada di versi WhatsApp tertentu,
+     * `isVideoCall` tetap false dan capture layar tidak dijalankan, sehingga
+     * voice call tidak pernah salah terekam (FR-07).
+     */
+    private fun hookVideoCallFlag() {
+        try {
+            val fragment = XposedHelpers.findClass(CALL_CONFIRMATION_FRAGMENT, classLoader)
+            val method = ReflectionUtils.findMethodUsingFilter(fragment) { m ->
+                m.parameterCount == 1 && m.parameterTypes[0] == Bundle::class.java
+            }
+            XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    try {
+                        val bundle = param.args[0] as? Bundle ?: return
+                        bundle.getBoolean("is_video_call").let { isVideo ->
+                            isVideoCall.set(isVideo)
+                            logDebug("WaEnhancer: video call flag = $isVideo")
+                        }
+                    } catch (e: Throwable) {
+                        logDebug("WaEnhancer: baca is_video_call gagal: ${e.message}")
+                    }
+                }
+            })
+            logDebug("WaEnhancer: hookVideoCallFlag terpasang")
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: hookVideoCallFlag gagal: ${e.message}")
+        }
+    }
+
     private fun handleCallEnded(reason: String) {
         logDebug("WaEnhancer: Call ended by $reason")
         isCallConnected.set(false)
         cancelDelayedStart()
+        stopVideoCapture()
         stopRecording()
+        isVideoCall.set(false)
     }
 
     private fun scheduleDelayedStart() {
@@ -196,7 +241,10 @@ class CallRecording(
                     return@Runnable
                 }
 
+                // Audio lebih dulu: jalur video butuh path file audio untuk mux,
+                // dan kegagalan video tidak boleh membatalkan audio (SC-03).
                 startRecording(isVideoCall.get())
+                startVideoCaptureIfEnabled()
             }
 
             val future = delayedStartScheduler.schedule(task, 3, TimeUnit.SECONDS)
@@ -204,6 +252,85 @@ class CallRecording(
             delayedStartFuture.set(future)
         } catch (e: Throwable) {
             logDebug("WaEnhancer: Could not schedule delayed recording start: ${e.message}")
+        }
+    }
+
+    /**
+     * Mulai capture layar kalau fitur video aktif, ini video call, dan kontak
+     * lolos filter privasi. Seluruh jalur dibungkus try/catch terpisah supaya
+     * kegagalan video tidak pernah mengganggu rekaman audio (SC-03).
+     */
+    private fun startVideoCaptureIfEnabled() {
+        try {
+            if (!prefs.getBoolean(VIDEO_ENABLE_KEY, false)) return
+            if (!isVideoCall.get()) {
+                logDebug("WaEnhancer: bukan video call, capture layar dilewati")
+                return
+            }
+
+            val cUserJid = currentUserJid.get()
+            if (cUserJid != null && !shouldRecord(cUserJid.phoneNumber)) {
+                logDebug("WaEnhancer: privacy filter menolak, capture layar dilewati")
+                return
+            }
+
+            val app = FeatureLoader.mApp ?: return
+            val audioFile = outputFileRef.get()?.absolutePath
+
+            val executor = Utils.executor
+            executor.execute {
+                try {
+                    val bridge = WppCore.getClientBridge() ?: run {
+                        logDebug("WaEnhancer: bridge tidak tersedia, capture layar dilewati")
+                        return@execute
+                    }
+                    val capability = bridge.getScreenCaptureCapability()
+                    if (capability == 0) {
+                        logDebug("WaEnhancer: capture layar tidak tersedia (capability=0)")
+                        return@execute
+                    }
+
+                    val settingsPath = prefs.getString(
+                        "call_recording_path",
+                        RecordingStorage.DEFAULT_RECORDINGS_ROOT
+                    )
+                    val videoDir = CallRecordingPathResolver.resolveAppDir(
+                        rootPath = settingsPath,
+                        isVideoCall = true,
+                        isBusiness = app.packageName.contains("w4b")
+                    )
+                    videoDir.mkdirs()
+
+                    val error = bridge.startScreenCapture(videoDir.absolutePath, audioFile)
+                    if (error.isNullOrEmpty()) {
+                        videoCaptureRequested.set(true)
+                        logDebug("WaEnhancer: capture layar diminta -> ${videoDir.absolutePath}")
+                        if (prefs.getBoolean("call_recording_toast", false)) {
+                            Utils.showToast("Recording video call", Toast.LENGTH_SHORT)
+                        }
+                    } else {
+                        logDebug("WaEnhancer: startScreenCapture gagal: $error")
+                    }
+                } catch (e: Throwable) {
+                    logDebug("WaEnhancer: startVideoCaptureIfEnabled error: ${e.message}")
+                }
+            }
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: startVideoCaptureIfEnabled outer error: ${e.message}")
+        }
+    }
+
+    private fun stopVideoCapture() {
+        if (!videoCaptureRequested.getAndSet(false)) return
+        try {
+            val bridge = WppCore.getClientBridge() ?: run {
+                logDebug("WaEnhancer: bridge tidak tersedia saat stop capture")
+                return
+            }
+            bridge.stopScreenCapture()
+            logDebug("WaEnhancer: capture layar dihentikan")
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: stopScreenCapture error: ${e.message}")
         }
     }
 
@@ -674,5 +801,8 @@ class CallRecording(
 
     companion object {
         private val permissionGranted = AtomicBoolean(false)
+        private const val VIDEO_ENABLE_KEY = "call_recording_video_enable"
+        private const val CALL_CONFIRMATION_FRAGMENT =
+            "com.whatsapp.calling.fragment.CallConfirmationFragment"
     }
 }
