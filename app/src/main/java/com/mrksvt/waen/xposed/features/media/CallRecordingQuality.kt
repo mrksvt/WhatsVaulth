@@ -33,11 +33,23 @@ object CallRecordingQuality {
      */
     const val AAC_ENCODER = 3
 
-    /** Jumlah penurunan bitrate yang boleh dicoba saat `prepare()` gagal. */
-    const val MAX_BITRATE_DOWNGRADES = 2
+    /**
+     * Batas jumlah percobaan `prepare()` untuk satu sumber audio.
+     *
+     * Nilainya harus cukup untuk menurunkan profile tertinggi (256 kbps) sampai
+     * [FLOOR_BITRATE]: 256 -> 224 -> 160 -> 128 -> 96, yaitu 5 tingkat. Batas
+     * yang lebih kecil membuat tingkat terendah tidak pernah dicoba, sehingga
+     * device yang menolak semua bitrate tinggi gagal merekam padahal masih ada
+     * tingkat yang belum diuji.
+     */
+    const val MAX_ATTEMPTS = 5
 
-    /** Bitrate terendah yang boleh dipakai: baseline lama, sebagai lantai. */
-    const val MIN_BITRATE = 96_000
+    /**
+     * Bitrate terendah pada rantai penurunan, sengaja disamakan dengan
+     * `AAC_96` supaya jalur default tidak pernah turun di bawah perilaku lama.
+     * Ini lantai kebijakan, bukan batas teknis encoder AAC.
+     */
+    const val FLOOR_BITRATE = 96_000
 
     enum class Container {
         M4A
@@ -55,7 +67,7 @@ object CallRecordingQuality {
                 bitRate > 224_000 -> 224_000
                 bitRate > 160_000 -> 160_000
                 bitRate > 128_000 -> 128_000
-                bitRate > MIN_BITRATE -> MIN_BITRATE
+                bitRate > FLOOR_BITRATE -> FLOOR_BITRATE
                 else -> return null
             }
             if (next >= bitRate) return null
@@ -113,12 +125,12 @@ object CallRecordingQuality {
      * user, lalu turunannya saat `prepare()` gagal.
      *
      * Selalu mengembalikan minimal satu elemen dan tidak pernah memuat bitrate
-     * di bawah [MIN_BITRATE].
+     * di bawah [FLOOR_BITRATE].
      */
     fun attemptChain(prefsValue: String?): List<AudioProfile> {
-        val chain = ArrayList<AudioProfile>(MAX_BITRATE_DOWNGRADES + 1)
+        val chain = ArrayList<AudioProfile>(MAX_ATTEMPTS)
         var current: AudioProfile? = resolveAudioProfile(prefsValue)
-        while (current != null && chain.size < MAX_BITRATE_DOWNGRADES + 1) {
+        while (current != null && chain.size < MAX_ATTEMPTS) {
             chain.add(current)
             current = current.downgraded()
         }

@@ -146,7 +146,7 @@ class CallRecordingQualityTest {
         val lower = CallRecordingQuality.AAC_256.downgraded()
         assertNotNull(lower)
         assertTrue(lower!!.bitRate < CallRecordingQuality.AAC_256.bitRate)
-        assertTrue(lower.bitRate >= CallRecordingQuality.MIN_BITRATE)
+        assertTrue(lower.bitRate >= CallRecordingQuality.FLOOR_BITRATE)
     }
 
     @Test
@@ -156,7 +156,7 @@ class CallRecordingQualityTest {
         while (current != null) {
             assertTrue(
                 "bitrate ${current.bitRate} tidak boleh di bawah MIN_BITRATE",
-                current.bitRate >= CallRecordingQuality.MIN_BITRATE
+                current.bitRate >= CallRecordingQuality.FLOOR_BITRATE
             )
             current = current.downgraded()
             hops++
@@ -185,9 +185,9 @@ class CallRecordingQualityTest {
     }
 
     @Test
-    fun `attemptChain turun monoton dan dibatasi MAX_BITRATE_DOWNGRADES`() {
+    fun `attemptChain turun monoton dan dibatasi MAX_ATTEMPTS`() {
         val chain = CallRecordingQuality.attemptChain("aac_256")
-        assertTrue(chain.size <= CallRecordingQuality.MAX_BITRATE_DOWNGRADES + 1)
+        assertTrue(chain.size <= CallRecordingQuality.MAX_ATTEMPTS)
         for (i in 1 until chain.size) {
             assertTrue(
                 "chain harus turun: ${chain[i].bitRate} vs ${chain[i - 1].bitRate}",
@@ -199,11 +199,60 @@ class CallRecordingQualityTest {
         }
     }
 
+    // REWORK-1: batas upaya harus cukup untuk mencapai lantai dari profile
+    // tertinggi. Sebelum perbaikan, rantai dari AAC_256 berhenti di 160000
+    // sehingga 128000 dan 96000 tidak pernah dicoba.
+
+    @Test
+    fun `rantai dari AAC_256 mencapai lantai bitrate`() {
+        val chain = CallRecordingQuality.attemptChain("aac_256")
+        assertEquals(
+            "rantai harus berakhir tepat di lantai",
+            CallRecordingQuality.FLOOR_BITRATE,
+            chain.last().bitRate
+        )
+    }
+
+    @Test
+    fun `rantai dari AAC_192 mencapai lantai bitrate`() {
+        val chain = CallRecordingQuality.attemptChain("aac_192")
+        assertEquals(
+            CallRecordingQuality.FLOOR_BITRATE,
+            chain.last().bitRate
+        )
+    }
+
+    @Test
+    fun `setiap bitrate menuju lantai ada di rantai AAC_256`() {
+        val rates = CallRecordingQuality.attemptChain("aac_256").map { it.bitRate }
+        assertEquals(
+            "semua tingkat harus tercoba tanpa ada yang dilompati",
+            listOf(256_000, 224_000, 160_000, 128_000, 96_000),
+            rates
+        )
+    }
+
+    @Test
+    fun `MAX_ATTEMPTS cukup untuk menurunkan profile tertinggi ke lantai`() {
+        var profile: CallRecordingQuality.AudioProfile? =
+            CallRecordingQuality.resolveAudioProfile("aac_256")
+        var steps = 0
+        while (profile != null) {
+            profile = profile.downgraded()
+            steps++
+        }
+        assertEquals(
+            "jumlah tingkat dari profile tertinggi harus sama dengan langkah penurunan",
+            CallRecordingQuality.MAX_ATTEMPTS,
+            steps
+        )
+    }
+
     @Test
     fun `attemptChain untuk AAC_96 tetap tidak turun di bawah batas bawah`() {
         val chain = CallRecordingQuality.attemptChain("aac_96")
         for (profile in chain) {
-            assertTrue(profile.bitRate >= CallRecordingQuality.MIN_BITRATE)
+            assertTrue(profile.bitRate >= CallRecordingQuality.FLOOR_BITRATE)
         }
     }
 
