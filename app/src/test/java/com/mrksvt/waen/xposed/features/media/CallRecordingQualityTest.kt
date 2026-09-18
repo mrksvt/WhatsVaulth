@@ -155,7 +155,7 @@ class CallRecordingQualityTest {
         var hops = 0
         while (current != null) {
             assertTrue(
-                "bitrate ${current.bitRate} tidak boleh di bawah MIN_BITRATE",
+                "bitrate ${current.bitRate} tidak boleh di bawah FLOOR_BITRATE",
                 current.bitRate >= CallRecordingQuality.FLOOR_BITRATE
             )
             current = current.downgraded()
