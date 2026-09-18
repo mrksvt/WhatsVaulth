@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.preference.PreferenceManager
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
+import com.mrksvt.waen.media.AudioVideoMuxer
 import com.mrksvt.waen.media.CaptureFrame
 import com.mrksvt.waen.media.ScreenCapturePipeline
 import com.mrksvt.waen.media.VideoEncoderProfile
@@ -45,6 +46,7 @@ class ScreenCaptureService : Service() {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_OUTPUT_PATH = "output_path"
+        const val EXTRA_AUDIO_PATH = "audio_path"
 
         private const val CHANNEL_ID = "wae_screen_capture"
         private const val NOTIFICATION_ID = 9821778
@@ -78,7 +80,8 @@ class ScreenCaptureService : Service() {
             context: Context,
             resultCode: Int,
             resultData: Intent?,
-            outputPath: String
+            outputPath: String,
+            audioPath: String? = null
         ): Boolean {
             if (resultCode != Activity.RESULT_OK || resultData == null) {
                 logW("start() dipanggil tanpa consent valid (code=$resultCode, data=${resultData != null})")
@@ -89,6 +92,7 @@ class ScreenCaptureService : Service() {
                 putExtra(EXTRA_RESULT_CODE, resultCode)
                 putExtra(EXTRA_RESULT_DATA, resultData)
                 putExtra(EXTRA_OUTPUT_PATH, outputPath)
+                putExtra(EXTRA_AUDIO_PATH, audioPath)
             }
             return try {
                 context.startForegroundService(intent)
@@ -117,6 +121,7 @@ class ScreenCaptureService : Service() {
     private var projection: MediaProjection? = null
     private var projectionCallback: MediaProjection.Callback? = null
     private var pipelineRef: ScreenCapturePipeline? = null
+    private var audioPath: String? = null
     private var outputPath: String? = null
     private val stopping = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -147,6 +152,7 @@ class ScreenCaptureService : Service() {
                     intent.getParcelableExtra(EXTRA_RESULT_DATA) as? Intent
                 }
                 outputPath = intent.getStringExtra(EXTRA_OUTPUT_PATH)
+                audioPath = intent.getStringExtra(EXTRA_AUDIO_PATH)
 
                 if (resultCode != Activity.RESULT_OK || resultData == null) {
                     logW("onStartCommand: consent tidak valid, stop. code=$resultCode")
@@ -260,7 +266,47 @@ class ScreenCaptureService : Service() {
         stopPipeline()
         releaseProjection()
         isCapturing = false
+        muxIfPossible()
         finishAndStopSelf()
+    }
+
+    /**
+     * Gabungkan video-only dengan audio `.m4a` dari sisi hook.
+     *
+     * Kebijakan `FINDINGS.md` B-4 opsi 1: kalau mux gagal, file video mentah
+     * TIDAK dihapus, dan audio juga dibiarkan. Kalau berhasil, hanya file video
+     * mentah yang dibuang (isinya sudah pindah ke file hasil).
+     */
+    private fun muxIfPossible() {
+        val videoFile = outputPath?.let { File(it) } ?: return
+        val audioFile = audioPath?.let { File(it) }
+
+        if (audioFile == null || !audioFile.exists() || audioFile.length() <= 0L) {
+            logW("audio tidak tersedia, video mentah dipertahankan")
+            return
+        }
+        if (!videoFile.exists() || videoFile.length() <= 0L) {
+            logW("video kosong, tidak ada yang di-mux")
+            return
+        }
+
+        val kindFolder = videoFile.parentFile ?: return
+        val identifier = videoFile.nameWithoutExtension.substringBeforeLast("-video")
+        val merged = File(kindFolder, "$identifier.merged.mp4")
+
+        val success = AudioVideoMuxer.mux(videoFile, audioFile, merged)
+        val outcome = AudioVideoMuxer.onMuxResult(success)
+        logD("mux outcome=$outcome -> ${merged.absolutePath}")
+
+        if (success && outcome == AudioVideoMuxer.OUTCOME_KEEP_PRIMARY_ONLY) {
+            val renamed = File(kindFolder, merged.name.removeSuffix(".merged.mp4") + ".mp4")
+            if (!merged.renameTo(renamed)) {
+                logW("rename hasil mux gagal, file tetap di ${merged.name}")
+            }
+            if (!videoFile.delete()) {
+                logW("tidak bisa menghapus video mentah, dibiarkan: ${videoFile.name}")
+            }
+        }
     }
 
     private fun releaseProjection() {
