@@ -13,6 +13,7 @@ import androidx.preference.PreferenceManager;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.mrksvt.waen.R;
+import com.mrksvt.waen.services.RootScreenRecord;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -25,6 +26,8 @@ public class CallRecordingSettingsActivity extends AppCompatActivity {
     private RadioGroup radioGroupMode;
     private RadioButton radioRoot;
     private RadioButton radioNonRoot;
+    private RadioButton radioScreenProjection;
+    private RadioButton radioScreenRoot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +74,43 @@ public class CallRecordingSettingsActivity extends AppCompatActivity {
             Log.d(TAG, "Saved non-root preference: " + saved);
             Toast.makeText(this, R.string.non_root_mode_enabled, Toast.LENGTH_SHORT).show();
         });
+
+        setupScreenRecordMode();
+    }
+
+    private void setupScreenRecordMode() {
+        radioScreenProjection = findViewById(R.id.radio_screen_projection);
+        radioScreenRoot = findViewById(R.id.radio_screen_root);
+
+        String mode = prefs.getString("call_recording_screen_mode", RootScreenRecord.MODE_PROJECTION);
+        radioScreenProjection.setChecked(!RootScreenRecord.MODE_ROOT.equals(mode));
+
+        radioScreenProjection.setOnClickListener(v -> {
+            radioScreenProjection.setChecked(true);
+            radioScreenRoot.setChecked(false);
+            prefs.edit().putString("call_recording_screen_mode", RootScreenRecord.MODE_PROJECTION).apply();
+        });
+
+        radioScreenRoot.setOnClickListener(v -> {
+            radioScreenRoot.setChecked(true);
+            radioScreenProjection.setChecked(false);
+            prefs.edit().putString("call_recording_screen_mode", RootScreenRecord.MODE_ROOT).apply();
+            Toast.makeText(this, R.string.screen_mode_root, Toast.LENGTH_SHORT).show();
+        });
+
+        // Cek root memanggil shell, jadi harus di luar main thread.
+        new Thread(() -> {
+            boolean available = RootScreenRecord.isAvailable();
+            runOnUiThread(() -> {
+                if (available) {
+                    radioScreenRoot.setChecked(RootScreenRecord.MODE_ROOT.equals(mode));
+                    return;
+                }
+                radioScreenProjection.setChecked(true);
+                radioScreenRoot.setEnabled(false);
+                radioScreenRoot.setVisibility(android.view.View.GONE);
+            });
+        }).start();
     }
 
     private void checkRootAccess() {

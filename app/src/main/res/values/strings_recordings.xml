@@ -96,4 +96,11 @@
     <string name="screen_capture_consent_title">Screen recording permission</string>
     <string name="screen_capture_consent_message">Android 14 and newer requires you to allow screen recording for every video call. The dialog appears when a video call connects. Voice recording works even if you deny it.</string>
     <string name="screen_capture_consent_ok">Got it</string>
+
+    <!-- Screen record mode (WP-11) -->
+    <string name="screen_mode_title">Screen Recording Mode</string>
+    <string name="screen_mode_projection">Standard (needs permission)</string>
+    <string name="screen_mode_projection_desc">Android asks for permission once per video call. Produces one MP4 with audio and video merged.</string>
+    <string name="screen_mode_root">Root (no permission)</string>
+    <string name="screen_mode_root_desc">No permission dialog, but the whole screen only and the video is split into 180 second parts, each without audio. Not available on every device.</string>
 </resources>

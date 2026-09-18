@@ -6,6 +6,8 @@ import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import androidx.preference.PreferenceManager
+import java.io.File
 import android.util.Log
 import com.mrksvt.waen.BuildConfig
 
@@ -28,6 +30,10 @@ class ScreenCapturePermissionActivity : Activity() {
 
         const val EXTRA_OUTPUT_PATH = "output_path"
 
+        const val SCREEN_MODE_KEY = "call_recording_screen_mode"
+
+        private const val ROOT_IDENTIFIER_KEY = "call_recording_root_identifier"
+
         fun intent(context: Context, outputPath: String): Intent =
             Intent(context, ScreenCapturePermissionActivity::class.java).apply {
                 putExtra(EXTRA_OUTPUT_PATH, outputPath)
@@ -44,6 +50,11 @@ class ScreenCapturePermissionActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         outputPath = intent?.getStringExtra(EXTRA_OUTPUT_PATH).orEmpty()
+
+        if (startRootRecordingIfSelected()) {
+            finish()
+            return
+        }
 
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
         if (manager == null) {
@@ -80,7 +91,34 @@ class ScreenCapturePermissionActivity : Activity() {
         finish()
     }
 
+    /**
+     * Mode root tidak butuh Activity sama sekali; kalau dipilih dan berhasil,
+     * tidak ada consent yang perlu diminta. Kalau gagal, kita jatuh kembali ke
+     * jalur projection alih-alih membiarkan panggilan tanpa rekaman video.
+     */
+    private fun startRootRecordingIfSelected(): Boolean {
+        val prefs = try {
+            PreferenceManager.getDefaultSharedPreferences(this)
+        } catch (t: Throwable) {
+            logD("prefs tidak tersedia: ${t.message}")
+            return false
+        }
+
+        if (prefs.getString(SCREEN_MODE_KEY, RootScreenRecord.MODE_PROJECTION)
+            != RootScreenRecord.MODE_ROOT
+        ) {
+            return false
+        }
+
+        val dir = File(outputPath)
+        val identifier = prefs.getString(ROOT_IDENTIFIER_KEY, "Unknown").orEmpty()
+        val started = RootScreenRecord.start(dir, identifier.ifBlank { "Unknown" })
+        logD("root screen record started=$started")
+        return started
+    }
+
     override fun onDestroy() {
         super.onDestroy()
     }
+
 }

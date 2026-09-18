@@ -23,4 +23,11 @@
     <!-- Recordings manager (WP-12) -->
     <string name="play_video">Putar video</string>
     <string name="video_badge">Video</string>
+
+    <!-- Screen record mode (WP-11) -->
+    <string name="screen_mode_title">Mode Rekam Layar</string>
+    <string name="screen_mode_projection">Standar (butuh izin)</string>
+    <string name="screen_mode_projection_desc">Android meminta izin sekali per video call. Menghasilkan satu MP4 berisi suara dan video yang sudah digabung.</string>
+    <string name="screen_mode_root">Root (tanpa izin)</string>
+    <string name="screen_mode_root_desc">Tanpa dialog izin, tapi hanya seluruh layar dan videonya terpecah per 180 detik, masing-masing tanpa suara. Tidak tersedia di semua perangkat.</string>
 </resources>
