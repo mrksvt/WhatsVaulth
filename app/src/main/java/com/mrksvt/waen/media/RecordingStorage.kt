@@ -1,6 +1,7 @@
 package com.mrksvt.waen.media
 
 import java.io.File
+import java.util.Locale
 
 /**
  * Sumber tunggal layout penyimpanan rekaman panggilan.
@@ -66,5 +67,34 @@ object RecordingStorage {
             }
         }
         return result
+    }
+
+    /**
+     * `true` kalau [sourcePath] adalah rekaman lama yang perlu dipindahkan ke
+     * struktur folder baru.
+     *
+     * Dipakai migrasi (WP-13 T-070). File dianggap perlu pindah hanya kalau:
+     * berada di luar `<currentRoot>/<video_call|voice_call>`, dan ekstensinya
+     * cocok dengan jenis panggilannya. File yang sudah di tempat yang benar
+     * atau bukan rekaman sama sekali tidak disentuh.
+     */
+    @JvmStatic
+    fun needsMigration(sourcePath: String?, currentRoot: String?, isVideoCall: Boolean): Boolean {
+        if (sourcePath.isNullOrBlank() || currentRoot.isNullOrBlank()) return false
+
+        val expectedDir = File(callKindFolder(File(currentRoot), isVideoCall).absolutePath)
+        val source = File(sourcePath)
+        val parent = source.parentFile ?: return false
+
+        if (parent.absolutePath == expectedDir.absolutePath) return false
+
+        val name = source.name.lowercase(Locale.ROOT)
+        return if (isVideoCall) name.endsWith(".mp4") else isAudioRecording(name)
+    }
+
+    @JvmStatic
+    fun isAudioRecording(fileName: String): Boolean {
+        val name = fileName.lowercase(Locale.ROOT)
+        return name.endsWith(".m4a") || name.endsWith(".wav") || name.endsWith(".aac")
     }
 }

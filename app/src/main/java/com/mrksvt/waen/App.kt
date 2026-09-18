@@ -17,6 +17,9 @@ import androidx.core.app.ActivityCompat
 import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mrksvt.waen.activities.CrashReportActivity
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.mrksvt.waen.media.RecordingMigrationWorker
 import com.mrksvt.waen.media.RecordingStorage
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XposedHelpers
@@ -30,6 +33,7 @@ class App : Application() {
         super.onCreate()
         instance = this
         installCrashHandler()
+        scheduleRecordingMigration()
         var sharedPreferences: SharedPreferences? = null
 
         try {
@@ -49,6 +53,22 @@ class App : Application() {
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    /**
+     * Pindahkan rekaman dari lokasi lama ke folder per jenis panggilan, sekali
+     * saja. Dijalankan lewat WorkManager supaya tidak memperlambat startup dan
+     * tidak menyentuh file user di main thread.
+     */
+    private fun scheduleRecordingMigration() {
+        try {
+            val request = OneTimeWorkRequestBuilder<RecordingMigrationWorker>()
+                .addTag("recording_migration")
+                .build()
+            WorkManager.getInstance(this).enqueue(request)
+        } catch (e: Exception) {
+            android.util.Log.w("App", "scheduleRecordingMigration gagal: ${e.message}")
         }
     }
 

@@ -21,10 +21,13 @@ import androidx.preference.PreferenceManager
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
 import com.mrksvt.waen.media.AudioVideoMuxer
+import com.mrksvt.waen.media.CaptureLimits
 import com.mrksvt.waen.media.CaptureFrame
 import com.mrksvt.waen.media.ScreenCapturePipeline
 import com.mrksvt.waen.media.VideoEncoderProfile
 import java.io.File
+import java.util.Timer
+import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -50,6 +53,7 @@ class ScreenCaptureService : Service() {
 
         private const val CHANNEL_ID = "wae_screen_capture"
         private const val NOTIFICATION_ID = 9821778
+        private const val SIZE_CHECK_INTERVAL_MS = 15_000L
         private const val TAG = "ScreenCaptureService"
 
         const val PREF_VIDEO_QUALITY = "call_recording_video_quality"
@@ -122,6 +126,7 @@ class ScreenCaptureService : Service() {
     private var projectionCallback: MediaProjection.Callback? = null
     private var pipelineRef: ScreenCapturePipeline? = null
     private var audioPath: String? = null
+    private var watchdog: Timer? = null
     private var outputPath: String? = null
     private val stopping = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -190,7 +195,11 @@ class ScreenCaptureService : Service() {
             val callback = object : MediaProjection.Callback() {
                 override fun onStop() {
                     logW("projection dihentikan oleh sistem")
+                    cancelWatchdog()
+                    stopPipeline()
                     releaseProjection()
+                    isCapturing = false
+                    muxIfPossible()
                     onProjectionStopped?.invoke()
                     finishAndStopSelf()
                 }
@@ -223,6 +232,24 @@ class ScreenCaptureService : Service() {
             return
         }
 
+        val available = try {
+            File(path).let { target ->
+                target.mkdirs()
+                target.usableSpace
+            }
+        } catch (t: Throwable) {
+            logW("tidak bisa membaca ruang tersisa: ${t.message}")
+            -1L
+        }
+
+        if (available in 0..Long.MAX_VALUE &&
+            !CaptureLimits.canStartCapture(available)
+        ) {
+            logW("ruang tidak cukup untuk capture video, dilewati")
+            onCaptureFailed?.invoke()
+            return
+        }
+
         val metrics = resources.displayMetrics
         val pipeline = ScreenCapturePipeline(File(path))
         val preference = prefsOrNull()?.getString(PREF_VIDEO_QUALITY, VideoEncoderProfile.PREF_AUTO)
@@ -238,6 +265,7 @@ class ScreenCaptureService : Service() {
         if (started) {
             pipelineRef = pipeline
             logD("pipeline capture jalan -> ${pipeline.profile?.resolutionLabel}")
+            startSizeWatchdog(File(path))
         } else {
             logW("pipeline gagal start; rekaman audio tidak terpengaruh")
             onCaptureFailed?.invoke()
@@ -249,6 +277,37 @@ class ScreenCaptureService : Service() {
     } catch (t: Throwable) {
         logW("prefs tidak tersedia: ${t.message}")
         null
+    }
+
+    /**
+     * Hentikan capture kalau file sudah melewati batas ukuran. Audio tetap
+     * disimpan (SC-03); hanya capture layar yang dihentikan.
+     */
+    private fun startSizeWatchdog(videoDir: File) {
+        watchdog?.cancel()
+        val task = object : TimerTask() {
+            override fun run() {
+                try {
+                    val bytes = currentCaptureBytes(videoDir)
+                    if (CaptureLimits.exceedsSizeLimit(bytes)) {
+                        logW("batas ukuran tercapai ($bytes byte), capture dihentikan")
+                        stopCapture()
+                    }
+                } catch (t: Throwable) {
+                    logW("size watchdog error: ${t.message}")
+                }
+            }
+        }
+        val timer = Timer("WaEnhancer-SizeWatchdog", true)
+        timer.schedule(task, SIZE_CHECK_INTERVAL_MS, SIZE_CHECK_INTERVAL_MS)
+        watchdog = timer
+    }
+
+    private fun currentCaptureBytes(videoDir: File): Long {
+        val file = outputPath?.let { File(it) }
+        val videoBytes = if (file != null && file.exists()) file.length() else 0L
+        val audioBytes = audioPath?.let { File(it) }?.takeIf { it.exists() }?.length() ?: 0L
+        return videoBytes + audioBytes
     }
 
     private fun stopPipeline() {
@@ -263,6 +322,7 @@ class ScreenCaptureService : Service() {
 
     private fun stopCapture() {
         if (!stopping.compareAndSet(false, true)) return
+        cancelWatchdog()
         stopPipeline()
         releaseProjection()
         isCapturing = false
@@ -390,7 +450,16 @@ class ScreenCaptureService : Service() {
             .build()
     }
 
+    private fun cancelWatchdog() {
+        try {
+            watchdog?.cancel()
+        } catch (_: Throwable) {
+        }
+        watchdog = null
+    }
+
     override fun onDestroy() {
+        cancelWatchdog()
         stopPipeline()
         releaseProjection()
         isCapturing = false
