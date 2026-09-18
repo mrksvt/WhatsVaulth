@@ -10,6 +10,7 @@ import android.os.ParcelFileDescriptor
 import android.text.TextUtils
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.mrksvt.waen.media.RecordingStorage
 import com.mrksvt.waen.xposed.bridge.WaeIIFace
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.FeatureLoader
@@ -44,6 +45,7 @@ class CallRecording(
 
     private val isRecording = AtomicBoolean(false)
     private val isCallConnected = AtomicBoolean(false)
+    private val isVideoCall = AtomicBoolean(false)
     private val mediaRecorderRef = AtomicReference<MediaRecorder?>()
     private val outputPfdRef = AtomicReference<ParcelFileDescriptor?>()
     private val outputStreamRef = AtomicReference<FileOutputStream?>()
@@ -195,7 +197,7 @@ class CallRecording(
                     return@Runnable
                 }
 
-                startRecording()
+                startRecording(isVideoCall.get())
             }
 
             val future = delayedStartScheduler.schedule(task, 3, TimeUnit.SECONDS)
@@ -296,7 +298,7 @@ class CallRecording(
     }
 
     @Synchronized
-    private fun startRecording() {
+    private fun startRecording(isVideoCall: Boolean = false) {
         if (isRecording.get()) {
             logDebug("WaEnhancer: Already recording")
             return
@@ -341,19 +343,24 @@ class CallRecording(
                 logDebug("WaEnhancer: Could not get client bridge: ${it.message}")
             }.getOrNull()
 
-            val packageName = app.packageName
-            val appName = if (packageName.contains("w4b")) "WA Business" else "WhatsApp"
-            val defaultPath = Environment
-                .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                .absolutePath
-            val settingsPath = prefs.getString("call_recording_path", defaultPath) ?: defaultPath
-
-            val parentDir = File(settingsPath, "WA Call Recordings")
-            val appDir = File(parentDir, appName)
+            val settingsPath = prefs.getString(
+                "call_recording_path",
+                RecordingStorage.DEFAULT_RECORDINGS_ROOT
+            )
+            val isBusiness = app.packageName.contains("w4b")
+            val appDir = CallRecordingPathResolver.resolveAppDir(
+                rootPath = settingsPath,
+                isVideoCall = isVideoCall,
+                isBusiness = isBusiness
+            )
             ensureOutputDirectory(appDir, bridge)
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val fileName = buildFileName(currentUserJid.get(), timestamp)
+            val fileName = CallRecordingPathResolver.buildFileNameFor(
+                identifier = contactIdentifier(currentUserJid.get()),
+                timestamp = timestamp,
+                isVideoCall = isVideoCall
+            )
             val outputTarget = openOutputTarget(bridge, appDir, fileName)
 
             outputFileRef.set(outputTarget.file)
@@ -427,13 +434,12 @@ class CallRecording(
         logDebug("WaEnhancer: Could not create preferred output directory, fallback may be used: ${appDir.absolutePath}")
     }
 
-    private fun buildFileName(userJid: FMessageWpp.UserJid?, timestamp: String): String {
-        if (userJid == null) return "Call_$timestamp.m4a"
+    private fun contactIdentifier(userJid: FMessageWpp.UserJid?): String {
+        if (userJid == null) return "Unknown"
 
-        // Fallback berjenjang: nama kontak -> nama address book (LID) -> nomor
-        // -> LID raw -> Unknown. "Whatsapp Contact" adalah placeholder dari
+        // "Whatsapp Contact" adalah placeholder dari
         // getContactName saat DB null, bukan nama asli - jangan dipakai.
-        val identifier = runCatching {
+        return runCatching {
             WppCore.getContactName(userJid)
         }.getOrNull()
             ?.takeIf { it.isNotBlank() && it != "Whatsapp Contact" }
@@ -444,17 +450,6 @@ class CallRecording(
             ?: userJid.phoneNumber
             ?: userJid.userRawString
             ?: "Unknown"
-
-        return "Call_${sanitizeFileNamePart(identifier)}_$timestamp.m4a"
-    }
-
-    private fun sanitizeFileNamePart(value: String?): String {
-        val cleaned = value
-            ?.replace(Regex("[\\\\/:*?\"<>|\\r\\n]+"), "_")
-            ?.trim()
-            .orEmpty()
-
-        return cleaned.ifEmpty { "Unknown" }
     }
 
     private fun createStartedRecorder(
