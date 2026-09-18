@@ -71,26 +71,26 @@ class ScreenCapturePipeline(private val outputFile: File) {
         get() = codec != null && !stopped.get()
 
     /**
-     * Siapkan encoder + muxer + virtual display.
+     * Siapkan encoder + muxer + virtual display untuk [frame].
      *
      * Mencoba setiap profile di [VideoEncoderProfile.attemptChain] sampai ada
      * yang berhasil di-`configure`; encoder H.264 menolak sebagian resolusi di
      * device tertentu. Mengembalikan false kalau semuanya gagal, dan pemanggil
      * harus tetap menyimpan audio (SC-03).
      */
-    fun start(
+    fun startCapture(
         projection: MediaProjection,
-        screenWidth: Int,
-        screenHeight: Int,
+        frame: CaptureFrame,
         densityDpi: Int,
         preference: String?
     ): Boolean {
         if (isRunning) {
-            logW("start() dipanggil saat pipeline sudah jalan")
+            logW("startCapture() dipanggil saat pipeline sudah jalan")
             return true
         }
 
-        val chain = VideoEncoderProfile.attemptChain(preference, screenWidth, screenHeight)
+        val snapped = CaptureFrame.snapEven(frame, frame.width, frame.height)
+        val chain = VideoEncoderProfile.attemptChain(preference, snapped.width, snapped.height)
         for (candidate in chain) {
             if (tryStartWith(projection, candidate, densityDpi)) {
                 profile = candidate

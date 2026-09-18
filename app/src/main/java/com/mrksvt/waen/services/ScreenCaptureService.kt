@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.preference.PreferenceManager
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
+import com.mrksvt.waen.media.CaptureFrame
 import com.mrksvt.waen.media.ScreenCapturePipeline
 import com.mrksvt.waen.media.VideoEncoderProfile
 import java.io.File
@@ -220,10 +221,10 @@ class ScreenCaptureService : Service() {
         val pipeline = ScreenCapturePipeline(File(path))
         val preference = prefsOrNull()?.getString(PREF_VIDEO_QUALITY, VideoEncoderProfile.PREF_AUTO)
 
-        val started = pipeline.start(
+        val frame = CaptureFrame.fullScreen(metrics.widthPixels, metrics.heightPixels)
+        val started = pipeline.startCapture(
             projection = active,
-            screenWidth = metrics.widthPixels,
-            screenHeight = metrics.heightPixels,
+            frame = frame,
             densityDpi = metrics.densityDpi,
             preference = preference
         )
