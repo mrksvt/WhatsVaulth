@@ -72,4 +72,67 @@ class RecordingContactNameTest {
         // identifier non-greedy match + _ di-restore ke spasi untuk display
         assertEquals("20260101 1200000 person", nameOf("Call_20260101_1200000_person_20260908_123456.m4a"))
     }
+
+    // ---- WP-12: rekaman video ----
+
+    @Test
+    fun `nama file video dengan identifier terbaca tanpa suffix`() {
+        assertEquals("Budi", nameOf("Call_Budi_20260908_123456-video.mp4"))
+    }
+
+    @Test
+    fun `nama file video dengan nama panjang terbaca`() {
+        assertEquals("Budi, S.Kom", nameOf("Call_Budi,_S.Kom_20260908_123456-video.mp4"))
+    }
+
+    @Test
+    fun `file video tanpa identifier jadi Unknown`() {
+        assertEquals("Unknown", nameOf("Call_20260908_123456-video.mp4"))
+    }
+
+    @Test
+    fun `file video hasil mux tanpa suffix tetap terbaca`() {
+        assertEquals("Siti", nameOf("Call_Siti_20260908_123456.mp4"))
+    }
+
+    @Test
+    fun `isVideo true untuk mp4 dan false untuk m4a`() {
+        val video = Recording(File("/nonexistent/Call_Budi_20260908_123456-video.mp4"))
+        val merged = Recording(File("/nonexistent/Call_Budi_20260908_123456.mp4"))
+        val audio = Recording(File("/nonexistent/Call_Budi_20260908_123456.m4a"))
+        val wav = Recording(File("/nonexistent/Call_Budi_20260908_123456.wav"))
+
+        org.junit.Assert.assertTrue(video.isVideo())
+        org.junit.Assert.assertTrue(merged.isVideo())
+        org.junit.Assert.assertFalse(audio.isVideo())
+        org.junit.Assert.assertFalse(wav.isVideo())
+    }
+
+    @Test
+    fun `isVideo tidak menandai mp3 sebagai video`() {
+        val mp3 = Recording(File("/nonexistent/memo penting.mp3"))
+        org.junit.Assert.assertFalse(mp3.isVideo())
+    }
+
+    @Test
+    fun `sourceFolderName mengembalikan folder induk`() {
+        assertEquals(
+            "video_call",
+            Recording(File("/sdcard/WhatsVault/recordings/video_call/Call_Budi_20260908_123456-video.mp4"))
+                .getSourceFolderName()
+        )
+        assertEquals(
+            "voice_call",
+            Recording(File("/sdcard/WhatsVault/recordings/voice_call/Call_Budi_20260908_123456.m4a"))
+                .getSourceFolderName()
+        )
+    }
+
+    @Test
+    fun `timestamp di identifier video tidak salah potong`() {
+        assertEquals(
+            "20260101 1200000 person",
+            nameOf("Call_20260101_1200000_person_20260908_123456-video.mp4")
+        )
+    }
 }

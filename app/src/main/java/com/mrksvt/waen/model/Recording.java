@@ -7,6 +7,7 @@ import android.media.MediaMetadataRetriever;
 import com.mrksvt.waen.utils.ContactHelper;
 
 import java.io.File;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,26 +26,47 @@ public class Recording {
 
     private final File file;
     @Setter private String contactName;
+    private final boolean isVideo;
     private long duration;
     private final long date;
     private final long size;
 
-    // Nama file: Call_{identifier}_{yyyyMMdd}_{HHmmss}.(wav|m4a)
+    // Nama file: Call_{identifier}_{yyyyMMdd}_{HHmmss}[-video].(wav|m4a|mp4)
     // Identifier bisa apa saja setelah sanitasi (nama, nomor, LID, "Unknown").
-    // Regex longgar: match sampai underscore terakhir sebelum timestamp.
-    private static final Pattern FILE_PATTERN =
-            Pattern.compile("(?i)Call_(.+?)_(\\d{8}_\\d{6})\\.(wav|m4a)");
+    // Suffix -video menandai rekaman layar video call dan TIDAK boleh masuk
+    // ke grup identifier. Timestamp bersifat wajib.
+    private static final Pattern FILE_PATTERN = Pattern.compile(
+            "(?i)Call_(.+?)_(\\d{8}_\\d{6})(-video)?\\.(wav|m4a|mp4)");
 
-    // Regex khusus pola tanpa identifier: Call_{timestamp}.{ext}
-    private static final Pattern NO_IDENTIFIER_PATTERN =
-            Pattern.compile("(?i)Call_(\\d{8}_\\d{6})\\.(wav|m4a)");
+    // Regex khusus pola tanpa identifier: Call_{timestamp}[-video].{ext}
+    private static final Pattern NO_IDENTIFIER_PATTERN = Pattern.compile(
+            "(?i)Call_(\\d{8}_\\d{6})(-video)?\\.(wav|m4a|mp4)");
+
+    private static final String VIDEO_SUFFIX = "-video";
+    private static final String VIDEO_EXTENSION = ".mp4";
 
     public Recording(File file) {
         this.file = file;
         this.date = file.lastModified();
         this.size = file.length();
+        this.isVideo = isVideoFile(file);
         this.contactName = extractContactName();
         parseDuration();
+    }
+
+    private static boolean isVideoFile(File file) {
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        return name.endsWith(VIDEO_EXTENSION)
+                || name.contains(VIDEO_SUFFIX + VIDEO_EXTENSION);
+    }
+
+    /**
+     * Folder induk file, dipakai untuk menampilkan asal rekaman
+     * (video_call / voice_call).
+     */
+    public String getSourceFolderName() {
+        File parent = file.getParentFile();
+        return parent == null ? "" : parent.getName();
     }
 
     private String extractContactName() {

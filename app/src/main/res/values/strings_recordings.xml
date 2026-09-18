@@ -29,6 +29,8 @@
     
     <!-- Audio player -->
     <string name="play">Play</string>
+    <string name="play_video">Play video</string>
+    <string name="video_badge">Video</string>
     <string name="pause">Pause</string>
     <string name="play_pause">Play/Pause</string>
     <string name="close">Close</string>

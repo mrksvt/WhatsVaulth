@@ -120,16 +120,27 @@ public class RecordingsAdapter extends RecyclerView.Adapter<RecordingsAdapter.Vi
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Recording recording = recordings.get(position);
         
-        // Contact name
         holder.contactName.setText(recording.getContactName());
 
-        // Duration
         holder.duration.setText(recording.getFormattedDuration());
-        
-        // Details: size and date
+
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault());
         String details = recording.getFormattedSize() + " • " + dateFormat.format(new Date(recording.getDate()));
+        String folder = recording.getSourceFolderName();
+        if (!folder.isEmpty()) {
+            details = details + " • " + folder;
+        }
         holder.details.setText(details);
+
+        holder.badge.setVisibility(recording.isVideo() ? View.VISIBLE : View.GONE);
+        holder.icon.setImageResource(recording.isVideo()
+                ? android.R.drawable.presence_video_online
+                : android.R.drawable.ic_media_play);
+        holder.btnPlay.setContentDescription(
+                recording.isVideo()
+                        ? holder.itemView.getContext().getString(R.string.play_video)
+                        : holder.itemView.getContext().getString(R.string.play)
+        );
         
         // Selection mode UI
         if (isSelectionMode) {
@@ -176,6 +187,7 @@ public class RecordingsAdapter extends RecyclerView.Adapter<RecordingsAdapter.Vi
         MaterialCardView card;
         CheckBox checkbox;
         ImageView icon;
+        TextView badge;
         TextView contactName;
         TextView duration;
         TextView details;
@@ -189,6 +201,7 @@ public class RecordingsAdapter extends RecyclerView.Adapter<RecordingsAdapter.Vi
             card = (MaterialCardView) itemView;
             checkbox = itemView.findViewById(R.id.checkbox);
             icon = itemView.findViewById(R.id.icon);
+            badge = itemView.findViewById(R.id.video_badge);
             contactName = itemView.findViewById(R.id.contact_name);
             duration = itemView.findViewById(R.id.duration);
             details = itemView.findViewById(R.id.details);

@@ -26,10 +26,12 @@ object RecordingStorage {
     const val DEFAULT_RECORDINGS_ROOT = "/sdcard/WhatsVault/recordings"
 
     /** Folder penyimpanan untuk satu rekaman, berdasarkan jenis panggilan. */
+    @JvmStatic
     fun callKindFolder(root: File, isVideoCall: Boolean): File =
         File(root, if (isVideoCall) VIDEO_DIR_NAME else VOICE_DIR_NAME)
 
     /** Root default rekaman. Dipakai saat preferensi user belum diisi. */
+    @JvmStatic
     fun defaultRecordingsRoot(): String = DEFAULT_RECORDINGS_ROOT
 
     /**
@@ -39,6 +41,7 @@ object RecordingStorage {
      * Urutan deterministik dan hasilnya bebas duplikat. Folder yang tidak
      * relevan (`configuredPath` null) cukup dilewati.
      */
+    @JvmStatic
     fun legacyBaseDirs(
         configuredPath: String?,
         downloadsDir: File,

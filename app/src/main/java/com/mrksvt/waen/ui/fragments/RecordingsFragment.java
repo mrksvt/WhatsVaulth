@@ -112,23 +112,23 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
         baseDirs.clear();
         Set<String> addedPaths = new LinkedHashSet<>();
 
-        // 1. Current default location used by CallRecording
-        addBaseDir(addedPaths, new File(
+        // Lokasi baru: satu subfolder per jenis panggilan.
+        addBaseDir(addedPaths, com.mrksvt.waen.App.getVideoCallRecordingsFolder());
+        addBaseDir(addedPaths, com.mrksvt.waen.App.getVoiceCallRecordingsFolder());
+
+        // Lokasi lama, tetap dipindai supaya rekaman versi sebelumnya tidak hilang.
+        List<File> legacy = com.mrksvt.waen.media.RecordingStorage.legacyBaseDirs(
+                configuredPath,
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "WA Call Recordings"
-        ));
-
-        // 2. User configured location from shared preferences
-        if (configuredPath != null && !configuredPath.isEmpty()) {
-            addBaseDir(addedPaths, new File(configuredPath, "WA Call Recordings"));
+                Environment.getExternalStorageDirectory(),
+                List.of(
+                        new File("/sdcard/Android/data/com.whatsapp/files/Recordings"),
+                        new File("/sdcard/Android/data/com.whatsapp.w4b/files/Recordings")
+                )
+        );
+        for (File dir : legacy) {
+            addBaseDir(addedPaths, dir);
         }
-
-        // 3. Legacy root folder from older versions
-        addBaseDir(addedPaths, new File(Environment.getExternalStorageDirectory(), "WA Call Recordings"));
-
-        // 4. WhatsApp app external files
-        addBaseDir(addedPaths, new File("/sdcard/Android/data/com.whatsapp/files/Recordings"));
-        addBaseDir(addedPaths, new File("/sdcard/Android/data/com.whatsapp.w4b/files/Recordings"));
 
         addBaseDir(addedPaths, com.mrksvt.waen.App.getRecordingsFolder());
     }
@@ -210,7 +210,8 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
                     traverseDirectory(file);
                 } else {
                     String name = file.getName().toLowerCase();
-                    if (name.endsWith(".wav") || name.endsWith(".mp3") || name.endsWith(".aac") || name.endsWith(".m4a")) {
+                    if (name.endsWith(".wav") || name.endsWith(".mp3") || name.endsWith(".aac")
+                            || name.endsWith(".m4a") || name.endsWith(".mp4")) {
                         allRecordings.add(new Recording(file));
                     }
                 }
@@ -249,6 +250,10 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
     @Override
     public void onPlay(Recording recording) {
         // Use in-app audio player
+        if (recording.isVideo()) {
+            openVideo(recording.getFile());
+            return;
+        }
         AudioPlayerDialog dialog = new AudioPlayerDialog(requireContext(), recording.getFile());
         dialog.show();
     }
@@ -279,6 +284,19 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
         // Enter selection mode
         adapter.setSelectionMode(true);
         adapter.toggleSelection(position);
+    }
+
+    private void openVideo(File file) {
+        try {
+            Uri uri = FileProvider.getUriForFile(requireContext(),
+                    requireContext().getPackageName() + ".fileprovider", file);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, "video/*");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "Error opening video: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void shareRecording(File file) {
