@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat
 import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mrksvt.waen.activities.CrashReportActivity
+import com.mrksvt.waen.media.RecordingStorage
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XposedHelpers
 import rikka.material.app.LocaleDelegate.Companion.defaultLocale
@@ -167,6 +168,14 @@ class App : Application() {
         @JvmStatic
         val recordingsFolder: File
             get() = waEnhancerSubfolder("recordings")
+
+        @JvmStatic
+        val videoCallRecordingsFolder: File
+            get() = RecordingStorage.callKindFolder(recordingsFolder, isVideoCall = true)
+
+        @JvmStatic
+        val voiceCallRecordingsFolder: File
+            get() = RecordingStorage.callKindFolder(recordingsFolder, isVideoCall = false)
 
         @JvmStatic
         val statusFolder: File
