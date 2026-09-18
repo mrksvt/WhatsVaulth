@@ -462,30 +462,36 @@ class CallRecording(
         sourceNames: Array<String>,
         outputFd: FileDescriptor
     ): RecorderSelection? {
+        val profiles = CallRecordingQuality.attemptChain(
+            prefs.getString(CallRecordingQuality.PREFS_KEY, CallRecordingQuality.VALUE_AAC_96)
+        )
+
         for (i in audioSources.indices) {
-            val testRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(Utils.application)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }
+            for (profile in profiles) {
+                val testRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    MediaRecorder(Utils.application)
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaRecorder()
+                }
 
-            try {
-                logDebug("WaEnhancer: Trying ${sourceNames[i]}")
-                testRecorder.setAudioSource(audioSources[i])
-                testRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                testRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                testRecorder.setAudioEncodingBitRate(96000)
-                testRecorder.setAudioSamplingRate(44100)
-                testRecorder.setOutputFile(outputFd)
-                testRecorder.prepare()
-                testRecorder.start()
+                try {
+                    logDebug("WaEnhancer: Trying ${sourceNames[i]} @ ${profile.bitRate}bps")
+                    testRecorder.setAudioSource(audioSources[i])
+                    testRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    testRecorder.setAudioEncoder(profile.encoder)
+                    testRecorder.setAudioEncodingBitRate(profile.bitRate)
+                    testRecorder.setAudioSamplingRate(profile.sampleRate)
+                    testRecorder.setOutputFile(outputFd)
+                    testRecorder.prepare()
+                    testRecorder.start()
 
-                logDebug("WaEnhancer: SUCCESS ${sourceNames[i]}")
-                return RecorderSelection(testRecorder, sourceNames[i])
-            } catch (e: Exception) {
-                logDebug("WaEnhancer: FAILED ${sourceNames[i]}: ${e.message}")
-                releaseRecorder(testRecorder, stopBeforeRelease = false)
+                    logDebug("WaEnhancer: SUCCESS ${sourceNames[i]} @ ${profile.bitRate}bps")
+                    return RecorderSelection(testRecorder, sourceNames[i])
+                } catch (e: Exception) {
+                    logDebug("WaEnhancer: FAILED ${sourceNames[i]} @ ${profile.bitRate}bps: ${e.message}")
+                    releaseRecorder(testRecorder, stopBeforeRelease = false)
+                }
             }
         }
 
