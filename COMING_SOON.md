@@ -15,7 +15,7 @@ Fitur-fitur berikut sedang dalam perencanaan atau pengembangan.
 | 1 | 🗓️ Message Scheduler                  | ❌     | Jadwalkan pesan sekali atau berulang dengan antrian terpadu                                            |
 | 2 | ✅ Hide Second Tick (iPhone)            | ❌     | Sembunyikan centang kedua saat kirim ke pengguna iPhone                                                |
 | 3 | 💬 Auto Reply                           | ❌     | Balas otomatis berdasarkan kata kunci, delay, dan jam aktif                                            |
-| 4 | 📞 Call & Video Recording HD            | ⚠️   | Rekam panggilan suara/video dasar ada, HD (WAV/OPUS/AAC) belum                                         |
+| 4 | 📞 Call & Video Recording HD            | ✅   | Audio AAC 96/192/256 kbps + rekaman layar video call jadi satu MP4 di recordings/video_call        |
 | 5 | 🎨 Screen UI Theme Builder              | ⚠️   | Kustomisasi dasar ada, theme builder + live preview + drag & drop + AI belum                           |
 | 6 | 🗑️ Deleted Log                        | ✅     | Log pesan yang dihapus dengan export JSON ke Downloads                                                 |
 | 7 | 🤖 Groq AI Translator (Bubble + Composer) | ✅   | Bubble translator jalan (WA reguler + Business), Composer translator jalan, model updated              |
@@ -56,14 +56,41 @@ Balas pesan otomatis berdasarkan kata kunci dengan dukungan delay dan pembatasan
 
 ## 📞 Call & Video Call Recording HD
 
-Rekam panggilan suara dan video dengan kualitas tinggi.
+Rekam panggilan suara dan video call dengan kualitas tinggi.
 
-**Status:** Implementasi dasar sudah ada, peningkatan kualitas HD (WAV/OPUS/AAC) belum.
+**Status:** Selesai.
 
-**Rencana:**
+**Yang sudah ada:**
 
-- Dukungan format WAV, OPUS, AAC
-- Kualitas rekaman high-quality
+- Audio AAC 96, 192, dan 256 kbps (pilih di Media > Audio Quality)
+- Rekaman layar video call penuh (seluruh layar, termasuk pratinjau diri sendiri)
+- Hasil video call = satu MP4 berisi audio dan video yang sudah digabung
+- Harga: Android 14+ meminta izin rekam layar sekali per video call
+
+**Lokasi simpan:**
+
+```
+/sdcard/WhatsVault/recordings/
+├── video_call/   Call_<nama>_<tanggal>_<jam>.mp4
+└── voice_call/   Call_<nama>_<tanggal>_<jam>.m4a
+```
+
+Rekaman lama ikut dipindahkan otomatis saat app pertama dibuka, dan file lama
+tidak pernah dihapus.
+
+**Mode rekam layar:**
+
+- Standar: butuh izin per panggilan, hasilnya satu MP4 ber-audio
+- Root: tanpa izin, tapi hanya seluruh layar dan videonya terpecah per 180
+  detik tanpa audio. Hanya muncul kalau device punya root dan binary
+  `screenrecord`
+
+**Yang dibatalkan:**
+
+- Mode crop "hanya lawan bicara" dan "hanya diri sendiri": terlalu bergantung
+  pada layout internal WhatsApp. Rekaman selalu seluruh layar
+- WAV/OPUS lossless: `MediaRecorder` Android tidak bisa output PCM mentah, dan
+  AAC 256 kbps sudah cukup untuk rekaman panggilan
 
 ---
 

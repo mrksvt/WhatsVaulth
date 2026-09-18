@@ -3,6 +3,10 @@
 > Dokumen ini berisi brainstorming teknis untuk 3 fitur baru:
 > **TTS (Text-To-Speech)**, **Custom Font**, dan **Custom Tick**.
 
+> **Rencana eksekusi Call & Video Call Recording HD** ada di `.work/PLAN.md`
+> (14 WP, ditulis 2026-09-18). Dokumen ini tetap catatan brainstorming lama;
+> status tabel di bawah tidak diperbarui untuk fitur perekaman panggilan.
+
 ---
 
 ## Status

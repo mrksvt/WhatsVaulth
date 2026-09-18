@@ -1,3 +1,23 @@
+WhatsVault 1.5.5 - call recording HD
+
+[ADDED]
+* Call Recording: rekam layar video call, hasilnya satu MP4 berisi audio dan video yang sudah digabung
+* Call Recording: Audio Quality AAC 192 dan 256 kbps, di samping 96 kbps yang lama
+* Call Recording: Video Quality otomatis mengikuti layar, atau pilih 1080p/720p/480p
+* Call Recording: folder simpan baru per jenis panggilan, /sdcard/WhatsVault/recordings/video_call dan .../voice_call
+* Call Recording: rekaman lama dipindahkan otomatis ke folder baru saat app dibuka, tanpa menghapus file
+* Recordings: rekaman video tampil di daftar dengan badge Video dan bisa diputar langsung
+* Call Recording: mode root opsional tanpa izin layar, lewat screenrecord, terpecah per 180 detik
+* Call Recording: capture berhenti sendiri kalau file lewat 4 GiB atau ruang penyimpanan menipis
+
+[FIXED]
+* Call Recording: projection mati mendadak tidak lagi meninggalkan MP4 korup, file ditutup dan di-mux dulu
+
+[NOTE]
+* Android 14 ke atas meminta izin rekam layar sekali per video call. Kalau ditolak, rekaman suara tetap jalan
+* Rekaman layar selalu seluruh layar; mode hanya lawan bicara atau hanya diri sendiri tidak dibuat
+* Format WAV lossless tidak dibuat karena MediaRecorder Android tidak bisa output PCM mentah
+
 WhatsVault 1.5.5 — dc1b0195
 
 [ADDED]
