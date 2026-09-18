@@ -290,6 +290,18 @@ class CallRecording(
                         return@execute
                     }
 
+                    // Nama kontak diteruskan lewat prefs supaya jalur root
+                    // (sisi app) bisa memberi nama file yang sama dengan jalur
+                    // projection; prefs ini yang jadi kanal konfigurasi resmi.
+                    runCatching {
+                        prefs.edit()
+                            .putString(
+                                "call_recording_root_identifier",
+                                contactIdentifier(currentUserJid.get())
+                            )
+                            .apply()
+                    }
+
                     val settingsPath = prefs.getString(
                         "call_recording_path",
                         RecordingStorage.DEFAULT_RECORDINGS_ROOT
@@ -301,6 +313,9 @@ class CallRecording(
                     )
                     videoDir.mkdirs()
 
+                    // Mode (projection vs root) dipilih pengguna dan dibaca
+                    // ScreenCapturePermissionActivity di sisi app, karena
+                    // libsu hanya tersedia di proses app, bukan di proses WA.
                     val error = bridge.startScreenCapture(videoDir.absolutePath, audioFile)
                     if (error.isNullOrEmpty()) {
                         videoCaptureRequested.set(true)
@@ -802,6 +817,7 @@ class CallRecording(
     companion object {
         private val permissionGranted = AtomicBoolean(false)
         private const val VIDEO_ENABLE_KEY = "call_recording_video_enable"
+
         private const val CALL_CONFIRMATION_FRAGMENT =
             "com.whatsapp.calling.fragment.CallConfirmationFragment"
     }
