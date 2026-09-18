@@ -17,8 +17,12 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.preference.PreferenceManager
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
+import com.mrksvt.waen.media.ScreenCapturePipeline
+import com.mrksvt.waen.media.VideoEncoderProfile
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -45,9 +49,15 @@ class ScreenCaptureService : Service() {
         private const val NOTIFICATION_ID = 9821778
         private const val TAG = "ScreenCaptureService"
 
+        const val PREF_VIDEO_QUALITY = "call_recording_video_quality"
+
         /** Dipanggil pipeline saat projection hilang di luar kendali kita. */
         @Volatile
         var onProjectionStopped: (() -> Unit)? = null
+
+        /** Dipanggil saat encoder gagal start. Audio tetap disimpan (SC-03). */
+        @Volatile
+        var onCaptureFailed: (() -> Unit)? = null
 
         /** Projection aktif, atau null. Dibaca `ScreenCaptureController`. */
         @Volatile
@@ -105,9 +115,18 @@ class ScreenCaptureService : Service() {
 
     private var projection: MediaProjection? = null
     private var projectionCallback: MediaProjection.Callback? = null
+    private var pipelineRef: ScreenCapturePipeline? = null
     private var outputPath: String? = null
     private val stopping = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun logD(msg: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, msg)
+    }
+
+    private fun logW(msg: String) {
+        if (BuildConfig.DEBUG) Log.w(TAG, msg)
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -175,6 +194,8 @@ class ScreenCaptureService : Service() {
             projectionCallback = callback
             activeProjection = newProjection
             isCapturing = true
+
+            startPipelineIfPossible(newProjection)
             true
         } catch (t: Throwable) {
             logW("getMediaProjection gagal: ${t.message}")
@@ -182,8 +203,60 @@ class ScreenCaptureService : Service() {
         }
     }
 
+    /**
+     * Menyalakan `ScreenCapturePipeline` untuk projection yang baru didapat.
+     *
+     * Kegagalan di sini TIDAK menggagalkan service: rekaman audio tetap jalan
+     * (SC-03). Service hanya berhenti kalau projection-nya sendiri tidak ada.
+     */
+    private fun startPipelineIfPossible(active: MediaProjection) {
+        val path = outputPath
+        if (path.isNullOrBlank()) {
+            logW("outputPath kosong, capture video dilewati")
+            return
+        }
+
+        val metrics = resources.displayMetrics
+        val pipeline = ScreenCapturePipeline(File(path))
+        val preference = prefsOrNull()?.getString(PREF_VIDEO_QUALITY, VideoEncoderProfile.PREF_AUTO)
+
+        val started = pipeline.start(
+            projection = active,
+            screenWidth = metrics.widthPixels,
+            screenHeight = metrics.heightPixels,
+            densityDpi = metrics.densityDpi,
+            preference = preference
+        )
+
+        if (started) {
+            pipelineRef = pipeline
+            logD("pipeline capture jalan -> ${pipeline.profile?.resolutionLabel}")
+        } else {
+            logW("pipeline gagal start; rekaman audio tidak terpengaruh")
+            onCaptureFailed?.invoke()
+        }
+    }
+
+    private fun prefsOrNull() = try {
+        PreferenceManager.getDefaultSharedPreferences(this)
+    } catch (t: Throwable) {
+        logW("prefs tidak tersedia: ${t.message}")
+        null
+    }
+
+    private fun stopPipeline() {
+        val pipeline = pipelineRef
+        pipelineRef = null
+        try {
+            pipeline?.stop()
+        } catch (t: Throwable) {
+            logW("pipeline.stop() gagal: ${t.message}")
+        }
+    }
+
     private fun stopCapture() {
         if (!stopping.compareAndSet(false, true)) return
+        stopPipeline()
         releaseProjection()
         isCapturing = false
         finishAndStopSelf()
@@ -271,6 +344,7 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        stopPipeline()
         releaseProjection()
         isCapturing = false
         activeProjection = null
