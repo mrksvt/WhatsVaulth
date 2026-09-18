@@ -40,6 +40,16 @@
 
     <style name="Theme" parent="Base.AppTheme" />
 
+    <style name="Theme.ScreenCapturePermission" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
     <style name="DeviceInfoDialogLabel">
         <item name="android:textAlignment">viewStart</item>
         <item name="android:textAppearance">@style/TextAppearance.MaterialComponents.Body1</item>

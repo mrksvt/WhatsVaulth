@@ -66,4 +66,12 @@
     <string name="root_access_granted">Root access granted! VOICE_CALL source enabled.</string>
     <string name="root_access_denied">Root access denied. Falling back to non-root mode.</string>
     <string name="non_root_mode_enabled">Non-root mode enabled.</string>
+
+    <!-- Screen capture (video call recording) -->
+    <string name="screen_capture_notification_channel">Video call recording</string>
+    <string name="screen_capture_notification_title">Recording video call</string>
+    <string name="screen_capture_notification_text">Screen recording is active. Tap stop to end it.</string>
+    <string name="screen_capture_stop">Stop</string>
+    <string name="screen_capture_consent_required">Android needs your permission to record the screen. Grant it when asked, or video will not be recorded.</string>
+    <string name="screen_capture_permission_needed">Allow "Display over other apps" so the permission dialog can appear during a call.</string>
 </resources>
