@@ -258,6 +258,8 @@ class ScreenCaptureService : Service() {
         val started = pipeline.startCapture(
             projection = active,
             frame = frame,
+            screenWidth = metrics.widthPixels,
+            screenHeight = metrics.heightPixels,
             densityDpi = metrics.densityDpi,
             preference = preference
         )

@@ -127,4 +127,42 @@ class CaptureFrameTest {
         val snapped = CaptureFrame.snapEven(frame, 1080, 2400)
         assertEquals(frame, snapped)
     }
+
+    // REWORK-1: batas yang diberikan adalah LAYAR, bukan dimensi frame. Rect
+    // crop yang lebih kecil dari layar harus keluar utuh, bukan menyusut karena
+    // batasnya dihitung dari lebar frame itu sendiri.
+
+    @Test
+    fun `rect crop di dalam layar lebih besar keluar utuh`() {
+        val crop = CaptureFrame(x = 100, y = 200, width = 800, height = 1600)
+        val snapped = CaptureFrame.snapEven(crop, 1080, 2400)
+        assertEquals(crop, snapped)
+    }
+
+    @Test
+    fun `rect crop yang melewati tepi kanan dipotong tepat di tepi layar`() {
+        val crop = CaptureFrame(x = 100, y = 200, width = 1200, height = 1600)
+        val snapped = CaptureFrame.snapEven(crop, 1080, 2400)
+        assertEquals(100, snapped.x)
+        assertEquals(100 + snapped.width, 1080)
+        assertEquals(0, snapped.width % 2)
+    }
+
+    @Test
+    fun `rect crop yang melewati tepi bawah dipotong tepat di tepi layar`() {
+        val crop = CaptureFrame(x = 100, y = 200, width = 800, height = 3000)
+        val snapped = CaptureFrame.snapEven(crop, 1080, 2400)
+        assertEquals(200, snapped.y)
+        assertEquals(200 + snapped.height, 2400)
+        assertEquals(0, snapped.height % 2)
+    }
+
+    @Test
+    fun `rect crop di sudut kanan bawah tetap utuh selama di dalam layar`() {
+        val crop = CaptureFrame(x = 680, y = 1800, width = 400, height = 600)
+        val snapped = CaptureFrame.snapEven(crop, 1080, 2400)
+        assertEquals(crop, snapped)
+        assertEquals(1080, snapped.x + snapped.width)
+        assertEquals(2400, snapped.y + snapped.height)
+    }
 }

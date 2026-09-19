@@ -81,6 +81,8 @@ class ScreenCapturePipeline(private val outputFile: File) {
     fun startCapture(
         projection: MediaProjection,
         frame: CaptureFrame,
+        screenWidth: Int,
+        screenHeight: Int,
         densityDpi: Int,
         preference: String?
     ): Boolean {
@@ -89,7 +91,7 @@ class ScreenCapturePipeline(private val outputFile: File) {
             return true
         }
 
-        val snapped = CaptureFrame.snapEven(frame, frame.width, frame.height)
+        val snapped = CaptureFrame.snapEven(frame, screenWidth, screenHeight)
         val chain = VideoEncoderProfile.attemptChain(preference, snapped.width, snapped.height)
         for (candidate in chain) {
             if (tryStartWith(projection, candidate, densityDpi)) {
