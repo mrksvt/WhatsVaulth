@@ -316,15 +316,32 @@ class CallRecording(
                     // Mode (projection vs root) dipilih pengguna dan dibaca
                     // ScreenCapturePermissionActivity di sisi app, karena
                     // libsu hanya tersedia di proses app, bukan di proses WA.
+                    // Niat dicatat SEBELUM IPC supaya handleCallEnded yang
+                    // berjalan bersamaan selalu melihat flag ini dan memanggil
+                    // stopScreenCapture(). Kalau urutannya dibalik, panggilan
+                    // pendek bisa menyelesaikan stop lebih dulu, flag ter-set
+                    // belakangan, dan capture layar tidak pernah dihentikan.
+                    videoCaptureRequested.set(true)
+
                     val error = bridge.startScreenCapture(videoDir.absolutePath, audioFile)
-                    if (error.isNullOrEmpty()) {
-                        videoCaptureRequested.set(true)
-                        logDebug("WaEnhancer: capture layar diminta -> ${videoDir.absolutePath}")
-                        if (prefs.getBoolean("call_recording_toast", false)) {
-                            Utils.showToast("Recording video call", Toast.LENGTH_SHORT)
-                        }
-                    } else {
+                    if (!error.isNullOrEmpty()) {
                         logDebug("WaEnhancer: startScreenCapture gagal: $error")
+                        videoCaptureRequested.set(false)
+                        return@execute
+                    }
+
+                    // Panggilan bisa sudah berakhir saat IPC kembali. Dalam
+                    // kondisi itu handleCallEnded sudah lewat, jadi hentikan
+                    // sendiri supaya projection tidak menggantung.
+                    if (!isCallConnected.get()) {
+                        logDebug("WaEnhancer: panggilan sudah berakhir, capture layar langsung dihentikan")
+                        stopVideoCapture()
+                        return@execute
+                    }
+
+                    logDebug("WaEnhancer: capture layar diminta -> ${videoDir.absolutePath}")
+                    if (prefs.getBoolean("call_recording_toast", false)) {
+                        Utils.showToast("Recording video call", Toast.LENGTH_SHORT)
                     }
                 } catch (e: Throwable) {
                     logDebug("WaEnhancer: startVideoCaptureIfEnabled error: ${e.message}")
