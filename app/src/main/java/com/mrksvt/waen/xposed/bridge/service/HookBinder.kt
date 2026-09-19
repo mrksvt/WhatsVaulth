@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import com.mrksvt.waen.App
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.services.ScreenCapturePermissionActivity
+import com.mrksvt.waen.services.RootScreenRecord
 import com.mrksvt.waen.services.ScreenCaptureService
 import com.mrksvt.waen.xposed.bridge.WaeIIFace
 import com.mrksvt.waen.xposed.features.voice_tts.app.VoiceTtsWorker
@@ -182,6 +183,16 @@ object HookBinder : WaeIIFace.Stub() {
     }
 
     override fun stopScreenCapture() {
+        // Jalur root dihentikan LANGSUNG dari sini: mode root tidak pernah
+        // menjalankan ScreenCaptureService, dan `startService` dari background
+        // bisa ditolak Android 8+, sehingga perintah lewat service tidak dapat
+        // diandalkan. Kedua penghenti idempotent, jadi aman dipanggil keduanya.
+        try {
+            RootScreenRecord.stop()
+        } catch (e: Exception) {
+            Log.w(TAG, "stopScreenCapture: RootScreenRecord.stop gagal: ${e.message}")
+        }
+
         try {
             val ctx = getApplicationContext() ?: return
             ScreenCaptureService.stop(ctx)

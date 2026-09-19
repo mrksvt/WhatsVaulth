@@ -27,6 +27,14 @@ object RootScreenRecord {
     private const val CHUNK_SECONDS = 180
     private const val STOP_GRACE_MS = 1_500L
 
+    /**
+     * Batas jumlah chunk sebagai jaring pengaman terakhir. Kalau tidak ada yang
+     * memanggil [stop] (mis. proses yang menghentikan mati lebih dulu),
+     * perekaman berhenti sendiri alih-alih berjalan tanpa batas. 40 chunk x 180
+     * detik = 2 jam, jauh melebihi panggilan video terpanjang yang wajar.
+     */
+    private const val MAX_CHUNKS = 40
+
     const val MODE_PROJECTION = "projection"
     const val MODE_ROOT = "root"
 
@@ -115,6 +123,10 @@ object RootScreenRecord {
             }
 
             if (stopRequested) break
+            if (part >= MAX_CHUNKS) {
+                logW("batas $MAX_CHUNKS chunk tercapai, perekaman berhenti sendiri")
+                break
+            }
             part++
         }
 

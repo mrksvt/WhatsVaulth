@@ -326,10 +326,27 @@ class ScreenCaptureService : Service() {
         stopPipeline()
         releaseProjection()
         isCapturing = false
+        stopRootRecording()
         muxIfPossible()
         finishAndStopSelf()
     }
 
+    /**
+     * Hentikan jalur root juga.
+     *
+     * Mode root TIDAK menjalankan service ini (lihat
+     * `ScreenCapturePermissionActivity.startRootRecordingIfSelected`), sehingga
+     * kalau penghentian hanya menangani pipeline projection, `screenrecord` akan
+     * terus berjalan chunk demi chunk tanpa batas. `RootScreenRecord.stop()`
+     * idempotent, jadi aman dipanggil walau mode root tidak pernah aktif.
+     */
+    private fun stopRootRecording() {
+        try {
+            RootScreenRecord.stop()
+        } catch (t: Throwable) {
+            logW("RootScreenRecord.stop() gagal: ${t.message}")
+        }
+    }
     /**
      * Gabungkan video-only dengan audio `.m4a` dari sisi hook.
      *
