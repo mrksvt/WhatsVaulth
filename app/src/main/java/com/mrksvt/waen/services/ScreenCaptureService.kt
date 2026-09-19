@@ -46,6 +46,10 @@ class ScreenCaptureService : Service() {
     companion object {
         const val ACTION_START = "com.mrksvt.waen.screen.ACTION_START"
         const val ACTION_STOP = "com.mrksvt.waen.screen.ACTION_STOP"
+
+        /** Dikirim saat capture tidak bisa dimulai (mis. consent ditolak). */
+        const val ACTION_CAPTURE_FAILED = "com.mrksvt.waen.screen.ACTION_CAPTURE_FAILED"
+        const val EXTRA_FAILURE_REASON = "failure_reason"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_OUTPUT_PATH = "output_path"
@@ -246,6 +250,7 @@ class ScreenCaptureService : Service() {
             !CaptureLimits.canStartCapture(available)
         ) {
             logW("ruang tidak cukup untuk capture video, dilewati")
+            broadcastFailure("insufficient_space")
             onCaptureFailed?.invoke()
             return
         }
@@ -270,6 +275,7 @@ class ScreenCaptureService : Service() {
             startSizeWatchdog(File(path))
         } else {
             logW("pipeline gagal start; rekaman audio tidak terpengaruh")
+            broadcastFailure("encoder_unavailable")
             onCaptureFailed?.invoke()
         }
     }
@@ -429,8 +435,64 @@ class ScreenCaptureService : Service() {
         }
     }
 
+    /**
+     * Beri tahu sisi hook bahwa capture video gagal supaya user dapat sinyal,
+     * bukan hanya log. Rekaman audio tidak terpengaruh (SC-03).
+     */
     private fun notifyConsentDenied() {
-        if (BuildConfig.DEBUG) Log.d(TAG, "consent ditolak, rekaman audio tidak terpengaruh")
+        broadcastFailure("consent_not_granted")
+    }
+
+    private fun broadcastFailure(reason: String) {
+        logW("capture gagal: $reason")
+        notifyUserFailure(reason)
+        try {
+            sendBroadcast(
+                Intent(ACTION_CAPTURE_FAILED)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_FAILURE_REASON, reason)
+            )
+        } catch (t: Throwable) {
+            logW("sendBroadcast gagal: ${t.message}")
+        }
+    }
+
+    /**
+     * Tampilkan alasan gagal lewat notifikasi supaya user yang tidak melihat
+     * layar tidak kehilangan informasi. Rekaman audio tetap berjalan (SC-03),
+     * jadi pesannya menegaskan hal itu.
+     */
+    private fun notifyUserFailure(reason: String) {
+        try {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "$CHANNEL_ID-failure"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                manager.getNotificationChannel(channelId) == null
+            ) {
+                manager.createNotificationChannel(
+                    NotificationChannel(
+                        channelId,
+                        getString(R.string.screen_capture_notification_channel),
+                        NotificationManager.IMPORTANCE_DEFAULT
+                    ).apply { setSound(null, null) }
+                )
+            }
+
+            val message = getString(R.string.screen_capture_consent_required)
+
+            val notification = NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.stat_sys_warning)
+                .setContentTitle(getString(R.string.screen_capture_notification_title))
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+
+            manager.notify(NOTIFICATION_ID + 1, notification)
+        } catch (t: Throwable) {
+            logW("notifyUserFailure gagal: ${t.message}")
+        }
     }
 
     private fun buildNotification(): Notification {

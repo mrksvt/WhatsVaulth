@@ -11,6 +11,7 @@ import android.text.TextUtils
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.mrksvt.waen.media.RecordingStorage
+import com.mrksvt.waen.services.ScreenCaptureService
 import com.mrksvt.waen.xposed.bridge.WaeIIFace
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.FeatureLoader
@@ -156,6 +157,8 @@ class CallRecording(
             logDebug("WaEnhancer: Could not hook video call flag: ${e.message}")
         }
 
+        registerCaptureFailureReceiver()
+
         logDebug("WaEnhancer: Call Recording initialized with $hooksInstalled hooks")
     }
 
@@ -252,6 +255,43 @@ class CallRecording(
             delayedStartFuture.set(future)
         } catch (e: Throwable) {
             logDebug("WaEnhancer: Could not schedule delayed recording start: ${e.message}")
+        }
+    }
+
+    /**
+     * Dengarkan kabar gagal dari sisi app. Tanpa ini, penolakan consent hanya
+     * tercatat di log dan user tidak tahu kenapa rekaman video tidak ada.
+     */
+    private fun registerCaptureFailureReceiver() {
+        try {
+            val app = FeatureLoader.mApp ?: return
+            val filter = android.content.IntentFilter(ScreenCaptureService.ACTION_CAPTURE_FAILED)
+            androidx.core.content.ContextCompat.registerReceiver(
+                app,
+                captureFailureReceiver,
+                filter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            logDebug("WaEnhancer: receiver kegagalan capture terpasang")
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: registerCaptureFailureReceiver gagal: ${e.message}")
+        }
+    }
+
+    private val captureFailureReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                val reason = intent?.getStringExtra(ScreenCaptureService.EXTRA_FAILURE_REASON).orEmpty()
+                logDebug("WaEnhancer: capture layar gagal ($reason), rekaman audio tetap jalan")
+                // Penandaan direset supaya handleCallEnded tidak memanggil stop
+                // untuk capture yang memang tidak pernah dimulai.
+                videoCaptureRequested.set(false)
+                if (prefs.getBoolean("call_recording_toast", false)) {
+                    Utils.showToast("Video call recording unavailable", Toast.LENGTH_LONG)
+                }
+            } catch (e: Throwable) {
+                logDebug("WaEnhancer: onReceive error: ${e.message}")
+            }
         }
     }
 
