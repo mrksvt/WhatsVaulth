@@ -1,8 +1,6 @@
 package com.mrksvt.waen.xposed.features.voice_tts.app.db
 
 import android.content.Context
-import androidx.room.Room
-import androidx.room.RoomDatabase
 
 object VoiceTtsStore {
 
@@ -11,15 +9,7 @@ object VoiceTtsStore {
 
     fun getInstance(context: Context): VoiceTtsDatabase {
         return db ?: synchronized(this) {
-            db ?: Room.databaseBuilder(
-                context.applicationContext,
-                VoiceTtsDatabase::class.java,
-                VoiceTtsDatabase.DB_NAME
-            )
-                .allowMainThreadQueries()
-                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .build()
-                .also { db = it }
+            db ?: VoiceTtsDatabase.build(context).also { db = it }
         }
     }
 

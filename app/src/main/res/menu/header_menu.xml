@@ -10,6 +10,13 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/menu_tts"
+        android:icon="@drawable/ic_tts"
+        android:title="@string/tts"
+        app:iconTint="@color/text_on_gradient"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/batteryoptimization"
         android:icon="@drawable/ic_battery_optimization"
         android:title="@string/disable_battery_optimization"

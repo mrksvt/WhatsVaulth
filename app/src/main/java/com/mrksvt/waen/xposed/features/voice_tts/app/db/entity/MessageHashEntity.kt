@@ -35,5 +35,11 @@ data class MessageHashEntity(
     val durationMs: Long = 0,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "trained", defaultValue = "0")
+    val trained: Boolean = false,
+
+    @ColumnInfo(name = "expression", defaultValue = "")
+    val expression: String = ""
 )

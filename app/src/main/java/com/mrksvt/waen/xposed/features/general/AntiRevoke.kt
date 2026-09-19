@@ -114,12 +114,8 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                 val fStatusKey = FStatusWpp.FStatusKey(param.args[1])
                 val fstatus = fStatusKey.fStatus ?: return
                 val fMessage = fstatus.fMessage ?: return
-                if (!fStatusKey.isFromMe && handleRevocationAttempt(
-                        fMessage,
-                        fStatusKey.messageID
-                    ) != 0
-                ) {
-                    param.result = 0
+                if (!fStatusKey.isFromMe) {
+                    handleRevocationAttempt(fMessage, fStatusKey.messageID)
                 }
             }
 
@@ -135,20 +131,17 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                 }
                 val fMessage = FMessageWpp(fMessageObj)
                 val messageKey = fMessage.key
+                val messageId = XposedHelpers.getObjectField(fMessage.getObject(), "A01") as? String
+                    ?: return
                 val deviceJid = fMessage.deviceJid
-                val messageId = XposedHelpers.getObjectField(fMessage.getObject(), "A01") as String
 
-
-                if (messageKey.remoteJid.isGroup) {
-                    if (deviceJid != null && handleRevocationAttempt(fMessage, messageId) != 0) {
-                        param.result = true
-                    }
-                } else if (!messageKey.isFromMe && handleRevocationAttempt(
-                        fMessage,
-                        messageId
-                    ) != 0
-                ) {
-                    param.result = true
+                val shouldHandle = if (messageKey.remoteJid.isGroup) {
+                    deviceJid != null
+                } else {
+                    !messageKey.isFromMe
+                }
+                if (shouldHandle) {
+                    handleRevocationAttempt(fMessage, messageId)
                 }
             }
         })

@@ -456,10 +456,10 @@ public class ApkExplorerFragment extends Fragment {
             row.setFocusable(true);
 
             // Ripple/press feedback via selectableItemBackground
-            int[] attrs = { android.R.attr.selectableItemBackground };
-            android.content.res.TypedArray ta = ctx.obtainStyledAttributes(attrs);
-            row.setBackground(ta.getDrawable(0));
-            ta.recycle();
+            android.util.TypedValue tv = new android.util.TypedValue();
+            if (ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true)) {
+                row.setBackground(ctx.getDrawable(tv.resourceId));
+            }
 
             TextView nameTv = new TextView(ctx);
             nameTv.setTextSize(14f);
@@ -471,10 +471,12 @@ public class ApkExplorerFragment extends Fragment {
             idTv.setTypeface(android.graphics.Typeface.MONOSPACE);
             idTv.setTag("id");
             int textColorSecondary;
-            android.content.res.TypedArray ta2 = ctx.obtainStyledAttributes(
-                    new int[]{ android.R.attr.textColorSecondary });
-            textColorSecondary = ta2.getColor(0, 0xFF888888);
-            ta2.recycle();
+            android.util.TypedValue tv2 = new android.util.TypedValue();
+            if (ctx.getTheme().resolveAttribute(android.R.attr.textColorSecondary, tv2, true)) {
+                textColorSecondary = tv2.data;
+            } else {
+                textColorSecondary = 0xFF888888;
+            }
             idTv.setTextColor(textColorSecondary);
             row.addView(idTv);
 

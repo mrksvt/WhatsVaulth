@@ -8,24 +8,27 @@ import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.xposed.features.voice_tts.app.db.VoiceTtsStore
 import com.mrksvt.waen.xposed.features.voice_tts.app.db.entity.TtsCacheEntity
 import com.mrksvt.waen.xposed.features.voice_tts.app.db.entity.VoiceProfileEntity
+import com.mrksvt.waen.xposed.features.voice_tts.core.AudioDecoder
+import com.mrksvt.waen.xposed.features.voice_tts.core.SpeakerEmbedding
 import com.mrksvt.waen.xposed.features.voice_tts.core.TtsCachePaths
+import com.mrksvt.waen.xposed.features.voice_tts.core.VoiceExpression
+import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import kotlin.math.ln
+import kotlin.math.pow
 
 /**
  * Two actions (Tugas B):
  *
- * ACTION_EXTRACT_EMBEDDING: called from HookBinder.registerIncomingVoiceNote().
- *   Reads the voice-note audio file, extracts a speaker embedding (placeholder:
- *   zero-filled 256-byte file until the real ML model is plugged in), and
- *   upserts/averages the embedding into voice_profiles.
+ * ACTION_EXTRACT_EMBEDDING: user-triggered dari screen TTS (VoiceNotesFragment)
+ *   setelah note ditandai train+ekspresi. Semua note trained utk ekspresi tsb
+ *   di-decode (opus -> PCM), vektor akustiknya (SpeakerEmbedding) dirata-rata,
+ *   ditulis ke <contact>.<expr>.emb + sidecar <contact>.json per ekspresi.
  *
  * ACTION_GENERATE_TTS: called from HookBinder.requestTTS().
- *   Checks tts_cache first; on miss generates audio via the TtsEngine and
- *   stores the result for later IPC-driven playback.
- *
- * Both run on a background thread managed by WorkManager (survives Doze, is
- * killed-and-retried on crash, etc.).
+ *   Ekspresi dipilih dari emoji dalam teks (VoiceExpression.detect); engine
+ *   memakai pitch/rate sidecar ekspresi tsb.
  */
 class VoiceTtsWorker(
     appContext: Context,
@@ -40,12 +43,12 @@ class VoiceTtsWorker(
         const val KEY_AUDIO_PATH = "audio_path"
         const val KEY_MESSAGE_HASH = "message_hash"
         const val KEY_DURATION_MS = "duration_ms"
+        const val KEY_EXPRESSION = "expression"
 
         const val ACTION_EXTRACT_EMBEDDING = "extract_embedding"
         const val ACTION_GENERATE_TTS = "generate_tts"
 
         private const val TAG = "VoiceTtsWorker"
-        private const val EMBEDDING_DIM = 256
     }
 
     override fun doWork(): Result {
@@ -64,113 +67,117 @@ class VoiceTtsWorker(
         }
     }
 
-    // ---- embedding extraction ----
+    // ---- training ----
 
     private fun doExtractEmbedding(): Result {
         val contactId = inputData.getString(KEY_CONTACT_ID) ?: return Result.failure()
-        val audioPath = inputData.getString(KEY_AUDIO_PATH) ?: return Result.failure()
-        val messageHash = inputData.getString(KEY_MESSAGE_HASH) ?: return Result.failure()
-        val durationMs = inputData.getLong(KEY_DURATION_MS, 0L)
+        val expression = inputData.getString(KEY_EXPRESSION) ?: VoiceExpression.NORMAL
 
         val db = VoiceTtsStore.getInstance(applicationContext)
-        if (db.voiceProfileDao().findByContact(contactId)?.lastSourceMessageHash == messageHash) {
-            logD("Already trained for this note: $messageHash")
-            return Result.success()
-        }
-
-        val audioFile = File(audioPath)
-        if (!audioFile.exists()) {
-            Log.w(TAG, "Audio file not found: $audioPath")
+        val sources = (if (expression == VoiceExpression.AUTO)
+            db.messageHashDao().allTrainedForContact(contactId)
+        else
+            db.messageHashDao().trainedForExpression(contactId, expression)
+            ).filter { File(it.audioPath).exists() }
+        if (sources.isEmpty()) {
+            Log.w(TAG, "No trained notes on disk for $contactId/$expression")
             return Result.failure()
         }
 
-        val embeddingDir = File(applicationContext.filesDir, "voice_embeddings")
-        embeddingDir.mkdirs()
-        val embeddingFile = File(embeddingDir, "${contactId}.emb")
-
-        // extractSpeakerEmbedding(audioFile, embeddingFile)
-        //   placeholder until ML model is integrated
-        extractPlaceholderEmbedding(audioFile, embeddingFile)
-
-        val existing = db.voiceProfileDao().findByContact(contactId)
-        if (existing != null) {
-            db.voiceProfileDao().upsert(
-                existing.copy(
-                    embeddingPath = embeddingFile.absolutePath,
-                    sourceCount = existing.sourceCount + 1,
-                    lastSourceMessageHash = messageHash,
-                    updatedAt = System.currentTimeMillis()
-                )
-            )
-        } else {
-            db.voiceProfileDao().upsert(
-                VoiceProfileEntity(
-                    contactId = contactId,
-                    embeddingPath = embeddingFile.absolutePath,
-                    sourceCount = 1,
-                    lastSourceMessageHash = messageHash
-                )
-            )
+        val vectors = ArrayList<FloatArray>()
+        var f0Sum = 0f
+        var f0N = 0
+        var vpSum = 0f
+        for (row in sources) {
+            val pcm = AudioDecoder.decodeToPcm(File(row.audioPath)) ?: continue
+            if (pcm.size < 8192) continue
+            val res = SpeakerEmbedding.compute(pcm) ?: continue
+            vectors.add(res.vector)
+            if (res.f0Hz > 0f) {
+                f0Sum += res.f0Hz
+                vpSum += res.voicedPerSec
+                f0N++
+            }
+        }
+        if (vectors.isEmpty()) {
+            Log.w(TAG, "All ${sources.size} notes failed decode/analysis for $contactId/$expression")
+            return Result.failure()
         }
 
-        db.messageHashDao().insert(
-            com.mrksvt.waen.xposed.features.voice_tts.app.db.entity.MessageHashEntity(
-                messageHash = messageHash,
-                messageId = inputData.getString("message_id") ?: "",
+        val embDir = File(applicationContext.filesDir, "voice_embeddings")
+        embDir.mkdirs()
+        val vectorBytes = SpeakerEmbedding.toBytesLE(SpeakerEmbedding.average(vectors))
+
+        val f0 = if (f0N > 0) f0Sum / f0N else 0f
+        val voiced = if (f0N > 0) vpSum / f0N else 0f
+        val pitch = if (f0 > 0f) {
+            val oct = ln((f0 / 155f).toDouble()) / Math.log(2.0) / 2.0
+            2.0.pow(oct).toFloat().coerceIn(0.6f, 1.6f)
+        } else {
+            1.0f
+        }
+        // voiced = frame gate per detik (0..100, hop 10ms): densitas energi
+        // bicara, dipetakan ke rentang tempo Google TTS yang wajar.
+        val rate = if (f0 > 0f) {
+            (0.8f + voiced / 100f * 0.3f).coerceIn(0.75f, 1.15f)
+        } else {
+            0.85f
+        }
+
+        val sidecar = File(embDir, "$contactId.json")
+        val root = runCatching { JSONObject(sidecar.readText()) }.getOrElse { JSONObject() }
+        val expressions = root.optJSONObject("expressions") ?: JSONObject().also {
+            root.put("expressions", it)
+        }
+        val now = System.currentTimeMillis()
+        // AUTO: satu vektor sidik jari untuk semua emosi; emosi hanya beda
+        // prosodi (pitch/rate) hasil turunan baseline.
+        val targets = if (expression == VoiceExpression.AUTO) {
+            VoiceExpression.derive(pitch, rate)
+        } else {
+            mapOf(expression to (pitch to rate))
+        }
+        for ((expr, pr) in targets) {
+            File(embDir, "$contactId.$expr.emb").writeBytes(vectorBytes)
+            expressions.put(
+                expr,
+                JSONObject()
+                    .put("f0Hz", f0.toDouble())
+                    .put("pitch", pr.first.toDouble())
+                    .put("rate", pr.second.toDouble())
+                    .put("sources", vectors.size)
+                    .put("updatedAt", now)
+            )
+        }
+        root.put("updatedAt", now)
+        sidecar.writeText(root.toString())
+
+        val totalTrained = db.messageHashDao().allForContact(contactId).count { it.trained }
+        val existing = db.voiceProfileDao().findByContact(contactId)
+        val primaryExpr = if (expression == VoiceExpression.AUTO) VoiceExpression.NORMAL else expression
+        val primaryEmb = File(embDir, "$contactId.$primaryExpr.emb").absolutePath
+        val embeddingPath = if (primaryExpr == VoiceExpression.NORMAL) {
+            primaryEmb
+        } else {
+            existing?.embeddingPath?.takeIf { it.isNotBlank() } ?: primaryEmb
+        }
+        db.voiceProfileDao().upsert(
+            (existing ?: VoiceProfileEntity(
                 contactId = contactId,
-                audioPath = audioPath,
-                durationMs = durationMs
+                embeddingPath = embeddingPath
+            )).copy(
+                embeddingPath = embeddingPath,
+                sourceCount = totalTrained,
+                updatedAt = System.currentTimeMillis()
             )
         )
 
-        logD("Embedding saved for $contactId (${embeddingFile.length()} bytes)")
-        return Result.success()
-    }
+        // Audio lama di-cache dengan parameter voice sebelumnya; buang supaya
+        // generate ulang memakai pitch/rate hasil training barusan.
+        db.ttsCacheDao().deleteByContact(contactId)
 
-    /**
-     * Produces a deterministic stub embedding from the audio file hash.
-     * Replace with actual zero-shot voice-cloning inference (OpenVoice V2 /
-     * YourTTS ONNX) when the ML module is ready. The file format and path
-     * contract remain unchanged; only this function body changes.
-     */
-    private fun extractPlaceholderEmbedding(audioFile: File, outputFile: File) {
-        val sha256 = MessageDigest.getInstance("SHA-256")
-        audioFile.inputStream().use { ins ->
-            val buf = ByteArray(8192)
-            var n: Int
-            while (true) {
-                n = ins.read(buf)
-                if (n <= 0) break
-                sha256.update(buf, 0, n)
-            }
-        }
-        val hash = sha256.digest()   // 32 bytes
-        outputFile.outputStream().use { out ->
-            repeat(EMBEDDING_DIM / hash.size + 1) {
-                out.write(hash)
-            }
-            // exact EMBEDDING_DIM bytes
-            outputFile.deleteOnExit()
-            val pad = EMBEDDING_DIM - (EMBEDDING_DIM / hash.size) * hash.size
-            if (pad > 0) out.write(ByteArray(pad))
-        }
-        // truncate to exact size
-        if (outputFile.length() != EMBEDDING_DIM.toLong()) {
-            val tmp = File(outputFile.parentFile, "${outputFile.name}.tmp")
-            outputFile.inputStream().use { ins ->
-                tmp.outputStream().use { outs ->
-                    val buf = ByteArray(1024)
-                    var remaining = EMBEDDING_DIM
-                    while (remaining > 0) {
-                        val read = ins.read(buf, 0, remaining.coerceAtMost(buf.size))
-                        if (read <= 0) break
-                        outs.write(buf, 0, read)
-                        remaining -= read
-                    }
-                }
-            }
-            tmp.renameTo(outputFile)
-        }
+        logD("Trained $contactId/$expression: ${vectors.size}/${sources.size} notes, f0=$f0 pitch=$pitch rate=$rate")
+        return Result.success()
     }
 
     // ---- TTS generation ----
@@ -194,12 +201,11 @@ class VoiceTtsWorker(
         cacheDir.mkdirs()
         val audioFile = File(cacheDir, TtsCachePaths.fileName(contactId, textHash))
 
-        val profile = db.voiceProfileDao().findByContact(contactId)
-        val voiceId = profile?.embeddingPath
+        val expression = VoiceExpression.detect(text)
 
         val engine = FallbackTtsEngine(applicationContext)
         try {
-            val success = engine.speakToFile(text, voiceId, audioFile)
+            val success = engine.speakToFile(text, contactId, expression, audioFile)
             if (!success) {
                 Log.w(TAG, "TTS synthesis failed for msg=$messageId")
                 return Result.failure()
@@ -217,7 +223,7 @@ class VoiceTtsWorker(
                 audioFilePath = audioFile.absolutePath
             )
         )
-        logD("TTS generated: ${audioFile.absolutePath} (${audioFile.length()} bytes)")
+        logD("TTS generated ($expression): ${audioFile.absolutePath} (${audioFile.length()} bytes)")
         return Result.success()
     }
 

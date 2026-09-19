@@ -609,9 +609,23 @@
     <string name="voice_tts_no_profile_hint">Auto TTS (suara default)</string>
     <string name="voice_tts_profile_hint">Auto TTS diaktifkan</string>
     <string name="voice_tts_auto_off">Auto TTS dinonaktifkan</string>
-    <string name="voice_tts_train_voice_note">Jadikan data suara</string>
-    <string name="voice_tts_train_voice_note_saved">Voice note disimpan untuk data suara</string>
-    <string name="voice_tts_train_voice_note_failed">Voice note gagal disimpan</string>
+    <!-- Screen TTS di app manager -->
+    <string name="tts">TTS</string>
+    <string name="tts_contacts_empty">Belum ada voice note tersimpan dari kontak.</string>
+    <string name="tts_notes_empty">Belum ada voice note dari kontak ini.</string>
+    <string name="tts_note_count">%1$d voice note · %2$d terlatih</string>
+    <string name="tts_train">Latih</string>
+    <string name="tts_train_expression_title">Pilih ekspresi untuk voice note ini</string>
+    <string name="tts_expression_auto">Auto (sidik jari, semua ekspresi)</string>
+    <string name="tts_expression_normal">Normal</string>
+    <string name="tts_expression_bahagia">Bahagia</string>
+    <string name="tts_expression_sedih">Sedih</string>
+    <string name="tts_expression_semangat">Semangat</string>
+    <string name="tts_train_started">Training dimulai (%1$s)</string>
+    <string name="tts_note_untrained">Belum dilatih</string>
+    <string name="tts_trained">Dilatih: %1$s</string>
+    <string name="tts_play_failed">Audio tidak dapat diputar</string>
+    <string name="tts_back">Kembali</string>
     <string name="translator_groq_key_missing">API key Groq belum diisi di pengaturan translator</string>
     <string name="voice_tts_voice_profile_has">Profil suara tersedia</string>
     <string name="voice_tts_enable_setting">Aktifkan Contact Voice TTS</string>

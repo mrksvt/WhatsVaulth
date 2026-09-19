@@ -12,6 +12,7 @@ import com.mrksvt.waen.ui.fragments.HomeFragment;
 import com.mrksvt.waen.ui.fragments.MediaFragment;
 import com.mrksvt.waen.ui.fragments.PrivacyFragment;
 import com.mrksvt.waen.ui.fragments.RecordingsFragment;
+import com.mrksvt.waen.ui.fragments.TtsFragment;
 
 public class MainPagerAdapter extends FragmentStateAdapter {
 
@@ -26,6 +27,10 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     @NonNull
     @Override
     public Fragment createFragment(int position) {
+        int ttsPos = isRecordingEnabled ? 6 : 5;
+        if (position == ttsPos) {
+            return new TtsFragment();
+        }
         return switch (position) {
             case 0 -> new GeneralFragment();
             case 1 -> new PrivacyFragment();
@@ -38,6 +43,6 @@ public class MainPagerAdapter extends FragmentStateAdapter {
 
     @Override
     public int getItemCount() {
-        return isRecordingEnabled ? 6 : 5;
+        return isRecordingEnabled ? 7 : 6;
     }
 }

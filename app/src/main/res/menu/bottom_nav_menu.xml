@@ -31,5 +31,4 @@
         android:icon="@drawable/ic_recording"
         android:title="@string/recordings_manager" />
 
-
 </menu>

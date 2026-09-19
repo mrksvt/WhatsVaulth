@@ -31,6 +31,7 @@ import java.io.File;
 public class MainActivity extends BaseActivity {
 
     private ActivityMainBinding binding;
+    private boolean recordingsVisible;
     private BatteryPermissionHelper batteryPermissionHelper = BatteryPermissionHelper.Companion.getInstance();
     private String pendingScrollToPreference = null;
     private int pendingScrollToFragment = -1;
@@ -52,7 +53,8 @@ public class MainActivity extends BaseActivity {
         binding.viewPager.setPageTransformer(new DepthPageTransformer());
 
         var prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
-        if (!prefs.getBoolean("call_recording_enable", false)) {
+        recordingsVisible = prefs.getBoolean("call_recording_enable", false);
+        if (!recordingsVisible) {
             binding.navView.getMenu().findItem(R.id.navigation_recordings).setVisible(false);
         }
 
@@ -88,7 +90,10 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
-                binding.navView.getMenu().getItem(position).setChecked(true);
+                int ttsPos = recordingsVisible ? 6 : 5;
+                if (position != ttsPos) {
+                    binding.navView.getMenu().getItem(position).setChecked(true);
+                }
                 
                 // Handle pending scroll after page change
                 if (pendingScrollToFragment == position && pendingScrollToPreference != null) {
@@ -244,6 +249,9 @@ public class MainActivity extends BaseActivity {
             var options = ActivityOptionsCompat.makeCustomAnimation(
                     this, R.anim.slide_in_right, R.anim.slide_out_left);
             startActivity(new Intent(this, AboutActivity.class), options.toBundle());
+            return true;
+        } else if (item.getItemId() == R.id.menu_tts) {
+            binding.viewPager.setCurrentItem(recordingsVisible ? 6 : 5, false);
             return true;
         } else if (item.getItemId() == R.id.batteryoptimization) {
             if (batteryPermissionHelper.isBatterySaverPermissionAvailable(this, true)) {

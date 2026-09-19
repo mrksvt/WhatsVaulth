@@ -12,7 +12,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 interface TtsEngine {
-    fun speakToFile(text: String, voiceId: String?, outputFile: File): Boolean
+    fun speakToFile(text: String, contactId: String?, expression: String, outputFile: File): Boolean
     fun shutdown()
 }
 
@@ -57,18 +57,34 @@ class FallbackTtsEngine(context: Context) : TtsEngine {
         }
     }
 
-    override fun speakToFile(text: String, voiceId: String?, outputFile: File): Boolean {
+    override fun speakToFile(
+        text: String,
+        contactId: String?,
+        expression: String,
+        outputFile: File
+    ): Boolean {
         val engine = tts ?: return false
         if (!initSuccess) return false
 
-        engine.setPitch(1.0f)
-        engine.setSpeechRate(0.85f)
-
-        if (voiceId != null) {
-            val voices = engine.voices
-            val match = voices?.firstOrNull { it.name.contains(voiceId, ignoreCase = true) }
-            if (match != null) engine.voice = match
+        var pitch = 1.0f
+        var rate = 0.85f
+        if (contactId != null) {
+            val sidecar = File(File(appContext.filesDir, "voice_embeddings"), "$contactId.json")
+            if (sidecar.exists()) {
+                runCatching {
+                    val exprs = org.json.JSONObject(sidecar.readText())
+                        .optJSONObject("expressions")
+                    val params = exprs?.optJSONObject(expression)
+                        ?: exprs?.optJSONObject("normal")
+                    if (params != null) {
+                        pitch = params.optDouble("pitch", 1.0).toFloat()
+                        rate = params.optDouble("rate", 0.85).toFloat()
+                    }
+                }
+            }
         }
+        engine.setPitch(pitch)
+        engine.setSpeechRate(rate)
 
         outputFile.parentFile?.mkdirs()
 
