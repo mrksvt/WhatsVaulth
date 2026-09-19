@@ -12,9 +12,12 @@ key.jks
 key_base64.txt
 /app/.project
 AlwaysStrong/
+voicesmith/
 .kotlin/
 .target/
 *.bak
 *.log
 .theme
 donatur.properties
+*.txt
+log.txt
