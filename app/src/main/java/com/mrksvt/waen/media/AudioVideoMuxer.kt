@@ -179,7 +179,15 @@ object AudioVideoMuxer {
             info.offset = 0
             info.size = size
             info.presentationTimeUs = extractor.sampleTime
-            info.flags = extractor.sampleFlags
+            // MediaExtractor flags tidak 1:1 dengan MediaCodec flags.
+            // Hanya bit SYNC yang relevan untuk muxing; ENCRYPTED/CODEC_CONFIG
+            // nilainya bentrok dan tidak dipakai saat menyalin sample.
+            info.flags =
+                if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) {
+                    MediaCodec.BUFFER_FLAG_SYNC_FRAME
+                } else {
+                    0
+                }
 
             try {
                 muxer.writeSampleData(outTrackIndex, buffer, info)

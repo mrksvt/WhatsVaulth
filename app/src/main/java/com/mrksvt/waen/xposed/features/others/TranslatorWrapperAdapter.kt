@@ -1,5 +1,6 @@
 package com.mrksvt.waen.xposed.features.others
 
+import android.annotation.SuppressLint
 import android.database.DataSetObserver
 import android.graphics.Color
 import android.graphics.Typeface
@@ -223,6 +224,7 @@ class TranslatorWrapperAdapter(
         }
     }
 
+    @SuppressLint("SoonBlockedPrivateApi")
     fun attachListViewObserver(lv: ListView) {
         listViewRef = WeakReference(lv)
         try {
