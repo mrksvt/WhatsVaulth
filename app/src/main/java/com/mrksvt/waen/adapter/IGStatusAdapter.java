@@ -176,7 +176,11 @@ public class IGStatusAdapter extends ArrayAdapter {
                 igStatusContactName.setText(UnobfuscatorCache.getInstance().getString("mystatus"));
                 var profile = WppCore.getMyPhoto();
                 if (profile == null)
-                    profile = Utils.getApplication().getDrawable(R.drawable.user_foreground);
+                    profile = DesignUtils.createInitialsAvatar(
+                            WppCore.getMyName(),
+                            WppCore.getMyUserJid() != null ? WppCore.getMyUserJid().getPhoneRawString() : WppCore.getMyName(),
+                            Utils.dipToPixels(64)
+                    );
                 igStatusContactPhoto.setImageDrawable(profile);
                 setCountStatus(0, 0);
                 return;
@@ -216,7 +220,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                     contactName = safeFallbackName();
                 }
                 igStatusContactName.setText(contactName);
-                igStatusContactPhoto.setImageDrawable(profile != null ? profile : defaultPhoto());
+                igStatusContactPhoto.setImageDrawable(profile != null ? profile : defaultPhoto(contactName));
 
                 setCountStatus(readIntField(item, "A01"), readIntField(item, "A00"));
             } catch (Throwable e) {
@@ -321,8 +325,12 @@ public class IGStatusAdapter extends ArrayAdapter {
             return (phone == null || phone.isEmpty()) ? "?" : phone;
         }
 
-        private Drawable defaultPhoto() {
-            return Utils.getApplication().getDrawable(R.drawable.user_foreground);
+        private Drawable defaultPhoto(String name) {
+            return DesignUtils.createInitialsAvatar(
+                    name,
+                    this.userJid != null ? this.userJid.getPhoneRawString() : name,
+                    Utils.dipToPixels(64)
+            );
         }
 
         public void setCountStatus(int countUnseen, int total) {

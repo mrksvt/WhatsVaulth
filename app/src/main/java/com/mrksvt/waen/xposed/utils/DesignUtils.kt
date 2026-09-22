@@ -203,6 +203,50 @@ object DesignUtils {
         return (Utils.application.resources.configuration.uiMode and 48) == 32
     }
 
+    private val initialsAvatarPalette = intArrayOf(
+        0xFF6C8F7F.toInt(), 0xFF7C8DA6.toInt(), 0xFFA67C8D.toInt(),
+        0xFF8F7FA6.toInt(), 0xFFA6917C.toInt(), 0xFF7CA69B.toInt()
+    )
+
+    @JvmStatic
+    fun initialsOf(name: String?): String {
+        val trimmed = name?.trim().orEmpty()
+        if (trimmed.isEmpty()) return "?"
+        val words = trimmed.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val first = words.firstNotNullOfOrNull { word -> word.firstOrNull { it.isLetterOrDigit() } }
+            ?.toString() ?: return "?"
+        val second = words.drop(1)
+            .firstNotNullOfOrNull { word -> word.firstOrNull { it.isLetterOrDigit() } }
+            ?.toString()
+        return (first + (second ?: "")).uppercase()
+    }
+
+    @JvmStatic
+    fun createInitialsAvatar(name: String?, seed: String?, sizePx: Int): Drawable {
+        val initials = initialsOf(name)
+        val backgroundColor = initialsAvatarPalette[
+            Math.floorMod((seed ?: initials).hashCode(), initialsAvatarPalette.size)
+        ]
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = backgroundColor
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, backgroundPaint)
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = sizePx * 0.4f
+            textAlign = Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD
+            )
+        }
+        val centerY = sizePx / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
+        canvas.drawText(initials, sizePx / 2f, centerY, textPaint)
+        return BitmapDrawable(Utils.application.resources, bitmap)
+    }
+
     @JvmStatic
     fun setPrefs(prefs: SharedPreferences) {
         mPrefs = prefs
