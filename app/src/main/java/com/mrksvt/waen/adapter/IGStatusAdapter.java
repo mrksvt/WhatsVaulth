@@ -182,23 +182,147 @@ public class IGStatusAdapter extends ArrayAdapter {
                 return;
             }
             try {
-                var statusInfo = XposedHelpers.getObjectField(item, "A01");
-                var classJid = Unobfuscator.findFirstClassUsingName(statusInfoClazz.getClassLoader(), StringMatchType.EndsWith, "jid.Jid");
-                var field = ReflectionUtils.getFieldByExtendType(statusInfo.getClass(), classJid);
-                this.userJid = new FMessageWpp.UserJid(ReflectionUtils.getObjectField(field, statusInfo));
+                var statusInfo = resolveStatusInfo(item);
+                if (statusInfo == null) {
+                    logStatusShape(item);
+                    return;
+                }
+                var jid = resolveJid(statusInfo);
+                if (jid == null) {
+                    logStatusShape(item);
+                    return;
+                }
+                this.userJid = new FMessageWpp.UserJid(jid);
                 var waContact = WaContactWpp.getWaContactFromJid(this.userJid);
-                var contactName = waContact.getDisplayName();
+                XposedBridge.log("[IGStatus] jid=" + this.userJid.getPhoneRawString()
+                        + " statusCls=" + statusInfo.getClass().getSimpleName()
+                        + " waContact=" + (waContact != null));
+
+                Drawable profile = null;
+                String contactName = null;
+                if (waContact != null) {
+                    contactName = waContact.getDisplayName();
+                    try (var stream = waContact.getProfilePhoto(false)) {
+                        if (stream != null) {
+                            profile = BitmapDrawable.createFromStream(stream, "profile");
+                        }
+                    }
+                }
+
+                if (contactName == null || contactName.isEmpty()) {
+                    contactName = WppCore.getContactName(this.userJid);
+                }
+                if (contactName == null || contactName.isEmpty()) {
+                    contactName = safeFallbackName();
+                }
                 igStatusContactName.setText(contactName);
-                var profile = BitmapDrawable.createFromStream(waContact.getProfilePhoto(false),"profile");
-                if (profile == null)
-                    profile = Utils.getApplication().getDrawable(R.drawable.user_foreground);
-                igStatusContactPhoto.setImageDrawable(profile);
-                var countUnseen = XposedHelpers.getIntField(statusInfo, "A01");
-                var total = XposedHelpers.getIntField(statusInfo, "A00");
-                setCountStatus(countUnseen, total);
-            } catch (Exception e) {
+                igStatusContactPhoto.setImageDrawable(profile != null ? profile : defaultPhoto());
+
+                setCountStatus(readIntField(item, "A01"), readIntField(item, "A00"));
+            } catch (Throwable e) {
                 XposedBridge.log(e);
             }
+        }
+
+        /**
+         * Item daftar status tidak menyimpan Jid secara langsung, dan nama
+         * field statusnya bergeser antar versi WhatsApp (di 2.26.x objek status
+         * pindah ke `A00` sementara `A01` sudah menjadi int). Karena itu status
+         * dicari dari field objek mana pun yang di dalamnya ada Jid.
+         */
+        private Object resolveStatusInfo(Object item) {
+            if (resolveJid(item) != null) {
+                return item;
+            }
+            try {
+                for (var f : item.getClass().getDeclaredFields()) {
+                    if (f.getType().isPrimitive()) continue;
+                    var value = ReflectionUtils.getObjectField(f, item);
+                    if (value != null && resolveJid(value) != null) {
+                        return value;
+                    }
+                }
+            } catch (Throwable e) {
+                XposedBridge.log(e);
+            }
+            return null;
+        }
+
+        /** Jid dibaca lewat field maupun getter, karena namanya ter-obfuscate. */
+        private Object resolveJid(Object status) {
+            try {
+                var classJid = Unobfuscator.findFirstClassUsingName(
+                        statusInfoClazz.getClassLoader(), StringMatchType.EndsWith, "jid.Jid");
+                if (classJid == null) return null;
+
+                var field = ReflectionUtils.getFieldByExtendType(status.getClass(), classJid);
+                var direct = ReflectionUtils.getObjectField(field, status);
+                if (direct != null) return direct;
+
+                for (var m : status.getClass().getMethods()) {
+                    if (m.getParameterCount() != 0) continue;
+                    if (!classJid.isAssignableFrom(m.getReturnType())) continue;
+                    try {
+                        var result = m.invoke(status);
+                        if (result != null) return result;
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } catch (Throwable e) {
+                XposedBridge.log(e);
+            }
+            return null;
+        }
+
+        private int readIntField(Object target, String name) {
+            try {
+                return XposedHelpers.getIntField(target, name);
+            } catch (Throwable ignored) {
+                try {
+                    Object boxed = ReflectionUtils.getObjectField(
+                            findFieldByName(target.getClass(), name), target);
+                    return boxed instanceof Number ? ((Number) boxed).intValue() : 0;
+                } catch (Throwable ignored2) {
+                    return 0;
+                }
+            }
+        }
+
+        private java.lang.reflect.Field findFieldByName(Class<?> type, String name) {
+            var current = type;
+            while (current != null && current != Object.class) {
+                try {
+                    var f = current.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f;
+                } catch (NoSuchFieldException ignored) {
+                    current = current.getSuperclass();
+                }
+            }
+            return null;
+        }
+
+        private void logStatusShape(Object item) {
+            try {
+                var sb = new StringBuilder("[IGStatus] shape item=").append(item.getClass().getName());
+                for (var f : item.getClass().getDeclaredFields()) {
+                    sb.append(' ').append(f.getName()).append(':').append(f.getType().getSimpleName());
+                }
+                XposedBridge.log(sb.toString());
+            } catch (Throwable ignored) {
+            }
+        }
+
+        private String safeFallbackName() {
+            var phone = this.userJid.getPhoneNumber();
+            if (phone == null || phone.isEmpty()) {
+                phone = this.userJid.getPhoneRawString();
+            }
+            return (phone == null || phone.isEmpty()) ? "?" : phone;
+        }
+
+        private Drawable defaultPhoto() {
+            return Utils.getApplication().getDrawable(R.drawable.user_foreground);
         }
 
         public void setCountStatus(int countUnseen, int total) {

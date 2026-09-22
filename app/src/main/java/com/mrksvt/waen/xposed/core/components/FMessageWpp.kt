@@ -489,7 +489,7 @@ class FMessageWpp(fMessage: Any?) {
                         return str.substring(0, str.indexOf("."))
                     } else if (str.contains("@g.us") || str.contains("@s.whatsapp.net") || str.contains(
                             "@broadcast"
-                        ) || str.contains("@lid")
+                        ) || str.contains("@lid") || str.contains("@newsletter")
                     ) {
                         return str.substring(0, str.indexOf("@"))
                     }

@@ -3,7 +3,6 @@ package com.mrksvt.waen.adapter;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
-import androidx.preference.PreferenceManager;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 import com.mrksvt.waen.ui.fragments.CustomizationFragment;
@@ -16,33 +15,29 @@ import com.mrksvt.waen.ui.fragments.TtsFragment;
 
 public class MainPagerAdapter extends FragmentStateAdapter {
 
-    private final boolean isRecordingEnabled;
+    public static final int POSITION_RECORDINGS = 5;
+    public static final int POSITION_TTS = 6;
 
     public MainPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
         super(fragmentActivity);
-        var prefs = PreferenceManager.getDefaultSharedPreferences(fragmentActivity);
-        isRecordingEnabled = prefs.getBoolean("call_recording_enable", false);
     }
 
     @NonNull
     @Override
     public Fragment createFragment(int position) {
-        int ttsPos = isRecordingEnabled ? 6 : 5;
-        if (position == ttsPos) {
-            return new TtsFragment();
-        }
         return switch (position) {
             case 0 -> new GeneralFragment();
             case 1 -> new PrivacyFragment();
             case 3 -> new MediaFragment();
             case 4 -> new CustomizationFragment();
             case 5 -> new RecordingsFragment();
+            case 6 -> new TtsFragment();
             default -> new HomeFragment();
         };
     }
 
     @Override
     public int getItemCount() {
-        return isRecordingEnabled ? 7 : 6;
+        return 7;
     }
 }

@@ -17,6 +17,7 @@ class TrashRecovery(loader: ClassLoader, preferences: SharedPreferences) :
         Utils.application.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 DelMessageStore.getInstance(Utils.application).deleteAll()
+                AntiRevoke.clearCaches()
             }
         }, filter, Context.RECEIVER_EXPORTED)
     }

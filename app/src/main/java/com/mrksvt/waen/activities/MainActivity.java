@@ -79,7 +79,7 @@ public class MainActivity extends BaseActivity {
                     binding.viewPager.setCurrentItem(4, true);
                     return true;
                 } else if (itemId == R.id.navigation_recordings) {
-                    binding.viewPager.setCurrentItem(5);
+                    binding.viewPager.setCurrentItem(MainPagerAdapter.POSITION_RECORDINGS);
                     return true;
                 }
                 return false;
@@ -90,8 +90,8 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
-                int ttsPos = recordingsVisible ? 6 : 5;
-                if (position != ttsPos) {
+                if (position != MainPagerAdapter.POSITION_TTS
+                        && position < binding.navView.getMenu().size()) {
                     binding.navView.getMenu().getItem(position).setChecked(true);
                 }
                 
@@ -251,7 +251,7 @@ public class MainActivity extends BaseActivity {
             startActivity(new Intent(this, AboutActivity.class), options.toBundle());
             return true;
         } else if (item.getItemId() == R.id.menu_tts) {
-            binding.viewPager.setCurrentItem(recordingsVisible ? 6 : 5, false);
+            binding.viewPager.setCurrentItem(MainPagerAdapter.POSITION_TTS, false);
             return true;
         } else if (item.getItemId() == R.id.batteryoptimization) {
             if (batteryPermissionHelper.isBatterySaverPermissionAvailable(this, true)) {

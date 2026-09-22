@@ -25,13 +25,8 @@ class DelMessageStore private constructor(context: Context) {
         dao.insertMessage(message)
     }
 
-    fun getMessagesByJid(jid: String?): java.util.HashSet<String> {
-        if (jid == null) return java.util.HashSet()
-        return HashSet(dao.getMessagesByJid(jid))
-    }
-
-    fun getTimestampByMessageId(msgid: String): Long {
-        return dao.getTimestampByMessageId(msgid) ?: 0L
+    fun getTimestampByJidAndMsgId(jid: String, msgid: String): Long {
+        return dao.getTimestampByJidAndMsgId(jid, msgid) ?: 0L
     }
 
     fun insertFullMessage(
@@ -73,6 +68,10 @@ class DelMessageStore private constructor(context: Context) {
 
     fun getAllMessages(): List<DelMessage> {
         return dao.getAllMessages()
+    }
+
+    fun getMessagesAfter(lastId: Long, limit: Int): List<DelMessage> {
+        return dao.getMessagesAfter(lastId, limit)
     }
 
     fun deleteByJid(jid: String) {

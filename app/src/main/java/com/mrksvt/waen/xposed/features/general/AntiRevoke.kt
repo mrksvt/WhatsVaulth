@@ -1,5 +1,7 @@
 package com.mrksvt.waen.xposed.features.general
 
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -13,6 +15,7 @@ import com.mrksvt.waen.xposed.core.components.StatusItemWpp
 import com.mrksvt.waen.xposed.core.components.WaContactWpp
 import com.mrksvt.waen.xposed.core.db.DelMessageStore
 import com.mrksvt.waen.xposed.core.db.MessageStore
+import com.mrksvt.waen.xposed.core.db.entity.DelMessage
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.core.devkit.UnobfuscatorCache
 import com.mrksvt.waen.xposed.features.listeners.ConversationItemListener
@@ -23,8 +26,8 @@ import android.content.SharedPreferences
 import com.mrksvt.waen.BuildConfig
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
+import java.lang.reflect.Method
 import java.text.DateFormat
-import java.util.Collections
 import java.util.Date
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -36,12 +39,11 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
     Feature(loader, preferences) {
 
     companion object {
-        private val messageRevokedMap = ConcurrentHashMap<String, MutableSet<String>>()
-
         private val savedMediaPaths = ConcurrentHashMap<String, String>()
 
-        // Cache for messageID -> revoke timestamp (immutable once inserted).
-        // Avoids a delmessages Room query per conversation item bind.
+        // Per-row async lookup caches. Each visible row does one async point-query
+        // on the composite (jid,msgid) index; results are memoized. Both caches are
+        // size-bounded, so RAM stays constant regardless of revoke volume.
         private const val TIMESTAMP_CACHE_SIZE = 2048
         private val timestampCache = java.util.Collections.synchronizedMap(
             object : java.util.LinkedHashMap<String, Long>(128, 0.75f, true) {
@@ -50,9 +52,27 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
             }
         )
 
-        // Debounced trash cache writer: full-table JSON dump is expensive,
-        // coalesce revoke bursts instead of dumping on every single event.
+        // Caching "not revoked" is what stops the scroll hot-path from issuing one
+        // DB query per visible non-revoked row; do not remove.
+        private const val NEGATIVE_CACHE_SIZE = 8192
+        private val negativeCache = java.util.Collections.synchronizedMap(
+            object : java.util.LinkedHashMap<String, Boolean>(256, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>) =
+                    size > NEGATIVE_CACHE_SIZE
+            }
+        )
+
+        private fun cacheKey(jid: String, msgid: String): String = "$jid\u0000$msgid"
+
+        @JvmStatic
+        fun clearCaches() {
+            timestampCache.clear()
+            negativeCache.clear()
+        }
+
+        // Coalesce revoke bursts so the NDJSON dump is not rewritten per event.
         private const val TRASH_WRITE_DEBOUNCE_MS = 1500L
+        private const val TRASH_DUMP_PAGE_SIZE = 512
         private val trashWriteGeneration = AtomicInteger(0)
         private val trashWriteScheduler =
             Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -76,27 +96,60 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
 
 
-        private fun getRevokedMessagesForJid(fMessage: FMessageWpp): MutableSet<String> {
-            val stripJID =
-                fMessage.key.remoteJid.phoneNumber ?: return Collections.synchronizedSet(HashSet())
-            return messageRevokedMap.getOrPut(stripJID) {
-                val messages =
-                    DelMessageStore.getInstance(Utils.application).getMessagesByJid(stripJID)
-                Collections.synchronizedSet(messages)
-            }
-        }
-
         private fun persistRevokedMessage(fMessage: FMessageWpp, messageID: String) {
-            val stripJID = fMessage.key.remoteJid.phoneNumber!!
-            val messages = getRevokedMessagesForJid(fMessage)
-            messages.add(messageID)
+            val stripJID = fMessage.key.remoteJid.phoneNumber ?: return
+            negativeCache.remove(cacheKey(stripJID, messageID))
             DelMessageStore.getInstance(Utils.application).insertMessage(
                 stripJID,
                 messageID,
                 System.currentTimeMillis()
             )
         }
+
+        /**
+         * Hentikan eksekusi method revoke dengan cara membatalkan pemanggilan.
+         *
+         * `param.result` harus bertipe sama dengan `method.returnType`; LSPosed
+         * melempar ClassCastException kalau tidak cocok. Karena itu:
+         * - return boolean -> `true` (penanda "sudah ditangani")
+         * - return primitif lain -> nilai default primitifnya
+         * - return void -> `null`
+         * - return objek -> instance baru dari returnType (konstruktor default)
+         *   supaya pemanggil menerima objek bertipe benar, bukan null.
+         *
+         * @return true kalau result berhasil dipasang.
+         */
+        private fun blockRevokeCall(param: XC_MethodHook.MethodHookParam): Boolean {
+            val method = param.method as? Method ?: return false
+            val returnType = method.returnType
+            return try {
+                param.result = when {
+                    returnType == Void.TYPE -> null
+                    returnType == Boolean::class.javaPrimitiveType ||
+                        returnType == java.lang.Boolean::class.java -> true
+                    returnType.isPrimitive -> ReflectionUtils.getDefaultValue(returnType)
+                    else -> {
+                        val constructor = returnType.declaredConstructors
+                            .filter { !it.isSynthetic }
+                            .minByOrNull { it.parameterCount }
+                        if (constructor == null) {
+                            return false
+                        }
+                        constructor.isAccessible = true
+                        constructor.newInstance(
+                            *ReflectionUtils.initArray(constructor.parameterTypes)
+                        )
+                    }
+                }
+                true
+            } catch (e: Throwable) {
+                XposedBridge.log("WAE_ANTIREVOKE: gagal blokir revoke: ${e.message}")
+                false
+            }
+        }
     }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun doHook() {
         val antiRevokeMessageMethod = Unobfuscator.loadAntiRevokeMessageMethod(classLoader)
@@ -114,8 +167,8 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                 val fStatusKey = FStatusWpp.FStatusKey(param.args[1])
                 val fstatus = fStatusKey.fStatus ?: return
                 val fMessage = fstatus.fMessage ?: return
-                if (!fStatusKey.isFromMe) {
-                    handleRevocationAttempt(fMessage, fStatusKey.messageID)
+                if (!fStatusKey.isFromMe && handleRevocationAttempt(fMessage, fStatusKey.messageID) != 0) {
+                    blockRevokeCall(param)
                 }
             }
 
@@ -135,13 +188,13 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                     ?: return
                 val deviceJid = fMessage.deviceJid
 
-                val shouldHandle = if (messageKey.remoteJid.isGroup) {
-                    deviceJid != null
+                val shouldIntercept = if (messageKey.remoteJid.isGroup) {
+                    deviceJid != null && handleRevocationAttempt(fMessage, messageId) != 0
                 } else {
-                    !messageKey.isFromMe
+                    !messageKey.isFromMe && handleRevocationAttempt(fMessage, messageId) != 0
                 }
-                if (shouldHandle) {
-                    handleRevocationAttempt(fMessage, messageId)
+                if (shouldIntercept) {
+                    blockRevokeCall(param)
                 }
             }
         })
@@ -204,66 +257,106 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
 
         val key = fMessage.key
         val boundMessageId = key.messageID
-        val messageRevokedList = getRevokedMessagesForJid(fMessage)
+        val jid = key.remoteJid.phoneNumber ?: return
+        val rowId = fMessage.rowId
         val originalMessage =
             XposedHelpers.getAdditionalInstanceField(dateTextView, "originalMessage") as? String
 
+        // Reset synchronously so a recycled view never shows a stale revoke mark,
+        // then resolve the real state off the main thread.
         dateTextView.paint.isUnderlineText = false
         dateTextView.setOnClickListener(null)
         dateTextView.setCompoundDrawables(null, null, null, null)
+        if (originalMessage != null) dateTextView.text = originalMessage
 
-        val messageID = if (messageRevokedList.contains(key.messageID)) {
-            key.messageID
-        } else {
-            MessageStore.getInstance().getOriginalMessageKey(fMessage.rowId)
-                .takeIf { messageRevokedList.contains(it) }
+        val cacheId = cacheKey(jid, boundMessageId)
+        timestampCache[cacheId]?.let { timestamp ->
+            applyRevokedUI(dateTextView, antirevokeValue, boundMessageId, boundView, timestamp)
+            return
+        }
+        if (negativeCache.containsKey(cacheId)) return
+
+        Utils.databaseExecutor.execute {
+            val timestamp = resolveRevokedTimestamp(jid, boundMessageId, rowId)
+            if (timestamp <= 0) return@execute
+            mainHandler.post {
+                if (!dateTextView.isAttachedToWindow) return@post
+                if (boundView != null && !ConversationItemListener.isViewBoundToMessage(boundView, boundMessageId)) return@post
+                applyRevokedUI(dateTextView, antirevokeValue, boundMessageId, boundView, timestamp)
+            }
+        }
+    }
+
+    /**
+     * Mengembalikan timestamp revoke (> 0) atau 0. Bila tidak ada, jid+msgid
+     * dimasukkan ke negativeCache supaya render berikutnya tidak query DB lagi.
+     */
+    private fun resolveRevokedTimestamp(jid: String, messageID: String, rowId: Long): Long {
+        val ownId = cacheKey(jid, messageID)
+        timestampCache[ownId]?.let { return it }
+        if (negativeCache.containsKey(ownId)) return 0
+
+        val store = DelMessageStore.getInstance(Utils.application)
+        store.getTimestampByJidAndMsgId(jid, messageID)
+            .takeIf { it > 0 }
+            ?.let {
+                timestampCache[ownId] = it
+                return it
+            }
+
+        val originalKey = MessageStore.getInstance().getOriginalMessageKey(rowId)
+        if (originalKey.isNotEmpty()) {
+            val origCacheId = cacheKey(jid, originalKey)
+            store.getTimestampByJidAndMsgId(jid, originalKey)
+                .takeIf { it > 0 }
+                ?.let {
+                    timestampCache[origCacheId] = it
+                    timestampCache[ownId] = it
+                    return it
+                }
         }
 
-        if (messageID != null) {
-            val appInstance = Utils.application
-            val timestamp = timestampCache.get(messageID) ?: run {
-                DelMessageStore.getInstance(appInstance).getTimestampByMessageId(messageID)
-                    .also { if (it > 0) timestampCache.put(messageID, it) }
-            }
-            if (timestamp > 0) {
-                val date = dateFormatThreadLocal.get()?.format(Date(timestamp))
-                dateTextView.paint.isUnderlineText = true
-                dateTextView.setOnClickListener {
-                    if (boundView != null && !ConversationItemListener.isViewBoundToMessage(boundView, boundMessageId)) return@setOnClickListener
-                    val toastMessage =
-                        Utils.application.getString(R.string.message_removed_on)
-                            .format(date)
-                    Utils.showToast(toastMessage, Toast.LENGTH_LONG)
-                }
+        negativeCache[ownId] = true
+        return 0
+    }
+
+    private fun applyRevokedUI(
+        dateTextView: TextView,
+        antirevokeValue: Int,
+        boundMessageId: String,
+        boundView: View?,
+        timestamp: Long
+    ) {
+        val date = dateFormatThreadLocal.get()?.format(Date(timestamp))
+        dateTextView.paint.isUnderlineText = true
+        dateTextView.setOnClickListener {
+            if (boundView != null && !ConversationItemListener.isViewBoundToMessage(boundView, boundMessageId)) return@setOnClickListener
+            val toastMessage =
+                Utils.application.getString(R.string.message_removed_on).format(date)
+            Utils.showToast(toastMessage, Toast.LENGTH_LONG)
+        }
+
+        when (antirevokeValue) {
+            1 -> {
+                val messageText =
+                    XposedHelpers.getAdditionalInstanceField(dateTextView, "originalMessage") as? String
+                        ?: dateTextView.text
+                val newTextData = "${
+                    UnobfuscatorCache.getInstance().getString("messagedeleted")
+                } | $messageText"
+                dateTextView.text = newTextData
+                XposedHelpers.setAdditionalInstanceField(
+                    dateTextView,
+                    "originalMessage",
+                    messageText.toString()
+                )
             }
 
-            when (antirevokeValue) {
-                1 -> {
-                    val messageText = originalMessage ?: dateTextView.text
-                    val newTextData = "${
-                        UnobfuscatorCache.getInstance().getString("messagedeleted")
-                    } | $messageText"
-                    dateTextView.text = newTextData
-                    XposedHelpers.setAdditionalInstanceField(
-                        dateTextView,
-                        "originalMessage",
-                        messageText.toString()
-                    )
-                }
-
-                2 -> {
-                    val drawable = Utils.application.getDrawable(R.drawable.deleted)
-                    dateTextView.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
-                    dateTextView.compoundDrawablePadding = 5
-                }
+            2 -> {
+                val drawable = Utils.application.getDrawable(R.drawable.deleted)
+                dateTextView.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
+                dateTextView.compoundDrawablePadding = 5
             }
-        } else {
-            dateTextView.setCompoundDrawables(null, null, null, null)
-            if (originalMessage != null) {
-                dateTextView.text = originalMessage
-            }
-            dateTextView.paint.isUnderlineText = false
-            dateTextView.setOnClickListener(null)
         }
     }
 
@@ -323,11 +416,9 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
 
         if (revokeBoolean == 0) return 0
 
-        val messageRevokedList = getRevokedMessagesForJid(fMessage)
-        if (!messageRevokedList.contains(messageId)) {
-            CompletableFuture.runAsync {
-                try {
-                    persistRevokedMessage(fMessage, messageId)
+        CompletableFuture.runAsync {
+            try {
+                persistRevokedMessage(fMessage, messageId)
                     val waPackage = Utils.application.packageName
                     val contact = fMessage.key.remoteJid.phoneNumber
                     val intime = fMessage.timeStamp.takeIf { it > 0 }
@@ -370,7 +461,6 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                 } catch (e: Exception) {
                     logDebug(e)
                 }
-            }
         }
         return revokeBoolean
     }
@@ -383,10 +473,8 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
             messageSuffix = Utils.application.getString(R.string.deleted_status)
             jidAuthor = fMessage.userJid
         }
-        val waContact = WaContactWpp.getWaContactFromJid(jidAuthor)
 
-        val name = waContact?.displayName
-            ?: jidAuthor.phoneNumber
+        val name = resolveAuthorName(jidAuthor)
 
         return if (jidAuthor.isGroup) {
             var participantJid = fMessage.userJid
@@ -396,10 +484,7 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                     participantJid = FMessageWpp.UserJid(deletedAdminUser)
                 }
             }
-            val participantWaContact = WaContactWpp.getWaContactFromJid(participantJid)
-
-            val participantName = participantWaContact?.displayName
-                ?: participantJid.phoneNumber
+            val participantName = resolveAuthorName(participantJid)
 
             Utils.application
                 .getString(R.string.deleted_a_message_in_group, participantName, name)
@@ -408,13 +493,34 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
     }
 
-    private fun handleRevocationAlert(fMessage: FMessageWpp) {        val message = formatRevocationMessage(fMessage) ?: return
+    /**
+     * Nama penulis revoke, berlapis supaya tidak pernah jatuh ke JID mentah:
+     * kontak WhatsApp -> tabel `wa_contacts` -> nomor asli. Untuk JID tanpa
+     * nomor (`@lid`, `@newsletter`) nomor tidak ada, jadi dipakai JID user agar
+     * teks seperti "kode@newsletter" tidak bocor ke toast.
+     */
+    private fun resolveAuthorName(jid: FMessageWpp.UserJid): String {
+        WaContactWpp.getWaContactFromJid(jid)?.displayName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        WppCore.getContactName(jid)
+            .takeIf { it.isNotBlank() && it != "Whatsapp Contact" }
+            ?.let { return it }
+
+        return jid.phoneNumber
+            ?: jid.userRawString
+            ?: jid.phoneRawString
+            ?: "Unknown"
+    }
+
+    private fun handleRevocationAlert(fMessage: FMessageWpp) {
+        val message = formatRevocationMessage(fMessage) ?: return
 
         val jidAuthor = fMessage.key.remoteJid
         val actualAuthor = if (jidAuthor.isStatus) fMessage.userJid else jidAuthor
-        val waContact = WaContactWpp.getWaContactFromJid(actualAuthor)
 
-        val name = waContact?.displayName ?: actualAuthor.phoneNumber
+        val name = resolveAuthorName(actualAuthor)
 
         val taskerAction = if (jidAuthor.isStatus) "deleted_status" else "deleted_message"
 
@@ -422,7 +528,7 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
             Utils.showToast(message, Toast.LENGTH_LONG)
         }
 
-        Tasker.sendTaskerEvent(name, jidAuthor.phoneNumber, taskerAction)
+        Tasker.sendTaskerEvent(name, actualAuthor.phoneNumber, taskerAction)
     }
 
     private fun writeTrashCache() {
@@ -443,39 +549,49 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private fun doWriteTrashCache() {
-        try {
-            val messages = DelMessageStore.getInstance(Utils.application).getAllMessages()
-            val arr = org.json.JSONArray()
-            for (msg in messages) {
-                val obj = org.json.JSONObject()
-                obj.put("id", msg.id)
-                obj.put("jid", msg.jid ?: "")
-                obj.put("msgid", msg.msgid ?: "")
-                obj.put("timestamp", msg.timestamp ?: 0L)
-                obj.put("text", msg.text ?: org.json.JSONObject.NULL)
-                obj.put("mediaPath", msg.mediaPath ?: org.json.JSONObject.NULL)
-                obj.put("mediaType", msg.mediaType ?: -1)
-                obj.put("senderName", msg.senderName ?: org.json.JSONObject.NULL)
-                obj.put("wa", msg.wa ?: org.json.JSONObject.NULL)
-                obj.put("contact", msg.contact ?: org.json.JSONObject.NULL)
-                obj.put("intime", msg.intime ?: 0L)
-                obj.put("deltime", msg.deltime ?: 0L)
-                obj.put("voiceFileName", msg.voiceFileName ?: org.json.JSONObject.NULL)
-                obj.put("fileId", msg.fileId ?: org.json.JSONObject.NULL)
-                arr.put(obj)
-            }
-            val json = arr.toString()
-            val path = "/data/data/${BuildConfig.APPLICATION_ID}/files/trash_cache.json"
-            val pfd = WppCore.getClientBridge()?.openFile(path, true) ?: return
-            pfd.use {
-                java.io.FileOutputStream(it.fileDescriptor).use { out ->
-                    out.write(json.toByteArray(Charsets.UTF_8))
+        val path = "/data/data/${BuildConfig.APPLICATION_ID}/files/trash_cache.json"
+        val pfd = WppCore.getClientBridge()?.openFile(path, true) ?: return
+        pfd.use {
+            try {
+                java.io.FileOutputStream(it.fileDescriptor).use { rawOut ->
+                    // NDJSON, written incrementally per page so RAM stays bounded.
+                    val out = rawOut.bufferedWriter(Charsets.UTF_8)
+                    var lastId = 0L
+                    while (true) {
+                        val page = DelMessageStore.getInstance(Utils.application)
+                            .getMessagesAfter(lastId, TRASH_DUMP_PAGE_SIZE)
+                        if (page.isEmpty()) break
+                        for (msg in page) {
+                            out.write(toJsonLine(msg))
+                            out.write('\n'.code)
+                        }
+                        lastId = page.last().id
+                    }
                     out.flush()
                 }
+            } catch (e: Throwable) {
+                logDebug("writeTrashCache failed: ${e.message}")
             }
-        } catch (e: Throwable) {
-            logDebug("writeTrashCache failed: ${e.message}")
         }
+    }
+
+    private fun toJsonLine(msg: DelMessage): String {
+        val obj = org.json.JSONObject()
+        obj.put("id", msg.id)
+        obj.put("jid", msg.jid ?: "")
+        obj.put("msgid", msg.msgid ?: "")
+        obj.put("timestamp", msg.timestamp ?: 0L)
+        obj.put("text", msg.text ?: org.json.JSONObject.NULL)
+        obj.put("mediaPath", msg.mediaPath ?: org.json.JSONObject.NULL)
+        obj.put("mediaType", msg.mediaType ?: -1)
+        obj.put("senderName", msg.senderName ?: org.json.JSONObject.NULL)
+        obj.put("wa", msg.wa ?: org.json.JSONObject.NULL)
+        obj.put("contact", msg.contact ?: org.json.JSONObject.NULL)
+        obj.put("intime", msg.intime ?: 0L)
+        obj.put("deltime", msg.deltime ?: 0L)
+        obj.put("voiceFileName", msg.voiceFileName ?: org.json.JSONObject.NULL)
+        obj.put("fileId", msg.fileId ?: org.json.JSONObject.NULL)
+        return obj.toString()
     }
 
     private fun hookNewMessageForMedia() {

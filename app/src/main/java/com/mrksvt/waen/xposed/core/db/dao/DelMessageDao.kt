@@ -12,14 +12,14 @@ interface DelMessageDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertMessage(message: DelMessage)
 
-    @Query("SELECT msgid FROM delmessages WHERE jid = :jid")
-    fun getMessagesByJid(jid: String): List<String>
-
-    @Query("SELECT timestamp FROM delmessages WHERE msgid = :msgid LIMIT 1")
-    fun getTimestampByMessageId(msgid: String): Long?
+    @Query("SELECT timestamp FROM delmessages WHERE jid = :jid AND msgid = :msgid LIMIT 1")
+    fun getTimestampByJidAndMsgId(jid: String, msgid: String): Long?
 
     @Query("SELECT * FROM delmessages")
     fun getAllMessages(): List<DelMessage>
+
+    @Query("SELECT * FROM delmessages WHERE _id > :lastId ORDER BY _id LIMIT :limit")
+    fun getMessagesAfter(lastId: Long, limit: Int): List<DelMessage>
 
     @Query("SELECT * FROM delmessages WHERE jid = :jid")
     fun getFullMessagesByJid(jid: String): List<DelMessage>

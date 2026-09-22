@@ -120,6 +120,8 @@ class CallRecording(
             } catch (e: Throwable) {
                 logDebug("WaEnhancer: Could not hook soundPortCreated: ${e.message}")
             }
+
+            hooksInstalled += hookVideoCallSignals(clsCallEventCallback)
         } catch (e: Throwable) {
             logDebug("WaEnhancer: Could not hook VoiceServiceEventCallback: ${e.message}")
         }
@@ -160,6 +162,69 @@ class CallRecording(
         registerCaptureFailureReceiver()
 
         logDebug("WaEnhancer: Call Recording initialized with $hooksInstalled hooks")
+    }
+
+    /**
+     * Menandai panggilan ini video call dari event `VoiceServiceEventCallback`.
+     *
+     * `CallConfirmationFragment` hanya muncul saat panggilan keluar, jadi
+     * panggilan masuk tidak pernah terdeteksi lewat jalur itu. Callback video
+     * di bawah ini hanya dipanggil WhatsApp pada panggilan video, sehingga
+     * aman dipakai sebagai penanda tambahan (FR-07).
+     */
+    private fun hookVideoCallSignals(clsCallEventCallback: Class<*>): Int {
+        var installed = 0
+
+        try {
+            XposedBridge.hookAllMethods(
+                clsCallEventCallback,
+                "videoStateChanged",
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val enabled = param.args?.firstOrNull() as? Boolean ?: return
+                        if (enabled) {
+                            logDebug("WaEnhancer: videoStateChanged -> video call")
+                            onVideoCallDetected()
+                        }
+                    }
+                }
+            )
+            installed++
+        } catch (e: Throwable) {
+            logDebug("WaEnhancer: Could not hook videoStateChanged: ${e.message}")
+        }
+
+        for (name in listOf("videoPortCreated", "videoRenderStarted", "videoCaptureStarted")) {
+            try {
+                XposedBridge.hookAllMethods(
+                    clsCallEventCallback,
+                    name,
+                    object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            logDebug("WaEnhancer: $name -> video call")
+                            onVideoCallDetected()
+                        }
+                    }
+                )
+                installed++
+            } catch (e: Throwable) {
+                logDebug("WaEnhancer: Could not hook $name: ${e.message}")
+            }
+        }
+
+        return installed
+    }
+
+    /**
+     * Video bisa terdeteksi setelah rekaman audio dimulai (mis. upgrade audio
+     * ke video di tengah panggilan). Kalau capture layar belum berjalan,
+     * jalankan sekarang supaya rekaman tidak kehilangan bagian video.
+     */
+    private fun onVideoCallDetected() {
+        isVideoCall.set(true)
+        if (!isCallConnected.get() || !isRecording.get() || videoCaptureRequested.get()) return
+        logDebug("WaEnhancer: video call terdeteksi setelah audio jalan, mulai capture layar")
+        startVideoCaptureIfEnabled()
     }
 
     private fun hookPeerJidMethod() {

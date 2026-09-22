@@ -149,23 +149,14 @@ public class TrashRecoveryFragment extends Fragment {
                 String cachePath = "/data/data/" + requireContext().getPackageName() + "/files/trash_cache.json";
                 android.os.ParcelFileDescriptor pfd = hookBinder.openFile(cachePath, false);
                 if (pfd != null) {
-                    String json;
-                    try (java.io.InputStream is = new java.io.FileInputStream(pfd.getFileDescriptor())) {
-                        byte[] buf = new byte[is.available()];
-                        int totalRead = 0;
-                        int read;
-                        while ((read = is.read(buf, totalRead, buf.length - totalRead)) != -1) {
-                            totalRead += read;
-                            if (totalRead == buf.length) break;
-                        }
-                        json = new String(buf, 0, totalRead, java.nio.charset.StandardCharsets.UTF_8);
-                    } finally {
-                        pfd.close();
-                    }
-                    if (json != null && !json.isEmpty() && !json.equals("[]")) {
-                        org.json.JSONArray arr = new org.json.JSONArray(json);
-                        for (int i = 0; i < arr.length(); i++) {
-                            org.json.JSONObject obj = arr.getJSONObject(i);
+                    try (java.io.InputStream is = new java.io.FileInputStream(pfd.getFileDescriptor());
+                         java.io.BufferedReader reader = new java.io.BufferedReader(
+                                 new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            line = line.trim();
+                            if (line.isEmpty()) continue;
+                            org.json.JSONObject obj = new org.json.JSONObject(line);
                             DelMessage msg = new DelMessage();
                             msg.setId(obj.getLong("id"));
                             msg.setJid(obj.optString("jid", null));
@@ -190,6 +181,8 @@ public class TrashRecoveryFragment extends Fragment {
                             if (isStatus && !hasContent) continue;
                             messages.add(msg);
                         }
+                    } finally {
+                        pfd.close();
                     }
                 }
             } catch (Exception e) {
