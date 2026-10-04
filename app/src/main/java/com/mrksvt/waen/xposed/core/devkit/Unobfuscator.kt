@@ -222,7 +222,19 @@ object Unobfuscator {
             if (method.parameterTypes.size > 2 && method.parameterTypes[2] == Int::class.java) {
                 return@getMethod method
             }
-            throw Exception("GhostMode method not found parameter type")
+            val fallback = findAllMethodUsingStrings(
+                classLoader,
+                StringMatchType.Contains,
+                "HandleMeComposing/sendComposing"
+            ).filter { candidate ->
+                val parameters = candidate.parameterTypes
+                Modifier.isStatic(candidate.modifiers) &&
+                    candidate.returnType == Void.TYPE &&
+                    parameters.size == 4 &&
+                    parameters[1] == FMessageWpp.UserJid.TYPE_USERJID &&
+                    parameters[3] == Int::class.java
+            }.singleOrNull()
+            fallback ?: throw Exception("GhostMode method not found parameter type")
         }
     }
 
