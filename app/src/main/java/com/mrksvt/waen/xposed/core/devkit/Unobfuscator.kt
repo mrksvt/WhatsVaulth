@@ -40,6 +40,7 @@ import java.util.Date
 import java.util.Objects
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.stream.Collectors
 
 object Unobfuscator {
@@ -1659,9 +1660,36 @@ object Unobfuscator {
                     }
                 }
             }
-            if (clazzList.isEmpty()) throw RuntimeException("FilterAdapter class not found")
-            clazzList[0].getInstance(loader)
+            if (clazzList.isNotEmpty()) return@getClass clazzList[0].getInstance(loader)
+            findFilterAdapterClass(loader)
+                ?: throw RuntimeException("FilterAdapter class not found")
         }
+    }
+
+    /**
+     * Fallback for WhatsApp 2.26.40.xx+, where "CONTACTS_FILTER" moved into the
+     * ConversationFilter enum and the adapter no longer references it directly.
+     * The adapter is identified structurally: a RecyclerView adapter backed by a
+     * CopyOnWriteArrayList of filters with a setFilter(int) method.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    private fun findFilterAdapterClass(loader: ClassLoader): Class<*>? {
+        val candidates = bridge.findClass {
+            matcher {
+                addFieldForType(CopyOnWriteArrayList::class.java)
+                addMethod {
+                    paramCount(1)
+                    addParamType(Int::class.javaPrimitiveType)
+                    returnType(Void.TYPE)
+                }
+            }
+        }
+        val resolved = candidates.mapNotNull { convertRealClass(it, loader) }
+            .filter { !it.isInterface }
+        return resolved.firstOrNull { clazz ->
+            clazz.methods.any { it.name == "getItemViewType" && it.parameterCount == 1 }
+        } ?: resolved.firstOrNull()
     }
 
     @Throws(Exception::class)
@@ -2916,8 +2944,56 @@ object Unobfuscator {
                 classLoader,
                 StringMatchType.Contains,
                 "VideoTranscoder/transcodeVideoNew/"
-            )!!
+            ) ?: findVideoTranscoderStartMethod(classLoader)
+            ?: throw NoSuchMethodException("VideoTranscoder start method not found")
         }
+    }
+
+    /**
+     * Fallback for WhatsApp 2.26.40.xx+, which removed the classic VideoTranscoder
+     * task ("VideoTranscoder/transcodeVideoNew/") and moved transcoding onto the
+     * videolite-based BaseMediaProcessingEngine flow. The transcode entry point is
+     * the spec builder that takes the media processor as its first argument and a
+     * MediaDataVideoConfiguration holder (a class declaring a configuration field
+     * plus the transcode boolean flags) as its second.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    private fun findVideoTranscoderStartMethod(classLoader: ClassLoader): Method? {
+        val configurationClass = runCatching {
+            loadMediaDataVideoConfigurationClass(classLoader)
+        }.getOrNull() ?: return null
+
+        if (!getAllMapFields(configurationClass).containsKey("forceSingleTranscoding")) return null
+
+        val holderTypes = bridge.findClass {
+            matcher { addFieldForType(configurationClass) }
+        }.mapNotNull { convertRealClass(it, classLoader) }
+            .filter { booleanFieldCount(it) >= 3 }
+            .map { it.name }
+            .toHashSet()
+        if (holderTypes.isEmpty()) return null
+
+        val candidates = bridge.findMethod {
+            matcher { paramCount(2) }
+        }
+        return candidates.asSequence()
+            .filter { it.paramTypeNames.size == 2 && it.paramTypeNames[1] in holderTypes }
+            .mapNotNull { convertRealMethod(it, classLoader) }
+            .firstOrNull {
+                !Modifier.isStatic(it.modifiers) &&
+                    booleanFieldCount(it.parameterTypes[0]) >= 3
+            }
+    }
+
+    private fun booleanFieldCount(clazz: Class<*>): Int {
+        var current: Class<*>? = clazz
+        var count = 0
+        while (current != null && current != Any::class.java) {
+            count += current.declaredFields.count { it.type == Boolean::class.javaPrimitiveType }
+            current = current.superclass
+        }
+        return count
     }
 
 
@@ -3500,46 +3576,45 @@ object Unobfuscator {
 
     fun loadDrawSpanMethods(classLoader: ClassLoader): Array<Method> {
         return UnobfuscatorCache.getInstance().getMethods(classLoader) {
-            bridge.findClass {
-                matcher {
-                    anyOf {
-                        match {
-                            superClass = "android.text.style.ImageSpan"
-                        }
-                        match {
-                            superClass = "android.text.style.ReplacementSpan"
-                        }
-                    }
-                }
-            }.findMethod {
-                matcher {
-                    paramCount(9)
-                    name = "draw"
-                }
-            }.map { it.getMethodInstance(classLoader) }.toTypedArray()
+            findSpanMethods(classLoader, "draw", 9)
         }
     }
 
     fun loadGetSizeSpanMethods(classLoader: ClassLoader): Array<Method> {
         return UnobfuscatorCache.getInstance().getMethods(classLoader) {
-            bridge.findClass {
-                matcher {
-                    anyOf {
-                        match {
-                            superClass = "android.text.style.ImageSpan"
-                        }
-                        match {
-                            superClass = "android.text.style.ReplacementSpan"
-                        }
-                    }
-                }
-            }.findMethod {
-                matcher {
-                    paramCount(5)
-                    name = "getSize"
-                }
-            }.map { it.getMethodInstance(classLoader) }.toTypedArray()
+            findSpanMethods(classLoader, "getSize", 5)
         }
+    }
+
+    private fun findSpanMethods(
+        classLoader: ClassLoader,
+        name: String,
+        paramCount: Int
+    ): Array<Method> {
+        val visited = linkedSetOf<String>()
+        val methods = linkedSetOf<Method>()
+        var frontier = listOf(
+            "android.text.style.ImageSpan",
+            "android.text.style.ReplacementSpan"
+        )
+        while (frontier.isNotEmpty()) {
+            val next = mutableListOf<String>()
+            for (parent in frontier) {
+                bridge.findClass {
+                    matcher { superClass(parent) }
+                }.forEach { clazz ->
+                    if (!visited.add(clazz.name)) return@forEach
+                    next.add(clazz.name)
+                    clazz.methods
+                        .filter {
+                            it.isMethod && it.methodName == name && it.paramTypes.size == paramCount
+                        }
+                        .forEach { methods.add(it.getMethodInstance(classLoader)) }
+                }
+            }
+            frontier = next
+        }
+        return methods.toTypedArray()
     }
 
     fun loadProfilePhotoProtocolHelperClass(classLoader: ClassLoader): Class<*> {

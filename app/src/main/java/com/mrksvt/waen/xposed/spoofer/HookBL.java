@@ -428,7 +428,7 @@ public final class HookBL {
             // Get private key
             org.w3c.dom.NodeList privateKeyNodes = keyElement.getElementsByTagName("PrivateKey");
             if (privateKeyNodes.getLength() > 0) {
-                String privateKeyContent = privateKeyNodes.item(0).getTextContent().replaceAll("\s{2,}", "");
+                String privateKeyContent = privateKeyNodes.item(0).getTextContent().replaceAll(" {2,}", "");
 
                 // Get certificate chain
                 org.w3c.dom.NodeList certChainNodes = keyElement.getElementsByTagName("CertificateChain");
@@ -441,7 +441,7 @@ public final class HookBL {
                         certs_EC.clear();
 
                         for (int j = 0; j < certificateNodes.getLength(); j++) {
-                            String certContent = certificateNodes.item(j).getTextContent().replaceAll("\s{2,}", "");
+                            String certContent = certificateNodes.item(j).getTextContent().replaceAll(" {2,}", "");
                             certs_EC.add(parseCert(certContent));
                         }
                     } else if ("rsa".equals(algorithm)) {
@@ -449,7 +449,7 @@ public final class HookBL {
                         certs_RSA.clear();
 
                         for (int j = 0; j < certificateNodes.getLength(); j++) {
-                            String certContent = certificateNodes.item(j).getTextContent().replaceAll("\s{2,}", "");
+                            String certContent = certificateNodes.item(j).getTextContent().replaceAll(" {2,}", "");
                             ;
                             certs_RSA.add(parseCert(certContent));
                         }

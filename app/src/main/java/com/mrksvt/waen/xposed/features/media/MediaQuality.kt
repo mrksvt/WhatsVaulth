@@ -77,15 +77,20 @@ class MediaQuality(loader: ClassLoader, preferences: SharedPreferences) :
                         val field: Field = booleanParams[2]
                         field.setBoolean(videoProcessor, false)
                     }
-                    val fieldMediaDataVideoConfiguration = ReflectionUtils.getFieldByType(
-                        videoProcessor.javaClass,
-                        mediaDataVideoConfiguration
-                    )
-                    val mediaDataVideoConfigObj =
-                        fieldMediaDataVideoConfiguration!!.get(videoProcessor)
-                    val fieldforceSingleTranscoding =
+                    val configuration = param.args.asSequence()
+                        .filterNotNull()
+                        .map { arg ->
+                            if (mediaDataVideoConfiguration.isInstance(arg)) arg
+                            else ReflectionUtils.getFieldByType(
+                                arg.javaClass,
+                                mediaDataVideoConfiguration
+                            )?.get(arg)
+                        }
+                        .firstOrNull { it != null }
+                        ?: return
+                    val forceSingleTranscoding =
                         fieldsMediaDataVideoConfiguration["forceSingleTranscoding"]
-                    fieldforceSingleTranscoding?.setBoolean(mediaDataVideoConfigObj, true)
+                    forceSingleTranscoding?.setBoolean(configuration, true)
                 }
             })
 
