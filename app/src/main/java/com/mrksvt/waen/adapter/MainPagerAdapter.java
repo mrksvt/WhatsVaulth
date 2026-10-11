@@ -5,6 +5,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
+import com.mrksvt.waen.activities.MainNavigationRoutes;
 import com.mrksvt.waen.ui.fragments.CustomizationFragment;
 import com.mrksvt.waen.ui.fragments.GeneralFragment;
 import com.mrksvt.waen.ui.fragments.HomeFragment;
@@ -15,8 +16,13 @@ import com.mrksvt.waen.ui.fragments.TtsFragment;
 
 public class MainPagerAdapter extends FragmentStateAdapter {
 
-    public static final int POSITION_RECORDINGS = 5;
-    public static final int POSITION_TTS = 6;
+    public static final int POSITION_GENERAL = MainNavigationRoutes.POSITION_GENERAL;
+    public static final int POSITION_PRIVACY = MainNavigationRoutes.POSITION_PRIVACY;
+    public static final int POSITION_HOME = MainNavigationRoutes.POSITION_HOME;
+    public static final int POSITION_MEDIA = MainNavigationRoutes.POSITION_MEDIA;
+    public static final int POSITION_CUSTOMIZATION = MainNavigationRoutes.POSITION_CUSTOMIZATION;
+    public static final int POSITION_RECORDINGS = MainNavigationRoutes.POSITION_RECORDINGS;
+    public static final int POSITION_TTS = MainNavigationRoutes.POSITION_TTS;
 
     public MainPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
         super(fragmentActivity);
@@ -26,18 +32,18 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     @Override
     public Fragment createFragment(int position) {
         return switch (position) {
-            case 0 -> new GeneralFragment();
-            case 1 -> new PrivacyFragment();
-            case 3 -> new MediaFragment();
-            case 4 -> new CustomizationFragment();
-            case 5 -> new RecordingsFragment();
-            case 6 -> new TtsFragment();
+            case POSITION_GENERAL -> new GeneralFragment();
+            case POSITION_PRIVACY -> new PrivacyFragment();
+            case POSITION_MEDIA -> new MediaFragment();
+            case POSITION_CUSTOMIZATION -> new CustomizationFragment();
+            case POSITION_RECORDINGS -> new RecordingsFragment();
+            case POSITION_TTS -> new TtsFragment();
             default -> new HomeFragment();
         };
     }
 
     @Override
     public int getItemCount() {
-        return 7;
+        return MainNavigationRoutes.PAGE_COUNT;
     }
 }
