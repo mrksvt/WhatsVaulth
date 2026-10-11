@@ -22,13 +22,8 @@
         android:title="@string/media" />
 
     <item
-        android:id="@+id/navigation_colors"
+        android:id="@+id/navigation_more"
         android:icon="@drawable/ic_dashboard_black_24dp"
-        android:title="@string/perso" />
-
-    <item
-        android:id="@+id/navigation_recordings"
-        android:icon="@drawable/ic_recording"
-        android:title="@string/recordings_manager" />
+        android:title="@string/main_sidebar_more" />
 
 </menu>

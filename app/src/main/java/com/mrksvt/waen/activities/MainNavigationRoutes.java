@@ -23,6 +23,8 @@ public final class MainNavigationRoutes {
     private final int homeId;
     private final int mediaId;
     private final int moreId;
+    private final int customizationId;
+    private final int recordingsId;
 
     public MainNavigationRoutes(int generalId, int privacyId, int homeId, int mediaId,
                                 int moreId, int customizationId, int recordingsId, int ttsId) {
@@ -31,6 +33,8 @@ public final class MainNavigationRoutes {
         this.homeId = homeId;
         this.mediaId = mediaId;
         this.moreId = moreId;
+        this.customizationId = customizationId;
+        this.recordingsId = recordingsId;
         pagesByMenuId = new HashMap<>();
         pagesByMenuId.put(generalId, POSITION_GENERAL);
         pagesByMenuId.put(privacyId, POSITION_PRIVACY);
@@ -54,6 +58,15 @@ public final class MainNavigationRoutes {
             case POSITION_HOME -> homeId;
             case POSITION_MEDIA -> mediaId;
             case POSITION_CUSTOMIZATION, POSITION_RECORDINGS -> moreId;
+            default -> NO_MENU_ID;
+        };
+    }
+
+    /** Sidebar selection for a page, or NO_MENU_ID when the page is not a sidebar entry. */
+    public int sidebarMenuIdForPage(int position) {
+        return switch (position) {
+            case POSITION_CUSTOMIZATION -> customizationId;
+            case POSITION_RECORDINGS -> recordingsId;
             default -> NO_MENU_ID;
         };
     }

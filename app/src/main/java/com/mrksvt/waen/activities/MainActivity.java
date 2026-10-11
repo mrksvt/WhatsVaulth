@@ -10,11 +10,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.app.ActivityOptionsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.material.navigation.NavigationBarView;
 import com.waseemsabir.betterypermissionhelper.BatteryPermissionHelper;
 import com.mrksvt.waen.App;
 import com.mrksvt.waen.R;
@@ -31,7 +31,12 @@ import java.io.File;
 public class MainActivity extends BaseActivity {
 
     private ActivityMainBinding binding;
-    private boolean recordingsVisible;
+    private static final String STATE_PAGE = "main_page";
+    private static final String STATE_SIDEBAR = "main_sidebar_open";
+    private MainNavigationRoutes navigationRoutes;
+    private MainSidebarController sidebar;
+    private OnBackPressedCallback sidebarBackCallback;
+    private ViewPager2.OnPageChangeCallback pageChangeCallback;
     private BatteryPermissionHelper batteryPermissionHelper = BatteryPermissionHelper.Companion.getInstance();
     private String pendingScrollToPreference = null;
     private int pendingScrollToFragment = -1;
@@ -52,65 +57,63 @@ public class MainActivity extends BaseActivity {
 
         binding.viewPager.setPageTransformer(new DepthPageTransformer());
 
-        var prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
-        recordingsVisible = prefs.getBoolean("call_recording_enable", false);
-        if (!recordingsVisible) {
-            binding.navView.getMenu().findItem(R.id.navigation_recordings).setVisible(false);
-        }
-
-        binding.navView.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
-            @SuppressLint("NonConstantResourceId")
+        navigationRoutes = new MainNavigationRoutes(
+                R.id.navigation_chat, R.id.navigation_privacy, R.id.navigation_home,
+                R.id.navigation_media, R.id.navigation_more, R.id.navigation_colors,
+                R.id.navigation_recordings, R.id.menu_tts);
+        // Extra pages are opened explicitly; swiping must not cross sidebar/TTS routes.
+        binding.viewPager.setUserInputEnabled(false);
+        sidebarBackCallback = new OnBackPressedCallback(false) {
             @Override
-            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                int itemId = item.getItemId();
-                if (itemId == R.id.navigation_chat) {
-                    binding.viewPager.setCurrentItem(0, true);
-                    return true;
-                } else if (itemId == R.id.navigation_privacy) {
-                    binding.viewPager.setCurrentItem(1, true);
-                    return true;
-                } else if (itemId == R.id.navigation_home) {
-                    binding.viewPager.setCurrentItem(2, true);
-                    return true;
-                } else if (itemId == R.id.navigation_media) {
-                    binding.viewPager.setCurrentItem(3, true);
-                    return true;
-                } else if (itemId == R.id.navigation_colors) {
-                    binding.viewPager.setCurrentItem(4, true);
-                    return true;
-                } else if (itemId == R.id.navigation_recordings) {
-                    binding.viewPager.setCurrentItem(MainPagerAdapter.POSITION_RECORDINGS);
-                    return true;
-                }
+            public void handleOnBackPressed() {
+                sidebar.close();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, sidebarBackCallback);
+        sidebar = new MainSidebarController(binding.mainSidebarOverlay, binding.mainSidebar,
+                binding.mainSidebarScrim, binding.viewPager, () -> {
+                    sidebarBackCallback.setEnabled(sidebar.isShowing());
+                    syncNavigationSelection(binding.viewPager.getCurrentItem());
+                });
+        binding.navView.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.navigation_more) {
+                sidebar.toggle();
                 return false;
             }
+            int position = navigationRoutes.pageForMenuId(item.getItemId());
+            if (position == MainNavigationRoutes.NO_PAGE) return false;
+            navigateToPage(position);
+            return true;
+        });
+        binding.navView.setOnItemReselectedListener(item -> {
+            if (item.getItemId() == R.id.navigation_more) sidebar.toggle();
+        });
+        binding.mainSidebar.setNavigationItemSelectedListener(item -> {
+            int position = navigationRoutes.pageForMenuId(item.getItemId());
+            if (position == MainNavigationRoutes.NO_PAGE) return false;
+            navigateToPage(position);
+            return true;
         });
 
-        binding.viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+        pageChangeCallback = new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
-                if (position != MainPagerAdapter.POSITION_TTS
-                        && position < binding.navView.getMenu().size()) {
-                    binding.navView.getMenu().getItem(position).setChecked(true);
-                }
-                
-                // Handle pending scroll after page change
-                if (pendingScrollToFragment == position && pendingScrollToPreference != null) {
-                    final String scrollKey = pendingScrollToPreference;
-                    final String parentKey = pendingParentKey;
-                    pendingScrollToPreference = null;
-                    pendingScrollToFragment = -1;
-                    pendingParentKey = null;
-                    
-                    // Wait for fragment to be ready
-                    binding.viewPager.postDelayed(() -> {
-                        scrollToPreferenceInCurrentFragment(scrollKey, parentKey);
-                    }, 300);
-                }
+                syncNavigationSelection(position);
+                consumePendingScroll(position);
             }
-        });
-        binding.viewPager.setCurrentItem(2, false);
+        };
+        binding.viewPager.registerOnPageChangeCallback(pageChangeCallback);
+        int initialPage = savedInstanceState == null ? MainPagerAdapter.POSITION_HOME
+                : savedInstanceState.getInt(STATE_PAGE, MainPagerAdapter.POSITION_HOME);
+        if (initialPage < 0 || initialPage >= MainNavigationRoutes.PAGE_COUNT) {
+            initialPage = MainPagerAdapter.POSITION_HOME;
+        }
+        binding.viewPager.setCurrentItem(initialPage, false);
+        boolean restoreSidebar = savedInstanceState != null
+                && savedInstanceState.getBoolean(STATE_SIDEBAR, false);
+        if (restoreSidebar) sidebar.restoreOpen();
+        syncNavigationSelection(binding.viewPager.getCurrentItem());
         createMainDir();
         FilePicker.registerFilePicker(this);
         
@@ -131,32 +134,83 @@ public class MainActivity extends BaseActivity {
         handleIncomingIntent(intent);
     }
     
-    private void handleIncomingIntent(Intent intent) {
-        if (intent == null) return;
-        
-        int fragmentPosition = intent.getIntExtra("navigate_to_fragment", -1);
-        String preferenceKey = intent.getStringExtra("scroll_to_preference");
-        String parentKey = intent.getStringExtra("parent_preference");
-        
-        if (fragmentPosition >= 0 && preferenceKey != null) {
-            // Store the scroll target
-            pendingScrollToPreference = preferenceKey;
-            pendingScrollToFragment = fragmentPosition;
-            pendingParentKey = parentKey;
-            
-            // Navigate to the fragment (onPageSelected will handle the scroll)
-            binding.viewPager.setCurrentItem(fragmentPosition, false);
-            
-            // Clear intent extras
-            intent.removeExtra("navigate_to_fragment");
-            intent.removeExtra("scroll_to_preference");
-            intent.removeExtra("parent_preference");
-        } else if (fragmentPosition >= 0) {
-            // Just navigate without scrolling
-            binding.viewPager.setCurrentItem(fragmentPosition, true);
+    private void navigateToPage(int position) {
+        if (position < 0 || position >= MainNavigationRoutes.PAGE_COUNT) return;
+        sidebar.closeImmediately();
+        boolean samePage = binding.viewPager.getCurrentItem() == position;
+        binding.viewPager.setCurrentItem(position, false);
+        syncNavigationSelection(position);
+        if (samePage) consumePendingScroll(position);
+    }
+
+    private void syncNavigationSelection(int position) {
+        int menuId = sidebar.isOpenRequested() ? R.id.navigation_more
+                : navigationRoutes.bottomMenuIdForPage(position);
+        if (menuId != MainNavigationRoutes.NO_MENU_ID) {
+            MenuItem item = binding.navView.getMenu().findItem(menuId);
+            if (item != null) item.setChecked(true);
+        }
+        syncSidebarSelection(position);
+    }
+
+    // NavigationView.setCheckedItem(id) is a no-op when the id is absent, and the sidebar menu is
+    // single-checkable, so both cases must be driven through the menu items themselves.
+    private void syncSidebarSelection(int position) {
+        int sidebarMenuId = navigationRoutes.sidebarMenuIdForPage(position);
+        Menu menu = binding.mainSidebar.getMenu();
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            item.setChecked(item.getItemId() == sidebarMenuId);
         }
     }
-    
+
+    private void consumePendingScroll(int position) {
+        if (pendingScrollToFragment != position || pendingScrollToPreference == null) return;
+        String scrollKey = pendingScrollToPreference;
+        String parentKey = pendingParentKey;
+        pendingScrollToPreference = null;
+        pendingScrollToFragment = -1;
+        pendingParentKey = null;
+        binding.viewPager.postDelayed(() -> {
+            if (!isDestroyed() && binding.viewPager.getCurrentItem() == position) {
+                scrollToPreferenceInCurrentFragment(scrollKey, parentKey);
+            }
+        }, 300);
+    }
+
+    private void handleIncomingIntent(Intent intent) {
+        if (intent == null) return;
+        int position = intent.getIntExtra("navigate_to_fragment", -1);
+        if (position < 0 || position >= MainNavigationRoutes.PAGE_COUNT) return;
+        pendingScrollToPreference = intent.getStringExtra("scroll_to_preference");
+        pendingScrollToFragment = position;
+        pendingParentKey = intent.getStringExtra("parent_preference");
+        navigateToPage(position);
+        intent.removeExtra("navigate_to_fragment");
+        intent.removeExtra("scroll_to_preference");
+        intent.removeExtra("parent_preference");
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_PAGE, binding.viewPager.getCurrentItem());
+        outState.putBoolean(STATE_SIDEBAR, sidebar.isOpenRequested());
+    }
+
+    @Override
+    protected void onStop() {
+        sidebar.reset();
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        binding.viewPager.unregisterOnPageChangeCallback(pageChangeCallback);
+        sidebar.dispose();
+        super.onDestroy();
+    }
+
     private void scrollToPreferenceInCurrentFragment(String preferenceKey, String parentKey) {
         // Get the current fragment from the ViewPager
         int currentItem = binding.viewPager.getCurrentItem();
@@ -251,7 +305,7 @@ public class MainActivity extends BaseActivity {
             startActivity(new Intent(this, AboutActivity.class), options.toBundle());
             return true;
         } else if (item.getItemId() == R.id.menu_tts) {
-            binding.viewPager.setCurrentItem(MainPagerAdapter.POSITION_TTS, false);
+            navigateToPage(MainPagerAdapter.POSITION_TTS);
             return true;
         } else if (item.getItemId() == R.id.batteryoptimization) {
             if (batteryPermissionHelper.isBatterySaverPermissionAvailable(this, true)) {

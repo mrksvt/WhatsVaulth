@@ -52,6 +52,20 @@ public class MainNavigationRoutesTest {
     }
 
     @Test
+    public void sidebarSelectionTracksOnlySidebarPages() {
+        assertEquals(306, routes.sidebarMenuIdForPage(4));
+        assertEquals(805, routes.sidebarMenuIdForPage(5));
+    }
+
+    @Test
+    public void sidebarSelectionClearsForBottomPages() {
+        for (int page : new int[]{0, 1, 2, 3, 6}) {
+            assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(page));
+        }
+        assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(7));
+    }
+
+    @Test
     public void unknownIdsAndPagesHaveNoDestination() {
         for (int id : new int[]{0, -1, 5, Integer.MAX_VALUE}) {
             assertEquals(MainNavigationRoutes.NO_PAGE, routes.pageForMenuId(id));
