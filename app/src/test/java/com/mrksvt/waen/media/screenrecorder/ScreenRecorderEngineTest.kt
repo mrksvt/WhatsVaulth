@@ -260,4 +260,33 @@ class ScreenRecorderEngineTest {
         assertTrue(muxer.released)
         assertFalse(drain.eosSignalled)
     }
+
+    @Test
+    fun `markInterrupted never yields saved`() {
+        val engine = ScreenRecorderEngine(FakeDrain(), FakeMuxer(), clock = { 0L })
+
+        val outcome = engine.markInterrupted()
+
+        assertEquals(
+            ScreenRecorderResult.Error.SESSION_INTERRUPTED,
+            outcome.error
+        )
+        assertTrue(engine.isStopped)
+    }
+
+    @Test
+    fun `markInterrupted blocks later success finalize`() {
+        val drain = FakeDrain()
+        drain.enqueue(Dequeue.FormatChanged, Dequeue.Buffer(0, frame(0)), Dequeue.Buffer(1, eos))
+        val engine = ScreenRecorderEngine(drain, FakeMuxer(), clock = { 0L })
+
+        engine.markInterrupted()
+        val outcome = engine.stopAndFinalize(1_000_000L)
+
+        assertTrue(outcome is ScreenRecorderEngine.Outcome.Failed)
+        assertEquals(
+            ScreenRecorderResult.Error.SESSION_INTERRUPTED,
+            (outcome as ScreenRecorderEngine.Outcome.Failed).error
+        )
+    }
 }

@@ -65,7 +65,28 @@ class ScreenRecorderService : Service() {
     private var stagingRef: File? = null
     private var finalRef: File? = null
 
+    /**
+     * Satu kali finalize per service instance. Callback stop/notification/UI/
+     * onDestroy bisa memanggil `stopInternal` bersamaan; flag ini memastikan
+     * drain+muxer.stop+publish hanya berjalan sekali (SR-FR-04, SR-NFR-01).
+     */
+    private val finalized = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val configurationCallback = object : android.content.ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+            worker.execute { applyCanvasLocked() }
+        }
+
+        override fun onLowMemory() {}
+
+        override fun onTrimMemory(level: Int) {}
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
+
+    override fun onCreate() {
+        super.onCreate()
+        registerComponentCallbacks(configurationCallback)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -91,6 +112,7 @@ class ScreenRecorderService : Service() {
     }
 
     override fun onDestroy() {
+        unregisterComponentCallbacks(configurationCallback)
         worker.execute { stopInternal(ScreenRecorderSession.StopReason.SERVICE_DESTROYED) }
         worker.shutdown()
         super.onDestroy()
@@ -208,6 +230,7 @@ class ScreenRecorderService : Service() {
     }
 
     private fun stopInternal(reason: ScreenRecorderSession.StopReason) {
+        if (!finalized.compareAndSet(false, true)) return
         val session = sessionRef.get()
         val snapshot = session?.snapshot
         val id = snapshot?.sessionId
@@ -309,6 +332,19 @@ class ScreenRecorderService : Service() {
         runCatching { projection?.stop() }
         projection = null
         pendingResultData.set(null)
+    }
+
+    /**
+     * Resize setelah rotasi: VirtualDisplay TIDAK dibuat ulang (satu konsumsi
+     * token), melainkan `resize()` ke ukuran baru; canvas encoder tetap sama
+     * dan Rasio dipertahankan lewat profile tetap (SR-SC-02, T-019).
+     */
+    private fun applyCanvasLocked() {
+        val display = virtualDisplay ?: return
+        val metrics = resources.displayMetrics
+        runCatching {
+            display.resize(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi)
+        }
     }
 
     private fun teardown() {

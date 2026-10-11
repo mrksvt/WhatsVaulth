@@ -110,7 +110,33 @@ class ScreenRecorderActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         refreshLastResult()
-        render(binder?.state() ?: ScreenRecorderSessionHolder.lastSnapshot)
+        // Service bisa mati (process death/kill) tanpa memberi tahu activity;
+        // jangan biarkan UI tersangkut "recording" (SR-FR-04, T-021).
+        val snapshot = if (bound) binder?.state() else releaseStaleActiveState()
+        render(snapshot ?: ScreenRecorderSessionHolder.lastSnapshot)
+    }
+
+    /**
+     * Bila activity tidak ter-bind tapi snapshot terakhir masih aktif, sesi
+     * sudah tidak mungkin berjalan; tandai interrupted supaya tombol kembali
+     * ke Mulai, bukan Hentikan yang tidak berefek.
+     */
+    private fun releaseStaleActiveState(): ScreenRecorderSession.Snapshot? {
+        val last = ScreenRecorderSessionHolder.lastSnapshot
+        if (!last.isActive) return null
+        val sessionId = last.sessionId ?: return null
+        val interrupted = ScreenRecorderSession.Snapshot(
+            state = ScreenRecorderSession.State.ERROR,
+            sessionId = sessionId,
+            stopReason = ScreenRecorderSession.StopReason.SERVICE_DESTROYED,
+            result = ScreenRecorderResult.Failed(
+                sessionId = sessionId,
+                error = ScreenRecorderResult.Error.SESSION_INTERRUPTED,
+                partialPath = lastResult?.absolutePath
+            )
+        )
+        ScreenRecorderSessionHolder.publish(interrupted)
+        return interrupted
     }
 
     private fun bindService() {

@@ -160,6 +160,18 @@ class ScreenRecorderEngine(
         runCatching { muxer.release() }
     }
 
+    /**
+     * Tandai sesi terganggu tanpa drain (mis. process death terdeteksi saat
+     * service start ulang). Tidak pernah menghasilkan `Saved`, sehingga
+     * rekaman terputus tidak masuk daftar sukses (SR-FR-06, T-020).
+     */
+    fun markInterrupted(): Outcome.Failed {
+        if (stopped.compareAndSet(false, true)) {
+            lastOutcome = Outcome.Failed(ScreenRecorderResult.Error.SESSION_INTERRUPTED)
+        }
+        return Outcome.Failed(ScreenRecorderResult.Error.SESSION_INTERRUPTED)
+    }
+
     companion object {
         const val DEQUEUE_TIMEOUT_US = 10_000L
 
