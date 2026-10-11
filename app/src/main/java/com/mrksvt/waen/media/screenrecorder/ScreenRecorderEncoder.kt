@@ -27,6 +27,29 @@ class ScreenRecorderEncoder private constructor(
     /** Drain backend milik encoder ini; codec tetap terenkapsulasi. */
     fun drainBackend(): DrainBackend = MediaCodecDrainBackend(codec)
 
+    /**
+     * Virtual display yang merender ke [inputSurface]. Hanya boleh dipanggil
+     * sekali per sesi (satu konsumsi token projection). Mengembalikan `null`
+     * bila display gagal dibuat.
+     */
+    fun createVirtualDisplay(
+        projection: android.media.projection.MediaProjection,
+        width: Int,
+        height: Int,
+        densityDpi: Int
+    ): android.hardware.display.VirtualDisplay? = runCatching {
+        projection.createVirtualDisplay(
+            "sr-display",
+            width,
+            height,
+            densityDpi,
+            android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            inputSurface,
+            null,
+            null
+        )
+    }.getOrNull()
+
     fun release() {
         if (released) return
         released = true

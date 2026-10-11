@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sr_notification_channel">Screen recording</string>
+    <string name="sr_notification_title">Recording screen</string>
+    <string name="sr_notification_text">Tap Stop to finish and save the recording</string>
+    <string name="sr_notification_stop">Stop</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sr_notification_channel">Rekam layar</string>
+    <string name="sr_notification_title">Merekam layar</string>
+    <string name="sr_notification_text">Ketuk Hentikan untuk menyelesaikan dan menyimpan rekaman</string>
+    <string name="sr_notification_stop">Hentikan</string>
+</resources>
