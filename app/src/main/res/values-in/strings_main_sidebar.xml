@@ -5,4 +5,5 @@
     <string name="main_sidebar_customization">Kustomisasi</string>
     <string name="main_sidebar_recordings">Rekaman</string>
     <string name="main_sidebar_close">Tutup sidebar</string>
+    <string name="main_sidebar_screen_recorder">Perekam layar</string>
 </resources>

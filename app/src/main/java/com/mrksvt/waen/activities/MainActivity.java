@@ -8,6 +8,7 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.activity.OnBackPressedCallback;
@@ -89,6 +90,11 @@ public class MainActivity extends BaseActivity {
             if (item.getItemId() == R.id.navigation_more) sidebar.toggle();
         });
         binding.mainSidebar.setNavigationItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.navigation_screen_recorder) {
+                sidebar.closeImmediately();
+                navigateToScreenRecorder();
+                return true;
+            }
             int position = navigationRoutes.pageForMenuId(item.getItemId());
             if (position == MainNavigationRoutes.NO_PAGE) return false;
             navigateToPage(position);
@@ -141,6 +147,19 @@ public class MainActivity extends BaseActivity {
         binding.viewPager.setCurrentItem(position, false);
         syncNavigationSelection(position);
         if (samePage) consumePendingScroll(position);
+    }
+
+    /**
+     * Screen recorder is an Activity, not a pager destination, so it bypasses
+     * MainNavigationRoutes entirely (adding a position would shift search's
+     * stored indices).
+     */
+    private void navigateToScreenRecorder() {
+        try {
+            startActivity(new Intent(this, ScreenRecorderActivity.class));
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.main_sidebar_screen_recorder, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void syncNavigationSelection(int position) {

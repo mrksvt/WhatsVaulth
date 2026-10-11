@@ -5,4 +5,5 @@
     <string name="main_sidebar_customization">Customization</string>
     <string name="main_sidebar_recordings">Recordings</string>
     <string name="main_sidebar_close">Close sidebar</string>
+    <string name="main_sidebar_screen_recorder">Screen recorder</string>
 </resources>

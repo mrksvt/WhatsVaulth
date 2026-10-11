@@ -13,4 +13,10 @@
             android:title="@string/main_sidebar_recordings" />
     </group>
 
+    <item
+        android:id="@+id/navigation_screen_recorder"
+        android:checkable="false"
+        android:icon="@drawable/camera"
+        android:title="@string/main_sidebar_screen_recorder" />
+
 </menu>
