@@ -24,6 +24,9 @@ class ScreenRecorderEncoder private constructor(
 
     private var released = false
 
+    /** Drain backend milik encoder ini; codec tetap terenkapsulasi. */
+    fun drainBackend(): DrainBackend = MediaCodecDrainBackend(codec)
+
     fun release() {
         if (released) return
         released = true
