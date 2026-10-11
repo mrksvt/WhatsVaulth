@@ -135,6 +135,10 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ScreenCapturePermission" />
 
+        <activity
+            android:name=".activities.ScreenRecorderActivity"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

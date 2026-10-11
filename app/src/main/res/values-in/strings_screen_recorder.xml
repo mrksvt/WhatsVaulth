@@ -4,4 +4,20 @@
     <string name="sr_notification_title">Merekam layar</string>
     <string name="sr_notification_text">Ketuk Hentikan untuk menyelesaikan dan menyimpan rekaman</string>
     <string name="sr_notification_stop">Hentikan</string>
+
+    <string name="sr_title">Perekam layar</string>
+    <string name="sr_idle">Siap</string>
+    <string name="sr_duration_zero">00:00</string>
+    <string name="sr_start">Mulai rekam</string>
+    <string name="sr_stop">Hentikan</string>
+    <string name="sr_open_result">Buka hasil terakhir</string>
+    <string name="sr_share_result">Bagikan hasil terakhir</string>
+    <string name="sr_no_result">Belum ada rekaman selesai</string>
+    <string name="sr_consent_needed">Izin perekaman layar diperlukan</string>
+    <string name="sr_saved">Tersimpan</string>
+    <string name="sr_failed">Rekaman gagal</string>
+    <string name="sr_partial">Rekaman terputus disimpan (tidak bisa diputar)</string>
+    <string name="sr_open_unavailable">Tidak ada aplikasi yang bisa membuka video ini</string>
+    <string name="sr_share_unavailable">Tidak ada aplikasi yang bisa membagikan video ini</string>
+    <string name="sr_no_player">Tidak ada pemutar video</string>
 </resources>

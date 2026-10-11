@@ -4,4 +4,20 @@
     <string name="sr_notification_title">Recording screen</string>
     <string name="sr_notification_text">Tap Stop to finish and save the recording</string>
     <string name="sr_notification_stop">Stop</string>
+
+    <string name="sr_title">Screen recorder</string>
+    <string name="sr_idle">Idle</string>
+    <string name="sr_duration_zero">00:00</string>
+    <string name="sr_start">Start recording</string>
+    <string name="sr_stop">Stop</string>
+    <string name="sr_open_result">Open last result</string>
+    <string name="sr_share_result">Share last result</string>
+    <string name="sr_no_result">No finished recording yet</string>
+    <string name="sr_consent_needed">Screen recording permission is required</string>
+    <string name="sr_saved">Saved</string>
+    <string name="sr_failed">Recording failed</string>
+    <string name="sr_partial">Partial recording kept (not playable)</string>
+    <string name="sr_open_unavailable">No app can open this video</string>
+    <string name="sr_share_unavailable">No app can share this video</string>
+    <string name="sr_no_player">No video player available</string>
 </resources>
