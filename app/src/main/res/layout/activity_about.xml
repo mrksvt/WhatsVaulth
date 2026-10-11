@@ -161,11 +161,19 @@
                     android:orientation="vertical"
                     android:padding="@dimen/spacing_medium">
 
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tvCommunity"
+                        style="@style/SectionTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/community" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnTelegram"
                         style="@style/ModernButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_small"
                         android:backgroundTint="?attr/colorPrimary"
                         android:text="@string/go_to_telegram"
                         app:icon="@drawable/ic_telegram"
@@ -179,6 +187,48 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_small"
                         android:text="@string/go_to_github"
+                        app:icon="@drawable/ic_github"
+                        app:iconGravity="start"
+                        app:iconPadding="@dimen/spacing_small"
+                        app:strokeColor="?attr/colorPrimary" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardInfoStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/spacing_medium"
+                app:cardBackgroundColor="@color/surface_container">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_medium">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tvCredits"
+                        style="@style/SectionTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/credits" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tvCreditsDetails"
+                        style="@style/SectionDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/credits_desc" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnWaEnhancer"
+                        style="@style/ModernButton.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_small"
+                        android:text="@string/go_to_waenhancer"
                         app:icon="@drawable/ic_github"
                         app:iconGravity="start"
                         app:iconPadding="@dimen/spacing_small"

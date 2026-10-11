@@ -15,6 +15,10 @@ import com.mrksvt.waen.databinding.ActivityAboutBinding;
 
 public class AboutActivity extends BaseActivity {
 
+    private static final String WHATSVAULT_GITHUB = "https://github.com/mrksvt/WhatsVaulth";
+    private static final String WHATSVAULT_TELEGRAM = "https://t.me/whatsvault_ch";
+    private static final String WAENHANCER_GITHUB = "https://github.com/Dev4Mod/WaEnhancer";
+
     private static final String[][] CONTRIBUTORS = {
             {"Dev4Mod", "https://github.com/Dev4Mod"},
             {"frknkrc44", "https://github.com/frknkrc44"},
@@ -43,8 +47,9 @@ public class AboutActivity extends BaseActivity {
         ActivityAboutBinding binding = ActivityAboutBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        binding.btnTelegram.setOnClickListener(v -> openUrl("https://t.me/waenhancer"));
-        binding.btnGithub.setOnClickListener(view -> openUrl("https://github.com/Dev4Mod/WaEnhancer"));
+        binding.btnTelegram.setOnClickListener(v -> openUrl(WHATSVAULT_TELEGRAM));
+        binding.btnGithub.setOnClickListener(view -> openUrl(WHATSVAULT_GITHUB));
+        binding.btnWaEnhancer.setOnClickListener(view -> openUrl(WAENHANCER_GITHUB));
 
         int topMargin = getResources().getDimensionPixelSize(R.dimen.spacing_small);
         for (int i = 0; i < CONTRIBUTORS.length; i++) {

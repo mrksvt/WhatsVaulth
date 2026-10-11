@@ -7,6 +7,7 @@ import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XposedBridge
 import io.noties.markwon.Markwon
 import okhttp3.OkHttpClient
+import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -15,8 +16,26 @@ import java.util.concurrent.TimeUnit
 class UpdateChecker(private val mActivity: Activity) : Runnable {
 
     companion object {
-        private const val LATEST_RELEASE_API = "https://api.github.com/repos/mrksvt/WaEnhancer/releases/latest"
-        private const val TELEGRAM_UPDATE_URL = "https://github.com/mrksvt/WaEnhancer/releases"
+        private const val LATEST_RELEASE_API = "https://api.github.com/repos/mrksvt/WhatsVaulth/releases/latest"
+        private const val UPDATE_CHANNEL_URL = "https://t.me/whatsvault_ch"
+
+        private val HASH_PATTERN = Regex("[0-9a-fA-F]{8}")
+
+        /**
+         * The git hash identifies a build. It lives in the CI tag (1.5.5-A94A2CE3) but
+         * manual release tags (v1.5.5-r40) carry it only in the asset filenames
+         * (WhatsVault-1.5.5-debug.A94A2CE3._mrksvt.apk), so check both.
+         */
+        private fun extractHash(tagName: String, assetNames: JSONArray?): String? {
+            HASH_PATTERN.find(tagName)?.let { return it.value.uppercase(Locale.US) }
+            if (assetNames != null) {
+                for (i in 0 until assetNames.length()) {
+                    val found = HASH_PATTERN.find(assetNames.optString(i, ""))
+                    if (found != null) return found.value.uppercase(Locale.US)
+                }
+            }
+            return null
+        }
 
         private val httpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
@@ -46,7 +65,7 @@ class UpdateChecker(private val mActivity: Activity) : Runnable {
 
                 if (tagName.isBlank()) return
 
-                hash = tagName.split("-")[1].trim()
+                hash = extractHash(tagName, release.optJSONArray("assets")) ?: return
                 changelog = release.optString("body", "No changelog available.").trim()
                 publishedAt = release.optString("published_at", "")
             }
@@ -95,7 +114,7 @@ class UpdateChecker(private val mActivity: Activity) : Runnable {
                 dialog.dismiss()
             }
             dialog.setPositiveButton("Update Now") { dialog, _ ->
-                Utils.openLink(mActivity, TELEGRAM_UPDATE_URL)
+                Utils.openLink(mActivity, UPDATE_CHANNEL_URL)
                 dialog.dismiss()
             }
             dialog.show()

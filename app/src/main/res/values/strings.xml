@@ -313,15 +313,19 @@
     <string name="select_status_type">Select status type</string>
     <string name="open_camera">Open Camera</string>
     <string name="edit_text">Edit Text</string>
-    <string name="developer" translatable="false">Developer: Dev4Mod</string>
-    <string name="about_info">WhatsVault is an Xposed module that enhances your WhatsApp experience by offering advanced privacy features, home screen customization, general tweaks, and media improvements.</string>
+    <string name="developer" translatable="false">Developed by mrksvt · based on WaEnhancer by Dev4Mod</string>
+    <string name="about_info">WhatsVault is an Xposed module that enhances your WhatsApp experience by offering advanced privacy features, home screen customization, general tweaks, and media improvements.\n\nWhatsVault is built on top of the open-source WaEnhancer project by Dev4Mod and keeps the original contributors\' work intact.</string>
     <string name="installation">Installation</string>
     <string name="installation_desc">1. Ensure that your device is rooted.\n2. Install the Xposed Framework on your device.\n3. Download the WhatsVault from the Actions section.\n4. Install the WhatsVault APK.\n5. Enable the WhatsVault module in the Xposed Installer app.</string>
-    <string name="go_to_telegram">Go to Telegram</string>
+    <string name="community">Community</string>
+    <string name="go_to_telegram">WhatsVault Telegram Channel</string>
     <string name="go_to_github">Go to GitHub</string>
+    <string name="credits">Credits</string>
+    <string name="credits_desc">WhatsVault would not exist without the WaEnhancer project by Dev4Mod (wellingtonmods@gmail.com), released under the GNU GPL. The original author\u2019s work and every upstream contributor are credited below and remain part of this project.</string>
+    <string name="go_to_waenhancer">WaEnhancer on GitHub</string>
     <string name="contributors">Contributors</string>
     <string name="support">Support</string>
-    <string name="support_desc">If you encounter any issues or have questions about WhatsVault, please visit Telegram.</string>
+    <string name="support_desc">For update info and announcements, join the WhatsVault Telegram channel. The channel also has the rules to join our discussion group.</string>
     <string name="license">License</string>
     <string name="license_desc">This project is licensed under the GNU License - see the LICENSE file for details.\n\nNote: Please use WhatsVault responsibly and in compliance with the terms and conditions of the apps you are modifying. Misuse of this tool may lead to legal consequences.</string>
     <string name="select_a_color">Select a color</string>
