@@ -18,7 +18,6 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
-import com.crossbowffs.remotepreferences.RemotePreferences
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
 import com.mrksvt.waen.WppXposed
@@ -55,6 +54,7 @@ import com.mrksvt.waen.xposed.features.general.CaptureDevice
 import com.mrksvt.waen.xposed.features.general.ChatLimit
 import com.mrksvt.waen.xposed.features.general.DeleteStatus
 import com.mrksvt.waen.xposed.features.general.NewChat
+import com.mrksvt.waen.xposed.features.general.MinorFixes
 import com.mrksvt.waen.xposed.features.general.Others
 import com.mrksvt.waen.xposed.features.general.PinnedLimit
 import com.mrksvt.waen.xposed.features.general.SeenTick
@@ -284,12 +284,8 @@ class FeatureLoader {
             } catch (e: Exception) {
                 XposedBridge.log(e)
             }
-            XposedBridge.log("XSharedPreferences not accessible, using RemotePreferences fallback")
-            return RemotePreferences(
-                context,
-                BuildConfig.APPLICATION_ID + ".preferences",
-                BuildConfig.APPLICATION_ID + "_preferences"
-            )
+            XposedBridge.log("XSharedPreferences not accessible, using RemotePrefs fallback")
+            return RemotePrefs(context).also { RemotePrefs.instance = it }
         }
 
         private fun initializeModuleContext() {
@@ -465,6 +461,19 @@ class FeatureLoader {
                 IntentFilter("${BuildConfig.APPLICATION_ID}.MANUAL_RESTART"),
                 ContextCompat.RECEIVER_EXPORTED
             )
+
+            // Module prefs changed: drop the cached RemotePrefs snapshot so the next
+            // read inside WhatsApp sees the values the user just saved.
+            val prefsChangedReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    RemotePrefs.instance?.invalidate()
+                }
+            }
+            ContextCompat.registerReceiver(
+                app, prefsChangedReceiver,
+                IntentFilter("${BuildConfig.APPLICATION_ID}.PREFS_CHANGED"),
+                ContextCompat.RECEIVER_EXPORTED
+            )
         }
 
         private fun sendEnabledBroadcast(context: Context) {
@@ -518,6 +527,7 @@ class FeatureLoader {
                 MediaQuality::class.java,
                 NewChat::class.java,
                 Others::class.java,
+                MinorFixes::class.java,
                 PinnedLimit::class.java,
                 CustomTime::class.java,
                 ShareLimit::class.java,

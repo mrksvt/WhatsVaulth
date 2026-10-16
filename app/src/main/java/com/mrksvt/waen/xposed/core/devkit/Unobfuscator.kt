@@ -210,8 +210,6 @@ object Unobfuscator {
         }
     }
 
-    @Throws(Exception::class)
-    @JvmStatic
     fun loadGhostModeMethod(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
             val method = findFirstMethodUsingStrings(
@@ -220,7 +218,7 @@ object Unobfuscator {
                 "HandleMeComposing/sendComposing"
             )
                 ?: throw Exception("GhostMode method not found")
-            if (method.parameterTypes.size > 2 && method.parameterTypes[2] == Int::class.java) {
+            if (method.parameterTypes.contains(Int::class.java)) {
                 return@getMethod method
             }
             val fallback = findAllMethodUsingStrings(

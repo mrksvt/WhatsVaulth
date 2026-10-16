@@ -15,6 +15,8 @@ import org.luckypray.dexkit.query.enums.StringMatchType
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
 import de.robv.android.xposed.XposedBridge
+import android.os.Handler
+import android.os.Looper
 
 private val mListStatusContainer = ArrayList<IGStatusView>()
 
@@ -23,6 +25,10 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
     companion object {
         @JvmField
         var itens = ArrayList<Any?>()
+
+        private const val RETRY_DELAY_MS = 250L
+        private const val MAX_RETRY = 40
+        private val RETRY_HANDLER = Handler(Looper.getMainLooper())
     }
 
     @Throws(Throwable::class)
@@ -39,6 +45,8 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         )
 
         val getViewConversationMethod = Unobfuscator.loadGetViewConversationMethod(classLoader)
+        val statusInfoClass = Unobfuscator.loadStatusInfoClass(classLoader)
+        logDebug(statusInfoClass)
         XposedBridge.hookMethod(getViewConversationMethod, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 if (archivedFragmentClass.isInstance(param.thisObject)) return
@@ -71,6 +79,12 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 if (igStatus != null) {
                     mStatusContainer.adapter = igStatus.adapter
                     mListStatusContainer.remove(igStatus)
+                } else {
+                    // Adapter harus terpasang sejak container dibuat. `updateList()` no-op selama
+                    // adapter null, jadi kalau container lahir sebelum daftar status terisi
+                    // (cold start), baris tidak akan pernah muncul sampai view dibuat ulang.
+                    mStatusContainer.adapter =
+                        IGStatusAdapter(WppCore.getCurrentActivity()!!, statusInfoClass)
                 }
                 mStatusContainer.fragmentId = id
                 mListStatusContainer.add(mStatusContainer)
@@ -79,8 +93,6 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
         val onUpdateStatusChanged = Unobfuscator.loadOnUpdateStatusChanged(classLoader)
         logDebug(Unobfuscator.getMethodDescriptor(onUpdateStatusChanged))
-        val statusInfoClass = Unobfuscator.loadStatusInfoClass(classLoader)
-        logDebug(statusInfoClass)
 
         val updateModel = onUpdateStatusChanged.declaringClass
         logDebug(updateModel)
@@ -119,27 +131,60 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         logDebug(Unobfuscator.getFieldDescriptor(onGetInvokeField))
         XposedBridge.hookMethod(onUpdateStatusChanged, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val obj = onGetInvokeField.get(param.args[0])
-                val method = ReflectionUtils.findMethodUsingFilter(
-                    obj.javaClass
-                ) { m -> m.returnType == Any::class.java }
-                val statusListUpdates = ReflectionUtils.callMethod(method, obj) ?: return
-                val lists = ReflectionUtils.findAllFieldsUsingFilter(
-                    statusListUpdates.javaClass
-                ) { f -> f.type == List::class.java }
-                if (lists.size < 3) return
-                val list1 = lists[1].get(statusListUpdates) as List<*>
-                val list2 = lists[2].get(statusListUpdates) as List<*>
-                val newList = ArrayList<Any?>()
-                newList.add(0, null)
-                newList.addAll(list1)
-                newList.addAll(list2)
-                itens = newList
-                for (mStatusContainer in mListStatusContainer) {
-                    mStatusContainer.updateList()
+                val holder = onGetInvokeField.get(param.args[0])
+                val lists = extractStatusLists(holder)
+                if (lists != null) {
+                    applyStatusLists(lists.first, lists.second)
+                } else {
+                    captureWhenReady(holder, 0)
                 }
             }
         })
+    }
+
+    /**
+     * `holder` adalah async holder (field `A04()` mengembalikan null sampai data tiba).
+     * Saat `onUpdateStatusChanged` fire, data sering belum siap, jadi tunggu sampai
+     * tersedia, bukan langsung batal.
+     */
+    private fun captureWhenReady(holder: Any?, attempt: Int) {
+        if (holder == null || attempt > MAX_RETRY) return
+        val lists = extractStatusLists(holder)
+        if (lists != null) {
+            applyStatusLists(lists.first, lists.second)
+            return
+        }
+        RETRY_HANDLER.postDelayed({ captureWhenReady(holder, attempt + 1) }, RETRY_DELAY_MS)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun extractStatusLists(holder: Any?): Pair<List<*>, List<*>>? {
+        if (holder == null) return null
+        return try {
+            val getter = ReflectionUtils.findMethodUsingFilter(holder.javaClass) { m ->
+                m.returnType == Any::class.java && m.parameterCount == 0
+            } ?: return null
+            val updates = ReflectionUtils.callMethod(getter, holder) ?: return null
+            val lists = ReflectionUtils.findAllFieldsUsingFilter(updates.javaClass) { f ->
+                f.type == List::class.java
+            }
+            if (lists.size < 3) return null
+            lists[1].get(updates) as List<*> to (lists[2].get(updates) as List<*>)
+        } catch (e: Throwable) {
+            log("IGStatus extract failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun applyStatusLists(list1: List<*>, list2: List<*>) {
+        val newList = ArrayList<Any?>()
+        newList.add(0, null)
+        newList.addAll(list1)
+        newList.addAll(list2)
+        itens = newList
+        for (mStatusContainer in mListStatusContainer) {
+            mStatusContainer.updateList()
+        }
     }
 
     override fun getPluginName(): String {

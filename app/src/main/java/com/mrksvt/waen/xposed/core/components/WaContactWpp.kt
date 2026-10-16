@@ -166,8 +166,19 @@ class WaContactWpp(instance: Any?) {
         return try {
             val instance = mInstanceGetProfilePhoto
             val method = getProfilePhoto
+            val target = mInstance
             if (instance != null && method != null) {
-                method.invoke(instance, mInstance, fullImage) as? InputStream
+                // Map arguments by declared parameter type instead of assuming a fixed order.
+                // WhatsApp reordered/renamed these params across versions; positional invocation
+                // silently produced wrong results (e.g. the full-size photo never loading).
+                val args = method.parameterTypes.map { type ->
+                    when {
+                        type == Boolean::class.javaPrimitiveType -> fullImage
+                        type.isAssignableFrom(target.javaClass) -> target
+                        else -> null
+                    }
+                }.toTypedArray()
+                method.invoke(instance, *args) as? InputStream
             } else null
         } catch (e: Exception) {
             XposedBridge.log(e)

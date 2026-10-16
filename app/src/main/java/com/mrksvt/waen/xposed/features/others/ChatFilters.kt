@@ -6,7 +6,6 @@ import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
 import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
 import java.lang.reflect.Method
 import java.util.function.Predicate
 
@@ -29,8 +28,13 @@ class ChatFilters(classLoader: ClassLoader, preferences:SharedPreferences) :
                     val argResult = list.first()
                     val newList = ArrayList(argResult.second)
                     newList.removeIf { item: Any? ->
-                        val name = XposedHelpers.getObjectField(item, "A01")
-                        name == null || name === "CONTACTS_FILTER" || name === "GROUP_FILTER"
+                        // Read the filter kind from the item's enum field instead of the
+                        // obfuscated field name "A01", which changes between WhatsApp versions.
+                        val type = item?.javaClass?.declaredFields
+                            ?.firstOrNull { it.type.isEnum }
+                            ?.apply { isAccessible = true }
+                            ?.get(item)?.toString()
+                        type != null && (type == "CONTACTS_FILTER" || type == "GROUP_FILTER")
                     }
                     param.args[argResult.first!!] = newList
                 }

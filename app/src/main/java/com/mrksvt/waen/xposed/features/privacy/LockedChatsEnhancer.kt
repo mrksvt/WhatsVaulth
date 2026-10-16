@@ -22,25 +22,31 @@ class LockedChatsEnhancer(classLoader: ClassLoader, preferences:SharedPreference
     override fun doHook() {
         if (!prefs.getBoolean("lockedchats_enhancer", false)) return
 
-        val jidNotifications = loadNotificationMethod(classLoader)
-        val lockedChatsMethod = loadLockedChatsMethod(classLoader)
+        // Best-effort: WhatsApp moved the locked-chats source out of the notification
+        // path on some versions (2.26.41.xx), so discovery can legitimately fail here.
+        try {
+            val jidNotifications = loadNotificationMethod(classLoader)
+            val lockedChatsMethod = loadLockedChatsMethod(classLoader)
 
-        XposedBridge.hookMethod(jidNotifications, object : XC_MethodHook() {
+            XposedBridge.hookMethod(jidNotifications, object : XC_MethodHook() {
 
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val unhook = XposedBridge.hookMethod(lockedChatsMethod, object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        param.setResult(ArrayList<Any?>())
-                    }
-                })
-                param.setObjectExtra("hook", unhook)
-            }
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val unhook = XposedBridge.hookMethod(lockedChatsMethod, object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            param.setResult(ArrayList<Any?>())
+                        }
+                    })
+                    param.setObjectExtra("hook", unhook)
+                }
 
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val unhook = param.getObjectExtra("hook") as Unhook?
-                unhook?.unhook()
-            }
-        })
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val unhook = param.getObjectExtra("hook") as Unhook?
+                    unhook?.unhook()
+                }
+            })
+        } catch (e: Throwable) {
+            log("LockedChatsEnhancer: notification suppression unavailable on this version: ${e.message}")
+        }
 
         val chatCacheClass = loadChatCacheClass(classLoader)
         val lockedChatsFields = ReflectionUtils.findAllFieldsUsingFilter(chatCacheClass) {

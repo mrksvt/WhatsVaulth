@@ -67,6 +67,7 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
         var statusStyle = prefs.getString("status_style", "0")?.toInt() ?: 0
         val disableMetaAI = prefs.getBoolean("metaai", false)
         val disableSensorProximity = prefs.getBoolean("disable_sensor_proximity", false)
+        val disableDocumentScanner = prefs.getBoolean("disable_document_scanner", false)
         val proximityAudios = prefs.getBoolean("proximity_audios", false)
         val showOnline = prefs.getBoolean("showonline", false)
         val floatingMenu = prefs.getBoolean("floatingmenu", false)
@@ -156,6 +157,9 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
         propsBoolean[8925] = true
 
         propsBoolean[10380] = false // fix crash bug in Settings/Archived
+        if (disableDocumentScanner) {
+            propsBoolean[10048] = false // ML Kit document scanner in DocumentPicker
+        }
 
         propsBoolean[0x34b9] = true // Enable Select People in call
         propsBoolean[0x351c] = true // Enable new colors style in Text Composer

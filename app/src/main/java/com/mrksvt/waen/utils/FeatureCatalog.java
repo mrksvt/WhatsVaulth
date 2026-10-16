@@ -364,6 +364,14 @@ public class FeatureCatalog {
                 "conversation",
                 Arrays.asList("see more", "button", "remove")));
 
+        catalog.add(new SearchableFeature("disable_document_scanner",
+                context.getString(R.string.disable_document_scanner),
+                context.getString(R.string.disable_document_scanner_sum),
+                SearchableFeature.Category.GENERAL_CONVERSATION,
+                SearchableFeature.FragmentType.GENERAL,
+                "conversation",
+                Arrays.asList("document", "scanner", "mlkit")));
+
         catalog.add(new SearchableFeature("antieditmessages",
                 context.getString(R.string.show_edited_message_history),
                 context.getString(R.string.show_edited_message_history_sum),

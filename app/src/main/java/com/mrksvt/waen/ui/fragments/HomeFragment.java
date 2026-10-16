@@ -3,6 +3,7 @@ package com.mrksvt.waen.ui.fragments;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -274,7 +275,11 @@ public class HomeFragment extends BaseFragment {
         });
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US);
         String formattedDate = dateFormat.format(new Date());
-        FilePicker.fileSalve.launch("wpp_enhacer_configs_" + formattedDate + ".json");
+        try {
+            FilePicker.fileSalve.launch("wpp_enhacer_configs_" + formattedDate + ".json");
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(context, R.string.no_file_picker, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void importConfigs(Context context) {
@@ -325,7 +330,11 @@ public class HomeFragment extends BaseFragment {
                 Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
-        FilePicker.fileCapture.launch(new String[]{"application/json"});
+        try {
+            FilePicker.fileCapture.launch(new String[]{"application/json"});
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(context, R.string.no_file_picker, Toast.LENGTH_LONG).show();
+        }
     }
 
     @SuppressLint("StringFormatInvalid")

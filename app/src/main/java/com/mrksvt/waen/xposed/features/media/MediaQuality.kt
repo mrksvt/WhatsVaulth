@@ -65,6 +65,13 @@ class MediaQuality(loader: ClassLoader, preferences: SharedPreferences) :
             val fieldsMediaDataVideoConfiguration =
                 Unobfuscator.getAllMapFields(mediaDataVideoConfiguration)
 
+            XposedBridge.hookAllConstructors(mediaDataVideoConfiguration, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    fieldsMediaDataVideoConfiguration["forceSingleTranscoding"]
+                        ?.setBoolean(param.thisObject, true)
+                }
+            })
+
             val videoTranscoderStart = Unobfuscator.loadVideoTranscoderStartMethod(classLoader)
             XposedBridge.hookMethod(videoTranscoderStart, object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {

@@ -1,10 +1,12 @@
 package com.mrksvt.waen.ui.fragments;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.FileObserver;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,15 +24,20 @@ import com.mrksvt.waen.R;
 import com.mrksvt.waen.adapter.RecordingsAdapter;
 import com.mrksvt.waen.databinding.FragmentRecordingsBinding;
 import com.mrksvt.waen.model.Recording;
+import com.mrksvt.waen.model.RecordingsCache;
 import com.mrksvt.waen.ui.dialogs.AudioPlayerDialog;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RecordingsFragment extends Fragment implements RecordingsAdapter.OnRecordingActionListener {
 
@@ -40,6 +47,13 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
     private List<File> baseDirs = new ArrayList<>();
     private boolean isGroupByContact = false;
     private int currentSortType = 1; // 1=date, 2=name, 3=duration, 4=contact
+    private final ExecutorService loadExecutor = Executors.newSingleThreadExecutor();
+    private int loadToken = 0;
+    private boolean firstResume = true;
+
+    // Rekaman ditulis proses WhatsApp (UID berbeda), jadi FileObserver di
+    // proses app ini adalah sinyal cache-stale tanpa ubah sisi Xposed.
+    private final List<FileObserver> dirObservers = new ArrayList<>();
 
     @Nullable
     @Override
@@ -91,18 +105,43 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
 
         binding.swipeRefresh.setOnRefreshListener(() -> {
             initializeBaseDirs();
-            loadRecordings();
+            forceReload();
         });
 
-        loadRecordings();
+        // Tampilkan isi cache lebih dulu supaya screen terbuka instan.
+        renderSnapshot(RecordingsCache.snapshot());
+        if (RecordingsCache.isDirty()) {
+            loadRecordings();
+        } else {
+            showLoading(false);
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        if (firstResume) {
+            firstResume = false;
+            return;
+        }
         if (binding == null) return;
+        // Resume biasa (balik dari dialog/hasil share) tidak perlu rescan.
+        // Reload hanya kalau cache sudah tidak akurat.
+        if (!RecordingsCache.isDirty()) return;
         initializeBaseDirs();
         loadRecordings();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        registerDirObservers();
+    }
+
+    @Override
+    public void onStop() {
+        unregisterDirObservers();
+        super.onStop();
     }
 
     private void initializeBaseDirs() {
@@ -133,6 +172,26 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
         addBaseDir(addedPaths, com.mrksvt.waen.App.getRecordingsFolder());
     }
 
+    /**
+     * Folder yang dijaga FileObserver. FileObserver tidak rekursif, jadi
+     * subfolder harus ada sebelum startWatching; kalau tidak, rekaman baru
+     * di folder itu tidak pernah menandai cache dirty.
+     *
+     * Sengaja hanya folder milik app (video_call/voice_call), bukan folder
+     * legacy: mkdirs pada path legacy akan membuat folder basi yang lalu
+     * ikut dipindai.
+     */
+    @NonNull
+    private List<File> observedDirs() {
+        List<File> dirs = new ArrayList<>(2);
+        dirs.add(com.mrksvt.waen.App.getVideoCallRecordingsFolder());
+        dirs.add(com.mrksvt.waen.App.getVoiceCallRecordingsFolder());
+        for (File dir : dirs) {
+            if (!dir.isDirectory()) dir.mkdirs();
+        }
+        return dirs;
+    }
+
     private void addBaseDir(@NonNull Set<String> addedPaths, @NonNull File dir) {
         String normalizedPath = normalizePath(dir);
         if (addedPaths.add(normalizedPath)) {
@@ -154,65 +213,116 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
             return;
         }
 
-        allRecordings.clear();
+        final Context appContext = requireContext().getApplicationContext();
+        final List<File> dirs = new ArrayList<>(baseDirs);
+        final int token = ++loadToken;
+        final long generation = RecordingsCache.currentGeneration();
 
-        try {
-            for (File baseDir : baseDirs) {
+        // Cache ada: render instan, refresh diam-diam tanpa spinner.
+        showLoading(RecordingsCache.snapshot().isEmpty());
+        loadExecutor.execute(() -> {
+            List<Recording> scanned = new ArrayList<>();
+            for (File baseDir : dirs) {
                 if (baseDir.exists() && baseDir.isDirectory()) {
-                    traverseDirectory(baseDir);
+                    traverseDirectory(baseDir, scanned);
                 }
             }
 
-            if (allRecordings.isEmpty()) {
-                binding.emptyView.setVisibility(View.VISIBLE);
-                binding.recyclerView.setVisibility(View.GONE);
-            } else {
-                binding.emptyView.setVisibility(View.GONE);
-                binding.recyclerView.setVisibility(View.VISIBLE);
-
-                // Resolve nomor telepon / JID ke nama kontak perangkat.
-                // Cache per identifier supaya tidak query konten provider
-                // berkali-kali untuk file yang sama dari kontak yang sama.
-                java.util.Map<String, String> resolvedCache = new java.util.HashMap<>();
-                for (Recording r : allRecordings) {
-                    String key = r.getContactName();
-                    if (key == null) continue;
-                    String cached = resolvedCache.get(key);
-                    if (cached != null) {
-                        r.setContactName(cached);
-                    } else {
-                        r.resolveContactName(requireContext());
-                        resolvedCache.put(key, r.getContactName());
-                    }
-                }
-
-                // Apply sorting
-                applySort();
-
-                if (isGroupByContact) {
-                    // For group by contact, we'll navigate to ContactRecordingsActivity when a contact is clicked
-                    // For now, just show sorted list (full group UI needs ContactRecordingsActivity)
-                    adapter.setRecordings(allRecordings);
+            // Resolve nomor telepon / JID ke nama kontak perangkat.
+            // Cache per identifier supaya tidak query konten provider
+            // berkali-kali untuk file yang sama dari kontak yang sama.
+            Map<String, String> resolvedCache = new HashMap<>();
+            for (Recording r : scanned) {
+                String key = r.getContactName();
+                if (key == null) continue;
+                String cached = resolvedCache.get(key);
+                if (cached != null) {
+                    r.setContactName(cached);
                 } else {
-                    adapter.setRecordings(allRecordings);
+                    r.resolveContactName(appContext);
+                    resolvedCache.put(key, r.getContactName());
                 }
             }
-        } finally {
-            binding.swipeRefresh.setRefreshing(false);
+
+            View root = getView();
+            if (root == null) return;
+            root.post(() -> {
+                if (binding == null || token != loadToken) return;
+                RecordingsCache.store(scanned, generation);
+                renderSnapshot(scanned);
+                showLoading(false);
+                binding.swipeRefresh.setRefreshing(false);
+            });
+        });
+    }
+
+    /**
+     * Bind daftar hasil scan (atau cache) ke adapter + atur visibility
+     * empty/list. Dipisah dari load supaya cache bisa dirender tanpa scan.
+     */
+    private void renderSnapshot(List<Recording> list) {
+        // Copy: applySort() mengurutkan in-place, cache tidak boleh ikut berubah.
+        allRecordings = new ArrayList<>(list);
+        applySort();
+        adapter.setRecordings(allRecordings);
+        if (allRecordings.isEmpty()) {
+            binding.emptyView.setVisibility(View.VISIBLE);
+            binding.recyclerView.setVisibility(View.GONE);
+        } else {
+            binding.emptyView.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.VISIBLE);
         }
     }
 
-    private void traverseDirectory(File dir) {
+    /** Paksa rescan penuh, dipakai swipe-to-refresh (abaikan flag dirty). */
+    private void forceReload() {
+        RecordingsCache.markDirty();
+        loadRecordings();
+    }
+
+    private void registerDirObservers() {
+        unregisterDirObservers();
+        final int mask = FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO | FileObserver.DELETE;
+        for (File dir : observedDirs()) {
+            // minSdk 28: FileObserver(File, int) baru ada di API 29.
+            FileObserver observer = new FileObserver(dir.getAbsolutePath(), mask) {
+                @Override
+                public void onEvent(int event, @Nullable String path) {
+                    RecordingsCache.markDirty();
+                }
+            };
+            observer.startWatching();
+            dirObservers.add(observer);
+        }
+    }
+
+    private void unregisterDirObservers() {
+        for (FileObserver observer : dirObservers) {
+            observer.stopWatching();
+        }
+        dirObservers.clear();
+    }
+
+    private void showLoading(boolean loading) {
+        if (binding == null) return;
+        binding.loadingIndicator.setVisibility(loading ? View.VISIBLE : View.GONE);
+        if (loading && RecordingsCache.snapshot().isEmpty()) {
+            binding.emptyView.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.GONE);
+        }
+    }
+
+    private void traverseDirectory(File dir, List<Recording> out) {
         File[] files = dir.listFiles();
         if (files != null) {
             for (File file : files) {
                 if (file.isDirectory()) {
-                    traverseDirectory(file);
+                    traverseDirectory(file, out);
                 } else {
                     String name = file.getName().toLowerCase();
                     if (name.endsWith(".wav") || name.endsWith(".mp3") || name.endsWith(".aac")
                             || name.endsWith(".m4a") || name.endsWith(".mp4")) {
-                        allRecordings.add(new Recording(file));
+                        out.add(new Recording(file));
                     }
                 }
             }
@@ -367,6 +477,13 @@ public class RecordingsFragment extends Fragment implements RecordingsAdapter.On
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        loadToken++;
         binding = null;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        loadExecutor.shutdownNow();
     }
 }

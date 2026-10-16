@@ -239,7 +239,6 @@ dependencies {
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
     implementation(libs.markwon.core)
-    implementation(libs.remote.preferences)
     implementation(libs.androidx.work.runtime)
 
     testImplementation(libs.junit)
