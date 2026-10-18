@@ -537,4 +537,5 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="changelog_no_update_summary">Buka rilis terbaru di GitHub untuk melihat perubahan terbaru.</string>
     <string name="changelog_version">Versi %s</string>
     <string name="changelog_released">Dirilis %s</string>
+    <string name="notification_update_content_description">Notifikasi pembaruan</string>
 </resources>

@@ -10,9 +10,10 @@
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/menu_tts"
-        android:icon="@drawable/ic_tts"
-        android:title="@string/tts"
+        android:id="@+id/menu_notification"
+        android:icon="@drawable/ic_notifications_black_24dp"
+        android:title="@string/changelog_title"
+        app:actionLayout="@layout/item_header_notification"
         app:iconTint="@color/text_on_gradient"
         app:showAsAction="always" />
 

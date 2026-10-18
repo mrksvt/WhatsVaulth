@@ -1,23 +1,24 @@
 package com.mrksvt.waen
 
-import android.app.Activity
-import com.mrksvt.waen.xposed.core.WppCore
-import com.mrksvt.waen.xposed.core.components.AlertDialogWpp
-import com.mrksvt.waen.xposed.utils.Utils
+import android.content.Context
 import de.robv.android.xposed.XposedBridge
-import io.noties.markwon.Markwon
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class UpdateChecker(private val mActivity: Activity) : Runnable {
+/**
+ * Fetches the latest GitHub release, persists it through [UpdateInfoStore], and
+ * reports whether a newer build is available. Runs off the main thread.
+ */
+class UpdateChecker(
+    private val context: Context,
+    private val onFinished: java.util.function.Consumer<Boolean>? = null
+) : Runnable {
 
     companion object {
         private const val LATEST_RELEASE_API = "https://api.github.com/repos/mrksvt/WhatsVaulth/releases/latest"
-        private const val UPDATE_CHANNEL_URL = "https://t.me/whatsvault_ch"
 
         private val HASH_PATTERN = Regex("[0-9a-fA-F]{8}")
 
@@ -47,14 +48,11 @@ class UpdateChecker(private val mActivity: Activity) : Runnable {
     }
 
     override fun run() {
+        var updateAvailable = false
         try {
             val request = okhttp3.Request.Builder()
                 .url(LATEST_RELEASE_API)
                 .build()
-
-            val hash: String
-            val changelog: String
-            val publishedAt: String
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return
@@ -65,77 +63,28 @@ class UpdateChecker(private val mActivity: Activity) : Runnable {
 
                 if (tagName.isBlank()) return
 
-                hash = extractHash(tagName, release.optJSONArray("assets")) ?: return
-                changelog = release.optString("body", "No changelog available.").trim()
-                publishedAt = release.optString("published_at", "")
-            }
+                val hash = extractHash(tagName, release.optJSONArray("assets")) ?: return
+                val changelog = release.optString("body", "").trim()
+                val releaseUrl = release.optString("html_url", "")
+                val publishedAt = release.optString("published_at", "")
 
-            if (hash.isBlank()) return
-
-            val packageInfo = try {
-                mActivity.packageManager.getPackageInfo(BuildConfig.APPLICATION_ID, 0)
-            } catch (e: Exception) {
-                XposedBridge.log(e)
-                return
-            }
-
-            val isNewVersion = !packageInfo.versionName!!.lowercase().contains(hash.lowercase().trim())
-            val isIgnored = WppCore.getPrivString("ignored_version", "") == hash
-
-            if (isNewVersion && !isIgnored) {
-                mActivity.runOnUiThread {
-                    showUpdateDialog(hash, changelog, publishedAt)
+                val versionName = try {
+                    context.packageManager.getPackageInfo(BuildConfig.APPLICATION_ID, 0)
+                        .versionName ?: ""
+                } catch (e: Exception) {
+                    XposedBridge.log(e)
+                    return
                 }
+
+                updateAvailable = !versionName.lowercase().contains(hash.lowercase().trim())
+                UpdateInfoStore.save(
+                    context, hash, changelog, releaseUrl, publishedAt, updateAvailable
+                )
             }
         } catch (e: Exception) {
             XposedBridge.log(e)
-        }
-    }
-
-    private fun showUpdateDialog(hash: String, changelog: String, publishedAt: String) {
-        try {
-            val markwon = Markwon.create(mActivity)
-            val dialog = AlertDialogWpp(mActivity)
-
-            val formattedDate = formatPublishedDate(publishedAt)
-
-            val message = buildString {
-                append("📦 **Version:** `").append(hash).append("`\n")
-                if (formattedDate.isNotEmpty()) {
-                    append("📅 **Released:** ").append(formattedDate).append("\n")
-                }
-                append("\n### What's New\n\n").append(changelog)
-            }
-
-            dialog.setTitle("🎉 New Update Available!")
-            dialog.setMessage(markwon.toMarkdown(message))
-            dialog.setNegativeButton("Ignore") { dialog, _ ->
-                WppCore.setPrivString("ignored_version", hash)
-                dialog.dismiss()
-            }
-            dialog.setPositiveButton("Update Now") { dialog, _ ->
-                Utils.openLink(mActivity, UPDATE_CHANNEL_URL)
-                dialog.dismiss()
-            }
-            dialog.show()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun formatPublishedDate(isoDate: String?): String {
-        if (isoDate.isNullOrEmpty()) return ""
-
-        return try {
-            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-            val date = isoFormat.parse(isoDate)
-            if (date != null) {
-                val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.US)
-                displayFormat.format(date)
-            } else ""
-        } catch (e: Exception) {
-            XposedBridge.log(e)
-            ""
+        } finally {
+            onFinished?.accept(updateAvailable)
         }
     }
 }

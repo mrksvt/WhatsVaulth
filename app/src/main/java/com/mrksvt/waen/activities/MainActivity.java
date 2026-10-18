@@ -8,6 +8,7 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -19,6 +20,8 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.waseemsabir.betterypermissionhelper.BatteryPermissionHelper;
 import com.mrksvt.waen.App;
 import com.mrksvt.waen.R;
+import com.mrksvt.waen.UpdateChecker;
+import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
 import com.mrksvt.waen.adapter.MainPagerAdapter;
 import com.mrksvt.waen.databinding.ActivityMainBinding;
@@ -28,6 +31,7 @@ import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
 import com.mrksvt.waen.utils.FilePicker;
 
 import java.io.File;
+import java.util.concurrent.CompletableFuture;
 
 public class MainActivity extends BaseActivity {
 
@@ -42,6 +46,8 @@ public class MainActivity extends BaseActivity {
     private String pendingScrollToPreference = null;
     private int pendingScrollToFragment = -1;
     private String pendingParentKey = null;
+    private View notificationActionView;
+    private boolean updateCheckStarted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -307,6 +313,18 @@ public class MainActivity extends BaseActivity {
         if (powerManager.isIgnoringBatteryOptimizations(getPackageName())) {
             menu.findItem(R.id.batteryoptimization).setVisible(false);
         }
+        MenuItem notificationItem = menu.findItem(R.id.menu_notification);
+        if (notificationItem != null) {
+            notificationActionView = notificationItem.getActionView();
+            if (notificationActionView != null) {
+                notificationActionView.setOnClickListener(v -> openChangelog());
+                refreshNotificationBadge();
+            }
+        }
+        if (!updateCheckStarted) {
+            updateCheckStarted = true;
+            startUpdateCheck();
+        }
         return true;
     }
 
@@ -323,8 +341,8 @@ public class MainActivity extends BaseActivity {
                     this, R.anim.slide_in_right, R.anim.slide_out_left);
             startActivity(new Intent(this, AboutActivity.class), options.toBundle());
             return true;
-        } else if (item.getItemId() == R.id.menu_tts) {
-            navigateToPage(MainPagerAdapter.POSITION_TTS);
+        } else if (item.getItemId() == R.id.menu_notification) {
+            openChangelog();
             return true;
         } else if (item.getItemId() == R.id.batteryoptimization) {
             if (batteryPermissionHelper.isBatterySaverPermissionAvailable(this, true)) {
@@ -337,6 +355,26 @@ public class MainActivity extends BaseActivity {
             }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void openChangelog() {
+        var options = ActivityOptionsCompat.makeCustomAnimation(
+                this, R.anim.slide_in_right, R.anim.slide_out_left);
+        startActivity(new Intent(this, ChangelogActivity.class), options.toBundle());
+    }
+
+    private void startUpdateCheck() {
+        CompletableFuture.runAsync(new UpdateChecker(
+                this, hasUpdate -> {
+                    runOnUiThread(this::refreshNotificationBadge);
+                }));
+    }
+
+    private void refreshNotificationBadge() {
+        if (notificationActionView == null) return;
+        View badge = notificationActionView.findViewById(R.id.notification_badge);
+        if (badge == null) return;
+        badge.setVisibility(UpdateInfoStore.hasUpdate(this) ? View.VISIBLE : View.GONE);
     }
 
     public static boolean isXposedEnabled() {
