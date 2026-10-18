@@ -84,6 +84,11 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                     // (cold start), baris tidak akan pernah muncul sampai view dibuat ulang.
                     mStatusContainer.adapter =
                         IGStatusAdapter(WppCore.getCurrentActivity()!!, statusInfoClass)
+                    // `itens` bisa sudah terisi sebelum view lahir (cold start:
+                    // konstruktor list status jalan sebelum FragmentView dibuat).
+                    // Adapter baru belum pernah dapat notify, jadi panggil sekali
+                    // di sini supaya baris langsung tampil tanpa harus pindah menu.
+                    mStatusContainer.updateList()
                 }
                 mStatusContainer.fragmentId = id
                 mListStatusContainer.add(mStatusContainer)
