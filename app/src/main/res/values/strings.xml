@@ -712,4 +712,10 @@
     <string name="disable_document_scanner">Disable document scanner</string>
     <string name="disable_document_scanner_sum">Disables the ML Kit document scanner in the document picker. Fixes a crash when opening it on some devices</string>
     <string name="no_file_picker">No file manager found on this device to pick a file.</string>
+    <!-- Changelog screen -->
+    <string name="changelog_title">What\'s New</string>
+    <string name="changelog_no_update">No update info yet</string>
+    <string name="changelog_no_update_summary">Open the latest release on GitHub to see the newest changes.</string>
+    <string name="changelog_version">Version %s</string>
+    <string name="changelog_released">Released %s</string>
 </resources>

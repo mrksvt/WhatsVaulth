@@ -531,4 +531,10 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="trash_recovery_export_failed">Ekspor gagal</string>
     <string name="trash_recovery_hook">Simpan Pesan Terhapus</string>
     <string name="trash_recovery_hook_sum">Tangkap konten pesan saat dihapus (Anti Revoke harus aktif)</string>
+    <!-- Changelog screen -->
+    <string name="changelog_title">Yang Baru</string>
+    <string name="changelog_no_update">Belum ada info pembaruan</string>
+    <string name="changelog_no_update_summary">Buka rilis terbaru di GitHub untuk melihat perubahan terbaru.</string>
+    <string name="changelog_version">Versi %s</string>
+    <string name="changelog_released">Dirilis %s</string>
 </resources>

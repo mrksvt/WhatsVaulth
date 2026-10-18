@@ -79,6 +79,11 @@
             android:theme="@style/AppTheme" />
 
         <activity
+            android:name=".activities.ChangelogActivity"
+            android:theme="@style/AppTheme"
+            android:parentActivityName=".activities.MainActivity" />
+
+        <activity
             android:name=".activities.CrashReportActivity"
             android:exported="true"
             android:theme="@style/AppTheme" />
