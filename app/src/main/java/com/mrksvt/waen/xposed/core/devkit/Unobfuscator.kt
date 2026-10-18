@@ -2130,6 +2130,7 @@ object Unobfuscator {
     fun loadHeaderChannelItemClass(classLoader: ClassLoader): Class<*> {
         return UnobfuscatorCache.getInstance().getClass(classLoader) {
             findFirstClassUsingStrings(classLoader, StringMatchType.Contains, "statusTilesEnabled")
+                ?: findFirstClassUsingStrings(classLoader, StringMatchType.Contains, "NewsletterHeaderDataItem(enableExploreButton=")
                 ?: throw RuntimeException("HeaderChannelItem class not found")
         }
     }

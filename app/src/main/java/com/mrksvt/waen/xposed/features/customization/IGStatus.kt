@@ -46,7 +46,6 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
         val getViewConversationMethod = Unobfuscator.loadGetViewConversationMethod(classLoader)
         val statusInfoClass = Unobfuscator.loadStatusInfoClass(classLoader)
-        logDebug(statusInfoClass)
         XposedBridge.hookMethod(getViewConversationMethod, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 if (archivedFragmentClass.isInstance(param.thisObject)) return
@@ -92,10 +91,8 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         })
 
         val onUpdateStatusChanged = Unobfuscator.loadOnUpdateStatusChanged(classLoader)
-        logDebug(Unobfuscator.getMethodDescriptor(onUpdateStatusChanged))
 
         val updateModel = onUpdateStatusChanged.declaringClass
-        logDebug(updateModel)
 
         XposedBridge.hookAllConstructors(updateModel, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
@@ -111,7 +108,6 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         })
 
         val onStatusListUpdatesClass = Unobfuscator.loadStatusListUpdatesClass(classLoader)
-        logDebug(onStatusListUpdatesClass)
 
         XposedBridge.hookAllConstructors(onStatusListUpdatesClass, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
@@ -128,7 +124,6 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         })
 
         val onGetInvokeField = Unobfuscator.loadGetInvokeField(classLoader)
-        logDebug(Unobfuscator.getFieldDescriptor(onGetInvokeField))
         XposedBridge.hookMethod(onUpdateStatusChanged, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val holder = onGetInvokeField.get(param.args[0])
