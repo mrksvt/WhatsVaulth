@@ -35,6 +35,7 @@ public class MainNavigationRoutesTest {
     public void sidebarPagesSelectMoreAsBottomParent() {
         assertEquals(503, routes.bottomMenuIdForPage(4));
         assertEquals(503, routes.bottomMenuIdForPage(5));
+        assertEquals(503, routes.bottomMenuIdForPage(6));
     }
 
     @Test
@@ -46,20 +47,20 @@ public class MainNavigationRoutesTest {
     }
 
     @Test
-    public void moreOnlyTogglesSidebarAndTtsHasNoBottomParent() {
+    public void moreOnlyTogglesSidebar() {
         assertEquals(MainNavigationRoutes.NO_PAGE, routes.pageForMenuId(503));
-        assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.bottomMenuIdForPage(6));
     }
 
     @Test
     public void sidebarSelectionTracksOnlySidebarPages() {
         assertEquals(306, routes.sidebarMenuIdForPage(4));
         assertEquals(805, routes.sidebarMenuIdForPage(5));
+        assertEquals(408, routes.sidebarMenuIdForPage(6));
     }
 
     @Test
     public void sidebarSelectionClearsForBottomPages() {
-        for (int page : new int[]{0, 1, 2, 3, 6}) {
+        for (int page : new int[]{0, 1, 2, 3}) {
             assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(page));
         }
         assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(7));

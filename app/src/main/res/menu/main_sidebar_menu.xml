@@ -11,6 +11,11 @@
             android:id="@+id/navigation_recordings"
             android:icon="@drawable/ic_recording"
             android:title="@string/main_sidebar_recordings" />
+
+        <item
+            android:id="@+id/menu_tts"
+            android:icon="@drawable/ic_tts"
+            android:title="@string/tts" />
     </group>
 
     <item

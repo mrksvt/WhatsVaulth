@@ -25,6 +25,7 @@ public final class MainNavigationRoutes {
     private final int moreId;
     private final int customizationId;
     private final int recordingsId;
+    private final int ttsId;
 
     public MainNavigationRoutes(int generalId, int privacyId, int homeId, int mediaId,
                                 int moreId, int customizationId, int recordingsId, int ttsId) {
@@ -35,6 +36,7 @@ public final class MainNavigationRoutes {
         this.moreId = moreId;
         this.customizationId = customizationId;
         this.recordingsId = recordingsId;
+        this.ttsId = ttsId;
         pagesByMenuId = new HashMap<>();
         pagesByMenuId.put(generalId, POSITION_GENERAL);
         pagesByMenuId.put(privacyId, POSITION_PRIVACY);
@@ -50,14 +52,14 @@ public final class MainNavigationRoutes {
         return pagesByMenuId.getOrDefault(menuId, NO_PAGE);
     }
 
-    /** TTS is opened from the header and has no selected bottom menu item. */
+    /** TTS is a sidebar entry, so it highlights Lainnya as its bottom parent. */
     public int bottomMenuIdForPage(int position) {
         return switch (position) {
             case POSITION_GENERAL -> generalId;
             case POSITION_PRIVACY -> privacyId;
             case POSITION_HOME -> homeId;
             case POSITION_MEDIA -> mediaId;
-            case POSITION_CUSTOMIZATION, POSITION_RECORDINGS -> moreId;
+            case POSITION_CUSTOMIZATION, POSITION_RECORDINGS, POSITION_TTS -> moreId;
             default -> NO_MENU_ID;
         };
     }
@@ -67,6 +69,7 @@ public final class MainNavigationRoutes {
         return switch (position) {
             case POSITION_CUSTOMIZATION -> customizationId;
             case POSITION_RECORDINGS -> recordingsId;
+            case POSITION_TTS -> ttsId;
             default -> NO_MENU_ID;
         };
     }
