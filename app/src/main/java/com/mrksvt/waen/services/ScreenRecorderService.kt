@@ -60,6 +60,9 @@ class ScreenRecorderService : Service() {
     private val pendingResultData = AtomicReference<Intent?>(null)
     private var projection: MediaProjection? = null
     private var virtualDisplay: android.hardware.display.VirtualDisplay? = null
+    private var displayWidth = 0
+    private var displayHeight = 0
+    private var displayDensity = 0
     private var encoder: ScreenRecorderEncoder? = null
     private var muxer: MediaMuxer? = null
     private var stagingRef: File? = null
@@ -213,14 +216,32 @@ class ScreenRecorderService : Service() {
         muxer = activeMuxer
 
         virtualDisplay = outcome.encoder.createVirtualDisplay(
-            created, metrics.widthPixels, metrics.heightPixels, metrics.densityDpi
+            created, outcome.encoder.profile.width, outcome.encoder.profile.height,
+            projectionDensity(outcome.encoder.profile.height)
         )
         if (virtualDisplay == null) {
             fail(session, id, ScreenRecorderResult.Error.PROJECTION_START)
             return
         }
+        displayWidth = outcome.encoder.profile.width
+        displayHeight = outcome.encoder.profile.height
+        displayDensity = projectionDensity(outcome.encoder.profile.height)
         stagingRef = staging
         finalRef = finalFile
+    }
+
+    /**
+     * Density untuk display: skala proporsional ke tinggi encoder. Density asli
+     * (390) pada surface 576x1280 membuat UI terlalu besar dan SurfaceFlinger
+     * jatuh ke komposisi lambat, capture macet. Gabungan tiga (layer transform,
+     * viewport, buffer geometry) penting untuk frame rate.
+     */
+    private fun projectionDensity(encoderHeight: Int): Int {
+        val screenHeight = resources.displayMetrics.heightPixels
+        val density = resources.displayMetrics.densityDpi
+        if (screenHeight <= 0 || encoderHeight <= 0) return density
+        val scaled = (density.toLong() * encoderHeight / screenHeight).toInt()
+        return if (scaled < 96) 96 else scaled
     }
 
     private val projectionCallback = object : MediaProjection.Callback() {
@@ -341,9 +362,9 @@ class ScreenRecorderService : Service() {
      */
     private fun applyCanvasLocked() {
         val display = virtualDisplay ?: return
-        val metrics = resources.displayMetrics
+        if (displayWidth <= 0 || displayHeight <= 0) return
         runCatching {
-            display.resize(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi)
+            display.resize(displayWidth, displayHeight, displayDensity)
         }
     }
 
