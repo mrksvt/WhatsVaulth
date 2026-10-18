@@ -9,6 +9,7 @@ import android.view.View;
 import androidx.annotation.Nullable;
 
 import com.mrksvt.waen.R;
+import com.mrksvt.waen.ReleaseInfo;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
 import com.mrksvt.waen.databinding.ActivityChangelogBinding;
@@ -22,6 +23,12 @@ import io.noties.markwon.Markwon;
 
 public class ChangelogActivity extends BaseActivity {
 
+    public static final String EXTRA_TITLE = "release_title";
+    public static final String EXTRA_HASH = "release_hash";
+    public static final String EXTRA_CHANGELOG = "release_changelog";
+    public static final String EXTRA_RELEASE_URL = "release_url";
+    public static final String EXTRA_PUBLISHED_AT = "release_published_at";
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,13 +38,31 @@ public class ChangelogActivity extends BaseActivity {
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(R.string.changelog_title);
         }
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        String hash = UpdateInfoStore.getHash(this);
-        String publishedAt = UpdateInfoStore.getPublishedAt(this);
-        String changelog = UpdateInfoStore.getChangelog(this);
+        Intent intent = getIntent();
+        String title = intent.getStringExtra(EXTRA_TITLE);
+        String hash = intent.getStringExtra(EXTRA_HASH);
+        String changelog = intent.getStringExtra(EXTRA_CHANGELOG);
+        String releaseUrl = intent.getStringExtra(EXTRA_RELEASE_URL);
+        String publishedAt = intent.getStringExtra(EXTRA_PUBLISHED_AT);
+
+        if (TextUtils.isEmpty(hash)) {
+            ReleaseInfo newest = UpdateInfoStore.getNewest(this);
+            if (newest != null) {
+                if (TextUtils.isEmpty(title)) title = newest.displayName();
+                hash = newest.hash;
+                changelog = newest.changelog;
+                releaseUrl = newest.releaseUrl;
+                publishedAt = newest.publishedAt;
+            }
+        }
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(
+                    TextUtils.isEmpty(title) ? getString(R.string.changelog_title) : title);
+        }
 
         if (TextUtils.isEmpty(hash)) {
             binding.tvVersion.setText(R.string.changelog_no_update);
@@ -59,11 +84,9 @@ public class ChangelogActivity extends BaseActivity {
             }
         }
 
-        binding.btnDownload.setOnClickListener(v -> openReleasePage());
-    }
-
-    private void openReleasePage() {
-        openUrl(UpdateInfoStore.getReleaseUrl(this));
+        String targetUrl = TextUtils.isEmpty(releaseUrl)
+                ? UpdateInfoStore.FALLBACK_RELEASE_URL : releaseUrl;
+        binding.btnDownload.setOnClickListener(v -> openUrl(targetUrl));
     }
 
     private void openUrl(String url) {

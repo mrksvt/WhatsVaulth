@@ -9,7 +9,7 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * Fetches the latest GitHub release, persists it through [UpdateInfoStore], and
+ * Fetches the GitHub release list, persists it through [UpdateInfoStore], and
  * reports whether a newer build is available. Runs off the main thread.
  */
 class UpdateChecker(
@@ -18,7 +18,8 @@ class UpdateChecker(
 ) : Runnable {
 
     companion object {
-        private const val LATEST_RELEASE_API = "https://api.github.com/repos/mrksvt/WhatsVaulth/releases/latest"
+        private const val RELEASES_API =
+            "https://api.github.com/repos/mrksvt/WhatsVaulth/releases?per_page=20"
 
         private val HASH_PATTERN = Regex("[0-9a-fA-F]{8}")
 
@@ -51,40 +52,59 @@ class UpdateChecker(
         var updateAvailable = false
         try {
             val request = okhttp3.Request.Builder()
-                .url(LATEST_RELEASE_API)
+                .url(RELEASES_API)
                 .build()
 
-            httpClient.newCall(request).execute().use { response ->
+            val releases = httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return
-
-                val content = response.body.string()
-                val release = JSONObject(content)
-                val tagName = release.optString("tag_name", "")
-
-                if (tagName.isBlank()) return
-
-                val hash = extractHash(tagName, release.optJSONArray("assets")) ?: return
-                val changelog = release.optString("body", "").trim()
-                val releaseUrl = release.optString("html_url", "")
-                val publishedAt = release.optString("published_at", "")
-
-                val versionName = try {
-                    context.packageManager.getPackageInfo(BuildConfig.APPLICATION_ID, 0)
-                        .versionName ?: ""
-                } catch (e: Exception) {
-                    XposedBridge.log(e)
-                    return
-                }
-
-                updateAvailable = !versionName.lowercase().contains(hash.lowercase().trim())
-                UpdateInfoStore.save(
-                    context, hash, changelog, releaseUrl, publishedAt, updateAvailable
-                )
+                val array = JSONArray(response.body.string())
+                buildReleases(array)
             }
+
+            if (releases.isEmpty()) return
+
+            val versionName = try {
+                context.packageManager.getPackageInfo(BuildConfig.APPLICATION_ID, 0)
+                    .versionName ?: ""
+            } catch (e: Exception) {
+                XposedBridge.log(e)
+                return
+            }
+
+            val newest = releases.firstOrNull { it.hash.isNotEmpty() }
+            if (newest == null) {
+                UpdateInfoStore.saveReleases(context, releases, false)
+                return
+            }
+            updateAvailable = !versionName.lowercase().contains(newest.hash.lowercase())
+            UpdateInfoStore.saveReleases(context, releases, updateAvailable)
         } catch (e: Exception) {
             XposedBridge.log(e)
         } finally {
             onFinished?.accept(updateAvailable)
         }
+    }
+
+    private fun buildReleases(array: JSONArray): List<ReleaseInfo> {
+        val releases = ArrayList<ReleaseInfo>()
+        for (i in 0 until array.length()) {
+            val release = array.optJSONObject(i) ?: continue
+            if (release.optBoolean("draft", false)) continue
+            val tagName = release.optString("tag_name", "")
+            val hash = extractHash(tagName, release.optJSONArray("assets"))
+                ?: continue
+            releases.add(ReleaseInfo(
+                tagName,
+                release.optString("name", ""),
+                hash,
+                release.optString("body", "").trim(),
+                release.optString("html_url", ""),
+                release.optString("published_at", ""),
+                release.optBoolean("prerelease", false)
+            ))
+        }
+        // Newest first; the API already returns newest-first, but be safe.
+        releases.sortByDescending { it.publishedAt }
+        return releases
     }
 }

@@ -13,6 +13,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityOptionsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.widget.ViewPager2;
@@ -20,6 +21,7 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.waseemsabir.betterypermissionhelper.BatteryPermissionHelper;
 import com.mrksvt.waen.App;
 import com.mrksvt.waen.R;
+import com.mrksvt.waen.ReleaseInfo;
 import com.mrksvt.waen.UpdateChecker;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
@@ -31,6 +33,7 @@ import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
 import com.mrksvt.waen.utils.FilePicker;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class MainActivity extends BaseActivity {
@@ -317,7 +320,7 @@ public class MainActivity extends BaseActivity {
         if (notificationItem != null) {
             notificationActionView = notificationItem.getActionView();
             if (notificationActionView != null) {
-                notificationActionView.setOnClickListener(v -> openChangelog());
+                notificationActionView.setOnClickListener(v -> showReleaseMenu(v));
                 refreshNotificationBadge();
             }
         }
@@ -342,7 +345,11 @@ public class MainActivity extends BaseActivity {
             startActivity(new Intent(this, AboutActivity.class), options.toBundle());
             return true;
         } else if (item.getItemId() == R.id.menu_notification) {
-            openChangelog();
+            if (notificationActionView != null) {
+                showReleaseMenu(notificationActionView);
+            } else {
+                openChangelog();
+            }
             return true;
         } else if (item.getItemId() == R.id.batteryoptimization) {
             if (batteryPermissionHelper.isBatterySaverPermissionAvailable(this, true)) {
@@ -361,6 +368,43 @@ public class MainActivity extends BaseActivity {
         var options = ActivityOptionsCompat.makeCustomAnimation(
                 this, R.anim.slide_in_right, R.anim.slide_out_left);
         startActivity(new Intent(this, ChangelogActivity.class), options.toBundle());
+    }
+
+    /** Dropdown of fetched releases; each row opens that release's changelog. */
+    private void showReleaseMenu(View anchor) {
+        List<ReleaseInfo> releases = UpdateInfoStore.getReleases(this);
+        if (releases.isEmpty()) {
+            openChangelog();
+            return;
+        }
+        PopupMenu popup = new PopupMenu(this, anchor);
+        int limit = Math.min(releases.size(), 10);
+        for (int i = 0; i < limit; i++) {
+            ReleaseInfo release = releases.get(i);
+            String label = release.displayName() + " (" + release.hash + ")";
+            if (release.prerelease) label += " - Beta";
+            popup.getMenu().add(0, i, i, label);
+        }
+        popup.setOnMenuItemClickListener(item -> {
+            int index = item.getItemId();
+            if (index >= 0 && index < limit) {
+                openChangelogFor(releases.get(index));
+            }
+            return true;
+        });
+        popup.show();
+    }
+
+    private void openChangelogFor(ReleaseInfo release) {
+        var options = ActivityOptionsCompat.makeCustomAnimation(
+                this, R.anim.slide_in_right, R.anim.slide_out_left);
+        Intent intent = new Intent(this, ChangelogActivity.class)
+                .putExtra(ChangelogActivity.EXTRA_TITLE, release.displayName())
+                .putExtra(ChangelogActivity.EXTRA_HASH, release.hash)
+                .putExtra(ChangelogActivity.EXTRA_CHANGELOG, release.changelog)
+                .putExtra(ChangelogActivity.EXTRA_RELEASE_URL, release.releaseUrl)
+                .putExtra(ChangelogActivity.EXTRA_PUBLISHED_AT, release.publishedAt);
+        startActivity(intent, options.toBundle());
     }
 
     private void startUpdateCheck() {

@@ -3,9 +3,17 @@ package com.mrksvt.waen;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Persists the latest GitHub release info fetched by {@link UpdateChecker} so the
- * header notification and the changelog screen can read it without a network call.
+ * Persists the GitHub release list fetched by {@link UpdateChecker} so the
+ * header notification menu and the changelog screen can read it without a
+ * network call. Releases are stored newest-first.
  */
 public final class UpdateInfoStore {
 
@@ -13,10 +21,7 @@ public final class UpdateInfoStore {
             "https://github.com/mrksvt/WhatsVaulth/releases/latest";
 
     private static final String PREFS = "update_info";
-    private static final String KEY_HASH = "latest_hash";
-    private static final String KEY_CHANGELOG = "latest_changelog";
-    private static final String KEY_RELEASE_URL = "latest_release_url";
-    private static final String KEY_PUBLISHED_AT = "latest_published_at";
+    private static final String KEY_RELEASES = "releases";
     private static final String KEY_UPDATE_AVAILABLE = "update_available";
     private static final String KEY_IGNORED_HASH = "ignored_hash";
 
@@ -28,45 +33,73 @@ public final class UpdateInfoStore {
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static void save(Context context, String hash, String changelog,
-                            String releaseUrl, String publishedAt, boolean updateAvailable) {
+    public static void saveReleases(Context context, List<ReleaseInfo> releases,
+                                    boolean updateAvailable) {
+        JSONArray array = new JSONArray();
+        for (ReleaseInfo release : releases) {
+            JSONObject object = new JSONObject();
+            try {
+                object.put("tag", release.tagName);
+                object.put("title", release.title);
+                object.put("hash", release.hash);
+                object.put("changelog", release.changelog);
+                object.put("url", release.releaseUrl);
+                object.put("published", release.publishedAt);
+                object.put("prerelease", release.prerelease);
+                array.put(object);
+            } catch (JSONException ignored) {
+                // Every key is a plain string/boolean, so this cannot happen.
+            }
+        }
         prefs(context).edit()
-                .putString(KEY_HASH, hash)
-                .putString(KEY_CHANGELOG, changelog)
-                .putString(KEY_RELEASE_URL, releaseUrl)
-                .putString(KEY_PUBLISHED_AT, publishedAt)
+                .putString(KEY_RELEASES, array.toString())
                 .putBoolean(KEY_UPDATE_AVAILABLE, updateAvailable)
                 .apply();
     }
 
-    public static String getHash(Context context) {
-        return value(prefs(context).getString(KEY_HASH, ""));
+    public static List<ReleaseInfo> getReleases(Context context) {
+        List<ReleaseInfo> releases = new ArrayList<>();
+        String raw = prefs(context).getString(KEY_RELEASES, "");
+        if (raw == null || raw.isEmpty()) return releases;
+        try {
+            JSONArray array = new JSONArray(raw);
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject object = array.optJSONObject(i);
+                if (object == null) continue;
+                releases.add(new ReleaseInfo(
+                        object.optString("tag", ""),
+                        object.optString("title", ""),
+                        object.optString("hash", ""),
+                        object.optString("changelog", ""),
+                        object.optString("url", ""),
+                        object.optString("published", ""),
+                        object.optBoolean("prerelease", false)));
+            }
+        } catch (JSONException ignored) {
+            // Corrupt cache: treat as empty and refetch next launch.
+        }
+        return releases;
     }
 
-    public static String getChangelog(Context context) {
-        return value(prefs(context).getString(KEY_CHANGELOG, ""));
-    }
-
-    public static String getPublishedAt(Context context) {
-        return value(prefs(context).getString(KEY_PUBLISHED_AT, ""));
-    }
-
-    public static String getReleaseUrl(Context context) {
-        String url = value(prefs(context).getString(KEY_RELEASE_URL, ""));
-        return url.isEmpty() ? FALLBACK_RELEASE_URL : url;
+    /** Newest release with a hash, or null when nothing was fetched yet. */
+    public static ReleaseInfo getNewest(Context context) {
+        for (ReleaseInfo release : getReleases(context)) {
+            if (!release.hash.isEmpty()) return release;
+        }
+        return null;
     }
 
     public static boolean hasData(Context context) {
-        return !getHash(context).isEmpty();
+        return !getReleases(context).isEmpty();
     }
 
-    /** True only when a newer release exists and the user has not ignored that hash. */
+    /** True when the newest release build differs from the installed build. */
     public static boolean hasUpdate(Context context) {
         if (!prefs(context).getBoolean(KEY_UPDATE_AVAILABLE, false)) return false;
-        String hash = getHash(context);
-        if (hash.isEmpty()) return false;
+        ReleaseInfo newest = getNewest(context);
+        if (newest == null) return false;
         String ignored = value(prefs(context).getString(KEY_IGNORED_HASH, ""));
-        return !hash.equalsIgnoreCase(ignored);
+        return !newest.hash.equalsIgnoreCase(ignored);
     }
 
     public static void ignore(Context context, String hash) {
