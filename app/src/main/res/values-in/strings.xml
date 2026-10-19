@@ -538,4 +538,8 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="changelog_version">Versi %s</string>
     <string name="changelog_released">Dirilis %s</string>
     <string name="notification_update_content_description">Notifikasi pembaruan</string>
+    <string name="notification_unread_content_description">%1$d ril isu belum dibaca</string>
+    <string name="notification_menu_title">Pembaruan</string>
+    <string name="notification_mark_all_read">Tandai sudah dibaca</string>
+    <string name="notification_all_read">Semua sudah dibaca</string>
 </resources>

@@ -2,20 +2,27 @@ package com.mrksvt.waen.activities;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.PopupWindow;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityOptionsCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.waseemsabir.betterypermissionhelper.BatteryPermissionHelper;
@@ -26,6 +33,7 @@ import com.mrksvt.waen.UpdateChecker;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
 import com.mrksvt.waen.adapter.MainPagerAdapter;
+import com.mrksvt.waen.adapter.ReleasePopupAdapter;
 import com.mrksvt.waen.databinding.ActivityMainBinding;
 import com.mrksvt.waen.ui.fragments.GeneralFragment;
 import com.mrksvt.waen.ui.fragments.HomeFragment;
@@ -41,6 +49,11 @@ public class MainActivity extends BaseActivity {
     private ActivityMainBinding binding;
     private static final String STATE_PAGE = "main_page";
     private static final String STATE_SIDEBAR = "main_sidebar_open";
+    private static final int VISIBLE_RELEASE_ROWS = 4;
+    private static final int RELEASE_ROW_HEIGHT_DP = 60;
+    private static final int POPUP_WIDTH_DP = 320;
+    private static final int POPUP_SCREEN_MARGIN_DP = 16;
+    private static final int POPUP_ELEVATION_DP = 8;
     private MainNavigationRoutes navigationRoutes;
     private MainSidebarController sidebar;
     private OnBackPressedCallback sidebarBackCallback;
@@ -51,6 +64,7 @@ public class MainActivity extends BaseActivity {
     private String pendingParentKey = null;
     private View notificationActionView;
     private boolean updateCheckStarted;
+    private PopupWindow releasePopup;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -228,12 +242,14 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onStop() {
+        dismissReleasePopup();
         sidebar.reset();
         super.onStop();
     }
 
     @Override
     protected void onDestroy() {
+        dismissReleasePopup();
         binding.viewPager.unregisterOnPageChangeCallback(pageChangeCallback);
         sidebar.dispose();
         super.onDestroy();
@@ -370,29 +386,60 @@ public class MainActivity extends BaseActivity {
         startActivity(new Intent(this, ChangelogActivity.class), options.toBundle());
     }
 
-    /** Dropdown of fetched releases; each row opens that release's changelog. */
+    /**
+     * Release list anchored to the header bell. Height fits four rows; the
+     * rest is reached by scrolling inside the popup.
+     * ponytail: no pagination - the list is capped by the API page (20 releases).
+     */
     private void showReleaseMenu(View anchor) {
         List<ReleaseInfo> releases = UpdateInfoStore.getReleases(this);
         if (releases.isEmpty()) {
             openChangelog();
             return;
         }
-        PopupMenu popup = new PopupMenu(this, anchor);
-        int limit = Math.min(releases.size(), 10);
-        for (int i = 0; i < limit; i++) {
-            ReleaseInfo release = releases.get(i);
-            String label = release.displayName() + " (" + release.hash + ")";
-            if (release.prerelease) label += " - Beta";
-            popup.getMenu().add(0, i, i, label);
-        }
-        popup.setOnMenuItemClickListener(item -> {
-            int index = item.getItemId();
-            if (index >= 0 && index < limit) {
-                openChangelogFor(releases.get(index));
-            }
-            return true;
+        dismissReleasePopup();
+
+        View content = LayoutInflater.from(this).inflate(R.layout.popup_release_menu, null);
+        RecyclerView list = content.findViewById(R.id.release_list);
+        TextView markAllRead = content.findViewById(R.id.btn_mark_all_read);
+
+        list.setLayoutManager(new LinearLayoutManager(this));
+        list.setAdapter(new ReleasePopupAdapter(releases, UpdateInfoStore.getReadTags(this),
+                release -> {
+                    UpdateInfoStore.markRead(this, release.tagName);
+                    dismissReleasePopup();
+                    refreshNotificationBadge();
+                    openChangelogFor(release);
+                }));
+        markAllRead.setOnClickListener(v -> {
+            UpdateInfoStore.markAllRead(this);
+            dismissReleasePopup();
+            refreshNotificationBadge();
         });
-        popup.show();
+
+        int rows = Math.min(releases.size(), VISIBLE_RELEASE_ROWS);
+        ViewGroup.LayoutParams params = list.getLayoutParams();
+        params.height = Math.round(getResources().getDisplayMetrics().density * RELEASE_ROW_HEIGHT_DP) * rows;
+        list.setLayoutParams(params);
+
+        int width = Math.min(Math.round(getResources().getDisplayMetrics().density * POPUP_WIDTH_DP),
+                Math.round(getResources().getDisplayMetrics().widthPixels
+                        - getResources().getDisplayMetrics().density * POPUP_SCREEN_MARGIN_DP));
+        releasePopup = new PopupWindow(content, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        releasePopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        releasePopup.setOutsideTouchable(true);
+        releasePopup.setElevation(Math.round(
+                getResources().getDisplayMetrics().density * POPUP_ELEVATION_DP));
+        releasePopup.setFocusable(true);
+        releasePopup.showAsDropDown(anchor, anchor.getWidth() - width,
+                Math.round(getResources().getDisplayMetrics().density * 4));
+    }
+
+    private void dismissReleasePopup() {
+        if (releasePopup != null && releasePopup.isShowing()) {
+            releasePopup.dismiss();
+        }
+        releasePopup = null;
     }
 
     private void openChangelogFor(ReleaseInfo release) {
@@ -416,9 +463,17 @@ public class MainActivity extends BaseActivity {
 
     private void refreshNotificationBadge() {
         if (notificationActionView == null) return;
-        View badge = notificationActionView.findViewById(R.id.notification_badge);
+        TextView badge = notificationActionView.findViewById(R.id.notification_badge);
         if (badge == null) return;
-        badge.setVisibility(UpdateInfoStore.hasUpdate(this) ? View.VISIBLE : View.GONE);
+        int count = UpdateInfoStore.unreadCount(this);
+        if (count > 0) {
+            badge.setText(UpdateInfoStore.unreadLabel(this));
+            badge.setContentDescription(getString(
+                    R.string.notification_unread_content_description, count));
+            badge.setVisibility(View.VISIBLE);
+        } else {
+            badge.setVisibility(View.GONE);
+        }
     }
 
     public static boolean isXposedEnabled() {

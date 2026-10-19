@@ -719,4 +719,8 @@
     <string name="changelog_version">Version %s</string>
     <string name="changelog_released">Released %s</string>
     <string name="notification_update_content_description">Update notification</string>
+    <string name="notification_unread_content_description">%1$d unread releases</string>
+    <string name="notification_menu_title">Updates</string>
+    <string name="notification_mark_all_read">Mark all as read</string>
+    <string name="notification_all_read">All caught up</string>
 </resources>

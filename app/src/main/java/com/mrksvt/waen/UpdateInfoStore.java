@@ -8,7 +8,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Persists the GitHub release list fetched by {@link UpdateChecker} so the
@@ -24,6 +26,7 @@ public final class UpdateInfoStore {
     private static final String KEY_RELEASES = "releases";
     private static final String KEY_UPDATE_AVAILABLE = "update_available";
     private static final String KEY_IGNORED_HASH = "ignored_hash";
+    private static final String KEY_READ_TAGS = "read_tags";
 
     private UpdateInfoStore() {
     }
@@ -105,6 +108,72 @@ public final class UpdateInfoStore {
     public static void ignore(Context context, String hash) {
         prefs(context).edit()
                 .putString(KEY_IGNORED_HASH, value(hash))
+                .apply();
+    }
+
+    /** Release tags the user has already opened or marked as read. */
+    public static Set<String> getReadTags(Context context) {
+        Set<String> tags = new HashSet<>();
+        String raw = prefs(context).getString(KEY_READ_TAGS, "");
+        if (raw == null || raw.isEmpty()) return tags;
+        try {
+            JSONArray array = new JSONArray(raw);
+            for (int i = 0; i < array.length(); i++) {
+                tags.add(array.optString(i, ""));
+            }
+        } catch (JSONException ignored) {
+            // Corrupt cache: treat as nothing read yet.
+        }
+        return tags;
+    }
+
+    public static boolean isRead(Context context, ReleaseInfo release) {
+        return getReadTags(context).contains(release.tagName);
+    }
+
+    public static void markRead(Context context, String tag) {
+        if (tag == null || tag.isEmpty()) return;
+        Set<String> tags = getReadTags(context);
+        if (tags.add(tag)) {
+            writeReadTags(context, tags);
+        }
+    }
+
+    public static void markAllRead(Context context) {
+        Set<String> tags = getReadTags(context);
+        boolean changed = false;
+        for (ReleaseInfo release : getReleases(context)) {
+            if (tags.add(release.tagName)) {
+                changed = true;
+            }
+        }
+        if (changed) {
+            writeReadTags(context, tags);
+        }
+    }
+
+    /** Unread release count shown on the header bell badge. */
+    public static int unreadCount(Context context) {
+        Set<String> read = getReadTags(context);
+        int count = 0;
+        for (ReleaseInfo release : getReleases(context)) {
+            if (!read.contains(release.tagName)) count++;
+        }
+        return count;
+    }
+
+    public static String unreadLabel(Context context) {
+        int count = unreadCount(context);
+        return count > 9 ? "9+" : String.valueOf(count);
+    }
+
+    private static void writeReadTags(Context context, Set<String> tags) {
+        JSONArray array = new JSONArray();
+        for (String tag : tags) {
+            array.put(tag);
+        }
+        prefs(context).edit()
+                .putString(KEY_READ_TAGS, array.toString())
                 .apply();
     }
 
