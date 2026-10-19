@@ -28,11 +28,12 @@ class UpdateChecker(
          * manual release tags (v1.5.5-r40) carry it only in the asset filenames
          * (WhatsVault-1.5.5-debug.A94A2CE3._mrksvt.apk), so check both.
          */
-        private fun extractHash(tagName: String, assetNames: JSONArray?): String? {
+        private fun extractHash(tagName: String, assets: JSONArray?): String? {
             HASH_PATTERN.find(tagName)?.let { return it.value.uppercase(Locale.US) }
-            if (assetNames != null) {
-                for (i in 0 until assetNames.length()) {
-                    val found = HASH_PATTERN.find(assetNames.optString(i, ""))
+            if (assets != null) {
+                for (i in 0 until assets.length()) {
+                    val asset = assets.optJSONObject(i) ?: continue
+                    val found = HASH_PATTERN.find(asset.optString("name", ""))
                     if (found != null) return found.value.uppercase(Locale.US)
                 }
             }
