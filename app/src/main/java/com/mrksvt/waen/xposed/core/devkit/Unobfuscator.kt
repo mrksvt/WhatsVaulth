@@ -1101,8 +1101,29 @@ object Unobfuscator {
                     returnType(String::class.java)
                 }
             }
-            if (result.isEmpty()) throw Exception("GetStatusUser method not found")
-            result[result.size - 1].getMethodInstance(loader)
+            if (result.isNotEmpty()) return@getMethod result[result.size - 1].getMethodInstance(loader)
+            // Since 2.26.41 the id is only used by an internal helper that does not
+            // return String; fall back to the public instance formatter returning
+            // String with non-primitive params declared in the same class.
+            val users = bridge.findMethod {
+                matcher {
+                    addUsingNumber(id)
+                }
+            }
+            if (users.isEmpty()) throw Exception("GetStatusUser method not found")
+            for (methodData in users) {
+                val declaringClass = loader.loadClass(methodData.className)
+                val candidate = declaringClass.declaredMethods.firstOrNull { method ->
+                    !method.isSynthetic &&
+                        Modifier.isPublic(method.modifiers) &&
+                        !Modifier.isStatic(method.modifiers) &&
+                        method.returnType == String::class.java &&
+                        method.parameterTypes.isNotEmpty() &&
+                        method.parameterTypes.none { it.isPrimitive }
+                }
+                if (candidate != null) return@getMethod candidate
+            }
+            throw Exception("GetStatusUser method not found")
         }
     }
 
