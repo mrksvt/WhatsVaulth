@@ -3,10 +3,13 @@ package com.mrksvt.waen.xposed.core
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Bundle
+import android.provider.Settings
 import androidx.core.net.toUri
 import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.provider.PrefsProvider
 import de.robv.android.xposed.XposedBridge
+import java.util.HashMap
 
 class RemotePrefs(context: Context) : SharedPreferences {
 
@@ -35,22 +38,37 @@ class RemotePrefs(context: Context) : SharedPreferences {
         return loaded
     }
 
-    private fun load(): Map<String, Any?>? = try {
-        val result = resolver.call(URI, PrefsProvider.METHOD_GET_ALL, null, null)
+    private fun load(): Map<String, Any?>? {
+        // Route through the Settings provider bridge first: the module process
+        // may not have package visibility to resolve its own .preferences authority.
+        val viaBridge = runCatching {
+            resolver.call(Settings.System.CONTENT_URI, "WaEnhancer", "getPrefs", null)
+        }.getOrNull()
+        if (viaBridge != null) {
+            return parseBundle(viaBridge)
+        }
+
+        // Fallback to the direct provider call.
+        return runCatching {
+            parseBundle(resolver.call(URI, PrefsProvider.METHOD_GET_ALL, null, null))
+        }.onFailure {
+            XposedBridge.log(it)
+        }.getOrNull()
+    }
+
+    private fun parseBundle(result: Bundle?): Map<String, Any?>? {
+        if (result == null) return null
         val map = HashMap<String, Any?>()
-        result?.getBundle(PrefsProvider.KEY_VALUES)?.let { values ->
+        result.getBundle(PrefsProvider.KEY_VALUES)?.let { values ->
             @Suppress("DEPRECATION")
             for (key in values.keySet()) map[key] = values.get(key)
         }
-        result?.getBundle(PrefsProvider.KEY_SETS)?.let { sets ->
+        result.getBundle(PrefsProvider.KEY_SETS)?.let { sets ->
             for (key in sets.keySet()) {
                 map[key] = sets.getStringArrayList(key)?.toHashSet()
             }
         }
-        if (result == null) null else map
-    } catch (e: Throwable) {
-        XposedBridge.log(e)
-        null
+        return map
     }
 
     override fun getAll(): Map<String, *> = HashMap(data())

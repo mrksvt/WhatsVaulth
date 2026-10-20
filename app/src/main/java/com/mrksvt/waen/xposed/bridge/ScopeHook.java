@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 
 import com.mrksvt.waen.BuildConfig;
+import com.mrksvt.waen.provider.PrefsProvider;
 import com.mrksvt.waen.xposed.core.FeatureLoader;
 import com.mrksvt.waen.xposed.utils.ReflectionUtils;
 import com.mrksvt.waen.xposed.utils.Utils;
@@ -67,6 +68,23 @@ public class ScopeHook {
                             } catch (Throwable ignored) {
                             }
                             XposedBridge.log("Wa Enhancer: Bypass Scope using Provider Settings");
+                        } else if ("getPrefs".equals(arg)) {
+                            Method mGetContext = param.thisObject.getClass().getMethod("getContext");
+                            Context context = (Context) mGetContext.invoke(param.thisObject);
+                            try {
+                                XposedHelpers.callStaticMethod(Binder.class, "allowBlockingForCurrentThread");
+                            } catch (Throwable ignored) {
+                            }
+                            var result = Utils.binderLocalScope(() -> {
+                                var uri = Uri.parse("content://" + BuildConfig.APPLICATION_ID + ".preferences");
+                                return context.getContentResolver().call(uri, PrefsProvider.METHOD_GET_ALL, null, null);
+                            });
+                            param.setResult(result);
+                            try {
+                                XposedHelpers.callStaticMethod(Binder.class, "defaultBlockingForCurrentThread");
+                            } catch (Throwable ignored) {
+                            }
+                            XposedBridge.log("Wa Enhancer: Fetched prefs via Provider Settings");
                         }
                     }
                 } catch (Throwable ex) {
