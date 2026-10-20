@@ -224,6 +224,7 @@ dependencies {
     implementation(libs.androidx.navigation.fragment)
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.rikkax.appcompat)
     implementation(libs.rikkax.core)
     implementation(libs.material)

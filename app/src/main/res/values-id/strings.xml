@@ -543,4 +543,17 @@ Saat Anda mengaktifkan bekukan \"terakhir dilihat dan online\", Anda tidak dapat
     <string name="err_human_not_found">Fitur \"%1$s\" tidak bisa dimuat. WhatsApp mungkin sudah update.</string>
     <string name="err_human_version_mismatch">Struktur kelas WhatsApp berubah. Versi ini mungkin belum sepenuhnya didukung.</string>
     <string name="err_human_generic">Fitur \"%1$s\" mengalami error tak terduga. Coba restart WhatsApp atau laporkan ke developer.</string>
+    <!-- Deleted message capture / backup viewer -->
+    <string name="deleted_message_capture_title">Tangkap Pesan yang Dihapus</string>
+    <string name="deleted_message_capture_sum">Tangkap dan simpan pesan yang dihapus untuk dilihat dan dipulihkan nanti</string>
+    <string name="deleted_message_notification_channel">Pesan yang Dihapus</string>
+    <string name="auth_backup_viewer_description">Autentikasi untuk mengakses pesan yang dihapus</string>
+    <string name="restore_all_messages">Pulihkan semua pesan</string>
+    <string name="delete_all_permanently">Hapus permanen</string>
+    <string name="confirm_delete_all_messages">Hapus permanen %1$d pesan?</string>
+    <string name="confirm_restore_all_messages">Pulihkan %1$d pesan?</string>
+    <string name="confirm_restore_message">Pulihkan pesan ini ke obrolan?</string>
+    <string name="confirm_delete_message">Hapus permanen cadangan ini?</string>
+    <string name="messages_deleted_success">Pesan dihapus</string>
+    <string name="messages_restored_success">Pesan dipulihkan</string>
 </resources>

@@ -47,6 +47,8 @@ import com.mrksvt.waen.xposed.features.customization.SeparateGroup
 import com.mrksvt.waen.xposed.features.customization.ShowOnline
 import com.mrksvt.waen.xposed.features.general.AboutContactPicker
 import com.mrksvt.waen.xposed.features.general.AntiRevoke
+import com.mrksvt.waen.xposed.features.general.DeletedBackupViewer
+import com.mrksvt.waen.xposed.features.general.DeletedMessageCapture
 import com.mrksvt.waen.xposed.features.general.TrashRecovery
 import com.mrksvt.waen.xposed.features.voice_tts.hooks.VoiceTTSFeature
 import com.mrksvt.waen.xposed.features.general.CallType
@@ -567,7 +569,9 @@ class FeatureLoader {
                 pluginIfPresent("com.mrksvt.waen.xposed.features.others.ViewInspector"),
                 CustomTick::class.java,
                 VoiceTTSFeature::class.java,
-                pluginIfPresent("com.mrksvt.waen.xposed.features.customization.CustomFont")
+                pluginIfPresent("com.mrksvt.waen.xposed.features.customization.CustomFont"),
+                DeletedMessageCapture::class.java,
+                DeletedBackupViewer::class.java
             )
 
             XposedBridge.log("Loading Plugins")

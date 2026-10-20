@@ -521,4 +521,17 @@
     <string name="trash_recovery_export_failed">Error al exportar</string>
     <string name="trash_recovery_hook">Guardar mensajes eliminados</string>
     <string name="trash_recovery_hook_sum">Captura el contenido al eliminar mensajes (requiere Anti Revoke activo)</string>
+    <!-- Deleted message capture / backup viewer -->
+    <string name="deleted_message_capture_title">Captura de Mensajes Eliminados</string>
+    <string name="deleted_message_capture_sum">Capturar y almacenar mensajes eliminados para su visualización y restauración posterior</string>
+    <string name="deleted_message_notification_channel">Mensajes eliminados</string>
+    <string name="auth_backup_viewer_description">Autentícate para acceder a los mensajes eliminados</string>
+    <string name="restore_all_messages">Restaurar todos los mensajes</string>
+    <string name="delete_all_permanently">Eliminar permanentemente</string>
+    <string name="confirm_delete_all_messages">¿Eliminar permanentemente los %1$d mensajes?</string>
+    <string name="confirm_restore_all_messages">¿Restaurar los %1$d mensajes?</string>
+    <string name="confirm_restore_message">¿Restaurar este mensaje al chat?</string>
+    <string name="confirm_delete_message">¿Eliminar permanentemente esta copia de seguridad?</string>
+    <string name="messages_deleted_success">Mensajes eliminados</string>
+    <string name="messages_restored_success">Mensajes restaurados</string>
 </resources>

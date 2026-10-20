@@ -542,4 +542,17 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="notification_menu_title">Pembaruan</string>
     <string name="notification_mark_all_read">Tandai sudah dibaca</string>
     <string name="notification_all_read">Semua sudah dibaca</string>
+    <!-- Deleted message capture / backup viewer -->
+    <string name="deleted_message_capture_title">Tangkap Pesan yang Dihapus</string>
+    <string name="deleted_message_capture_sum">Tangkap dan simpan pesan yang dihapus untuk dilihat dan dipulihkan nanti</string>
+    <string name="deleted_message_notification_channel">Pesan yang Dihapus</string>
+    <string name="auth_backup_viewer_description">Autentikasi untuk mengakses pesan yang dihapus</string>
+    <string name="restore_all_messages">Pulihkan semua pesan</string>
+    <string name="delete_all_permanently">Hapus permanen</string>
+    <string name="confirm_delete_all_messages">Hapus permanen %1$d pesan?</string>
+    <string name="confirm_restore_all_messages">Pulihkan %1$d pesan?</string>
+    <string name="confirm_restore_message">Pulihkan pesan ini ke obrolan?</string>
+    <string name="confirm_delete_message">Hapus permanen cadangan ini?</string>
+    <string name="messages_deleted_success">Pesan dihapus</string>
+    <string name="messages_restored_success">Pesan dipulihkan</string>
 </resources>

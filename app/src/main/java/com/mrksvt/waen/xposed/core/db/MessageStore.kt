@@ -14,6 +14,13 @@ class MessageStore private constructor() {
 
     private var sqLiteDatabase: SQLiteDatabase? = null
 
+    /**
+     * Lazily opened read-write msgstore connection used exclusively by deleted-message restore.
+     * Kept separate from [sqLiteDatabase] so the read-only/default usage of getInstance() is not
+     * perturbed.
+     */
+    private var writableDatabase: SQLiteDatabase? = null
+
     init {
         val dbFile = File(Utils.application.filesDir.parentFile, "/databases/msgstore.db")
         if (dbFile.exists()) {
@@ -230,8 +237,93 @@ class MessageStore private constructor() {
         return result
     }
 
+    /**
+     * Separate read-write connection, only meant for restoring deleted messages. The default
+     * connection is left untouched so the other features keep their existing behaviour.
+     */
+    @Synchronized
+    fun getWritableDatabase(): SQLiteDatabase? {
+        writableDatabase?.takeIf { it.isOpen }?.let { return it }
+        val dbFile = File(Utils.application.filesDir.parentFile, "/databases/msgstore.db")
+        if (!dbFile.exists()) return null
+        return try {
+            SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READWRITE)
+                .also { writableDatabase = it }
+        } catch (e: Exception) {
+            XposedBridge.log(e)
+            null
+        }
+    }
+
     fun getDatabase(): SQLiteDatabase? {
         return sqLiteDatabase
+    }
+
+    // --- restore helpers (WP-03, FR-13) ---
+
+    /**
+     * Opens a fresh read-write connection to msgstore.db, separate from the
+     * shared [sqLiteDatabase] instance. Caller is responsible for closing it.
+     * Used by the deleted-backup restore path so a restore failure cannot
+     * poison the long-lived read-only default connection.
+     */
+    fun openRestoreConnection(): SQLiteDatabase? {
+        return try {
+            val dbFile = File(Utils.application.filesDir.parentFile, "/databases/msgstore.db")
+            if (!dbFile.exists()) return null
+            SQLiteDatabase.openDatabase(
+                dbFile.absolutePath,
+                null,
+                SQLiteDatabase.OPEN_READWRITE
+            )
+        } catch (e: Exception) {
+            XposedBridge.log(e)
+            null
+        }
+    }
+
+    /** True when a message row with this key_id already exists in msgstore. */
+    fun isMessageKeyPresent(keyId: String, db: SQLiteDatabase? = sqLiteDatabase): Boolean {
+        val target = db ?: return false
+        if (keyId.isEmpty()) return false
+        return try {
+            target.query(
+                "message",
+                arrayOf("_id"),
+                "key_id=?",
+                arrayOf(keyId),
+                null,
+                null,
+                null,
+                "1"
+            ).use { cursor -> cursor.moveToFirst() }
+        } catch (e: Exception) {
+            XposedBridge.log(e)
+            false
+        }
+    }
+
+    /**
+     * Looks up the message row id for a key_id. Returns -1 when absent.
+     */
+    fun getMessageRowIdByKey(keyId: String, db: SQLiteDatabase? = sqLiteDatabase): Long {
+        val target = db ?: return -1
+        if (keyId.isEmpty()) return -1
+        return try {
+            target.query(
+                "message",
+                arrayOf("_id"),
+                "key_id=?",
+                arrayOf(keyId),
+                null,
+                null,
+                null,
+                "1"
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else -1L }
+        } catch (e: Exception) {
+            XposedBridge.log(e)
+            -1L
+        }
     }
 
     @SuppressLint("Recycle")
