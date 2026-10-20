@@ -34,6 +34,8 @@ class FloatingBottomBar(loader: ClassLoader, preferences: SharedPreferences) :
 
     private val processedBars = WeakHashMap<ViewGroup, Boolean>()
     private val setupAttempts = WeakHashMap<ViewGroup, Int>()
+    private val baseBottomPadding = WeakHashMap<ViewGroup, Int>()
+    private val paddingGuarded = WeakHashMap<ViewGroup, Boolean>()
 
     override fun doHook() {
         if (!prefs.getBoolean("floating_bottom_bar", false)) return
@@ -71,6 +73,8 @@ class FloatingBottomBar(loader: ClassLoader, preferences: SharedPreferences) :
                     val bar = view as? ViewGroup ?: return
                     setupAttempts.remove(bar)
                     processedBars.remove(bar)
+                    baseBottomPadding.remove(bar)
+                    paddingGuarded.remove(bar)
                 }
             })
     }
@@ -226,6 +230,48 @@ class FloatingBottomBar(loader: ClassLoader, preferences: SharedPreferences) :
         if (params != null) {
             params.setMargins(sideMargin, 0, sideMargin, 0)
             bar.layoutParams = params
+        }
+
+        stripBottomInset(bar)
+        installPaddingGuard(bar)
+    }
+
+    private fun stripBottomInset(bar: ViewGroup) {
+        try {
+            val base = baseBottomPadding.getOrPut(bar) {
+                (bar.paddingBottom - navigationBarInset(bar)).coerceAtLeast(0)
+            }
+            if (bar.paddingBottom != base) {
+                bar.setPadding(bar.paddingLeft, bar.paddingTop, bar.paddingRight, base)
+            }
+        } catch (e: Throwable) {
+            log(e)
+        }
+    }
+
+    private fun installPaddingGuard(bar: ViewGroup) {
+        if (paddingGuarded[bar] == true) return
+        paddingGuarded[bar] = true
+        bar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            try {
+                val params = bar.layoutParams
+                if (params != null && params.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                    params.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    bar.layoutParams = params
+                }
+                val base = baseBottomPadding[bar]
+                if (base != null && bar.paddingBottom != base) {
+                    bar.setPadding(bar.paddingLeft, bar.paddingTop, bar.paddingRight, base)
+                }
+            } catch (e: Throwable) {
+                log(e)
+            }
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(bar) { view, insets ->
+            if (view is ViewGroup) {
+                stripBottomInset(view)
+            }
+            insets
         }
     }
 
