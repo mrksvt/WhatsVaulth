@@ -171,6 +171,21 @@ class DelMessageStore private constructor(context: Context) {
         }
     }
 
+    fun listBackupsByStatus(state: RestoreState): List<DeletedMessageBackupEntity> {
+        return try {
+            dao.listDeletedMessageBackups(
+                SimpleSQLiteQuery(
+                    "SELECT * FROM deleted_message_backup " +
+                        "WHERE restore_status = ? " +
+                        "ORDER BY deleted_at DESC",
+                    arrayOf(state.value)
+                )
+            )
+        } catch (t: Throwable) {
+            emptyList()
+        }
+    }
+
     fun listRestoredBackups(): List<DeletedMessageBackupEntity> {
         return try {
             dao.listDeletedMessageBackups(
@@ -190,7 +205,11 @@ class DelMessageStore private constructor(context: Context) {
      * Returns the total number of backups currently stored.
      */
     fun countBackups(): Int {
-        return listAllBackups().size
+        return try {
+            dao.countDeletedMessageBackups()
+        } catch (t: Throwable) {
+            listAllBackups().size
+        }
     }
 
     fun markRestoreState(
@@ -213,7 +232,16 @@ class DelMessageStore private constructor(context: Context) {
         return try {
             if (db == null || !db.isOpen) return false
             val backup = dao.getBackupById(id) ?: return false
-            val chatRowId = resolveChatRowId(db, backup) ?: return false
+            val chatRowId = resolveChatRowId(db, backup)
+            if (chatRowId == null) {
+                dao.updateRestoreState(
+                    id,
+                    RestoreState.Failed.value,
+                    "chat_row_id not resolvable for key_id=${backup.keyId}",
+                    0L
+                )
+                return false
+            }
             val values = buildMessageValues(backup, chatRowId)
             val rowId = db.insertWithOnConflict(
                 "message",
@@ -253,7 +281,12 @@ class DelMessageStore private constructor(context: Context) {
      */
     fun restoreAllBackups(db: android.database.sqlite.SQLiteDatabase?): Int {
         var restored = 0
-        for (backup in listPendingBackups()) {
+        val candidates = try {
+            listPendingBackups() + listBackupsByStatus(RestoreState.Failed)
+        } catch (t: Throwable) {
+            listPendingBackups()
+        }
+        for (backup in candidates) {
             if (restoreBackupById(db, backup.id)) {
                 restored++
             }
@@ -280,7 +313,40 @@ class DelMessageStore private constructor(context: Context) {
             } catch (t: Throwable) {
             }
         }
+        // Fallback: the captured `message` row itself carries chat_row_id. Reading
+        // it keeps restore working even when the jid columns were not populated.
+        val fromRow = firstRowLongField(backup.messageJson, "chat_row_id")
+        if (fromRow != null && fromRow > 0) {
+            try {
+                db.rawQuery("SELECT _id FROM chat WHERE _id = ? LIMIT 1", arrayOf(fromRow.toString()))
+                    .use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            return cursor.getLong(0)
+                        }
+                    }
+            } catch (t: Throwable) {
+            }
+        }
         return null
+    }
+
+    private fun firstRowLongField(json: String?, field: String): Long? {
+        if (json.isNullOrBlank() || json == "{}") return null
+        return try {
+            val trimmed = json.trim()
+            val obj = when {
+                trimmed.startsWith("[") -> {
+                    val arr = org.json.JSONArray(trimmed)
+                    if (arr.length() == 0) return null
+                    arr.getJSONObject(0)
+                }
+                trimmed.startsWith("{") -> org.json.JSONObject(trimmed)
+                else -> return null
+            }
+            if (obj.has(field) && !obj.isNull(field)) obj.optLong(field, -1L) else null
+        } catch (t: Throwable) {
+            null
+        }
     }
 
     private fun buildMessageValues(
@@ -289,12 +355,40 @@ class DelMessageStore private constructor(context: Context) {
     ): android.content.ContentValues {
         val values = android.content.ContentValues()
         values.put("chat_row_id", chatRowId)
-        values.put("from_me", backup.fromMe ?: 0)
+        values.put(
+            "from_me",
+            backup.fromMe ?: firstRowIntField(backup.messageJson, "from_me") ?: 0
+        )
         values.put("key_id", backup.keyId)
-        values.put("timestamp", backup.messageTimestamp ?: 0L)
-        values.put("message_type", backup.messageType ?: 0)
+        values.put(
+            "timestamp",
+            backup.messageTimestamp ?: firstRowLongField(backup.messageJson, "timestamp") ?: 0L
+        )
+        values.put(
+            "message_type",
+            backup.messageType ?: firstRowIntField(backup.messageJson, "message_type") ?: 0
+        )
         values.put("text_data", extractTextData(backup))
         return values
+    }
+
+    private fun firstRowIntField(json: String?, field: String): Int? {
+        if (json.isNullOrBlank() || json == "{}") return null
+        return try {
+            val trimmed = json.trim()
+            val obj = when {
+                trimmed.startsWith("[") -> {
+                    val arr = org.json.JSONArray(trimmed)
+                    if (arr.length() == 0) return null
+                    arr.getJSONObject(0)
+                }
+                trimmed.startsWith("{") -> org.json.JSONObject(trimmed)
+                else -> return null
+            }
+            if (obj.has(field) && !obj.isNull(field)) obj.optInt(field, -1) else null
+        } catch (t: Throwable) {
+            null
+        }
     }
 
     /**

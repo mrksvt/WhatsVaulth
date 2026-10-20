@@ -121,6 +121,12 @@ class DeletedMessageCapture(
         val messageTextJson = if (table == "message_text") rowsJson else null
         val messageJson = if (table == "message") rowsJson else null
 
+        // Metadata comes from the captured row itself so a later restore can
+        // resolve the chat and rebuild the row faithfully. Capturing nulls here
+        // would make restore impossible (no chat_row_id, from_me always 0).
+        val meta = if (messageJson != null) firstRow(messageJson) else null
+        val chatRowId = meta?.let { optLongOrNull(it, "chat_row_id") }
+
         val backup = DeletedMessageBackupEntity(
             deletedAt = now,
             restoreStatus = RestoreState.Pending.value,
@@ -130,13 +136,16 @@ class DeletedMessageCapture(
             chatPhoneRawString = null,
             senderRawString = null,
             senderPhoneRawString = null,
-            fromMe = null,
-            messageType = null,
-            messageTimestamp = now,
+            fromMe = meta?.let { optIntOrNull(it, "from_me") },
+            messageType = meta?.let { optIntOrNull(it, "message_type") },
+            messageTimestamp = meta?.let { optLongOrNull(it, "timestamp") }
+                ?: extractRowTimestamp(rowsJson)
+                ?: now,
             messageJson = messageJson ?: "{}",
             messageMediaJson = messageMediaJson,
             messageTextJson = messageTextJson
         )
+        logDebug("captured $table rows keyId=$keyId chatRowId=$chatRowId")
 
         try {
             DelMessageStore.getInstance(Utils.application).saveBackup(backup)
@@ -230,6 +239,33 @@ class DeletedMessageCapture(
             }
         } catch (e: Throwable) {
             0L
+        }
+    }
+
+    /** Returns the first row object of a captured JSON array, or null. */
+    private fun firstRow(rowsJson: String): org.json.JSONObject? {
+        return try {
+            val trimmed = rowsJson.trim()
+            val arr = if (trimmed.startsWith("[")) JSONArray(trimmed) else null
+            if (arr != null && arr.length() > 0) arr.getJSONObject(0) else null
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    private fun optLongOrNull(obj: org.json.JSONObject, key: String): Long? {
+        return try {
+            if (obj.has(key) && !obj.isNull(key)) obj.optLong(key) else null
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    private fun optIntOrNull(obj: org.json.JSONObject, key: String): Int? {
+        return try {
+            if (obj.has(key) && !obj.isNull(key)) obj.optInt(key) else null
+        } catch (e: Throwable) {
+            null
         }
     }
 
