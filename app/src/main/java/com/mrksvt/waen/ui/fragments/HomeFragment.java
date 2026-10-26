@@ -227,13 +227,47 @@ public class HomeFragment extends BaseFragment {
                 if (!isAdded()) return;
                 adapter.add(entry);
                 diagBinding.logRecycler.scrollToPosition(adapter.getItemCount() - 1);
+                if (entry.getMessage().equals(context.getString(R.string.diag_denylist_disable))) {
+                    diagBinding.fixDenylistButton.setVisibility(View.VISIBLE);
+                }
                 if (entry.getType() == RootDiagnostics.LogType.ERROR) {
                     Log.d("WhatsVault", "[WhatsVault] Analyze Device failed: " + entry.getMessage());
                 }
             });
         });
 
+        diagBinding.fixDenylistButton.setOnClickListener(v ->
+            new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.diag_denylist_fix_confirm_title)
+                .setMessage(R.string.diag_denylist_fix_confirm_message)
+                .setPositiveButton(R.string.diag_denylist_fix, (d, which) -> {
+                    diagBinding.fixDenylistButton.setEnabled(false);
+                    fixMagiskDenylist(context, dialog, diagBinding.fixDenylistButton);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        );
+
         Log.d("WhatsVault", "[WhatsVault] Device analysis completed");
+    }
+
+    private void fixMagiskDenylist(Context context, androidx.appcompat.app.AlertDialog diagnosticsDialog, View button) {
+        new Thread(() -> {
+            var result = RootDiagnostics.INSTANCE.fixMagiskDenylist(context, entry -> {
+            });
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (!isAdded()) return;
+                button.setEnabled(true);
+                if (result == RootDiagnostics.FixResult.FIXED) {
+                    diagnosticsDialog.dismiss();
+                    Toast.makeText(context, R.string.diag_denylist_fix_done, Toast.LENGTH_LONG).show();
+                } else if (result == RootDiagnostics.FixResult.NOTHING_TO_FIX) {
+                    Toast.makeText(context, R.string.diag_denylist_fix_nothing, Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(context, R.string.diag_denylist_fix_failed, Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
     }
 
     private void resetConfigs(Context context) {

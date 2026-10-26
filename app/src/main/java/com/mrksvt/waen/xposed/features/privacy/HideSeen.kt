@@ -7,6 +7,7 @@ import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.components.ProtocolTreeNodeWpp
+import com.mrksvt.waen.xposed.core.components.WaContactWpp
 import com.mrksvt.waen.xposed.core.db.MessageHistoryStore
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.features.general.Others
@@ -34,6 +35,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private var hideReceipt = false
+    private var hideReceiptUnknown = false
     private var ghostMode = false
     private var hideRead = false
     private var hideAudioSeen = false
@@ -58,6 +60,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         hideReadGroup = prefs.getBoolean("hideread_group", false)
         hideStatusView = prefs.getBoolean("hidestatusview", false)
         hideReceipt = prefs.getBoolean("hidereceipt", false)
+        hideReceiptUnknown = prefs.getBoolean("hidereceipt_unknown", false)
 
     }
 
@@ -87,7 +90,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
                 val userJid = FMessageWpp.UserJid(lid)
                 if (userJid.isNull) return
 
-                val privacy = CustomPrivacy.getJSON(userJid.phoneNumber)
+                val privacy = CustomPrivacy.getJSON(userJid)
                 val isHide = processReadReceiptByType(param, job, userJid, privacy)
 
                 if (isHide) {
@@ -114,7 +117,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
             userJid.isStatus -> {
                 val participant = XposedHelpers.getObjectField(job, "participant") as? String
                 val statusJid = FMessageWpp.UserJid(participant)
-                val customHideStatusView = CustomPrivacy.getJSON(statusJid.phoneNumber)
+                val customHideStatusView = CustomPrivacy.getJSON(statusJid)
                     .optBoolean("HideViewStatus", hideStatusView)
 
                 if (customHideStatusView || ghostMode) {
@@ -235,14 +238,19 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         })
     }
 
+    private fun isUnknownNumber(userJid: FMessageWpp.UserJid): Boolean {
+        if (!hideReceiptUnknown || userJid.isGroup || userJid.isStatus || userJid.isNewsletter) return false
+        return WaContactWpp.getWaContactFromJid(userJid)?.isSavedContact() == false
+    }
+
     private fun checkPrivacyAndHideReceipt(fmessageKey: FMessageWpp.Key): Boolean {
-        val privacy = CustomPrivacy.getJSON(fmessageKey.remoteJid.phoneNumber)
+        val privacy = CustomPrivacy.getJSON(fmessageKey.remoteJid)
         val customHideReceipt = privacy.optBoolean("HideReceipt", hideReceipt)
-        return customHideReceipt || ghostMode
+        return customHideReceipt || ghostMode || isUnknownNumber(fmessageKey.remoteJid)
     }
 
     private fun checkPrivacyAndHideSeen(fmessageKey: FMessageWpp.Key): Boolean {
-        val privacy = CustomPrivacy.getJSON(fmessageKey.remoteJid.phoneNumber)
+        val privacy = CustomPrivacy.getJSON(fmessageKey.remoteJid)
         val hideKey = if (fmessageKey.remoteJid.isGroup) hideReadGroup else hideRead
         val shouldHide = privacy.optBoolean("HideSeen", hideKey) || ghostMode
         return shouldHide

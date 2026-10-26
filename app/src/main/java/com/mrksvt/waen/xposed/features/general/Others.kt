@@ -87,6 +87,11 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
         propsBoolean[18250] = false
         propsBoolean[11528] = false
 
+        // Send View Once Text
+        propsBoolean[30762] = true
+        // Schedule Message Native
+        propsBoolean[23845] = true
+
         propsBoolean[4497] = menuWIcons
         propsBoolean[4023] = false
         propsBoolean[16250] = false

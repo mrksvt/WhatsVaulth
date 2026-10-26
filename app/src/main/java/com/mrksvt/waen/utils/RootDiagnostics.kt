@@ -1,6 +1,7 @@
 package com.mrksvt.waen.utils
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
 import com.topjohnwu.superuser.Shell
 import com.mrksvt.waen.R
@@ -15,9 +16,11 @@ object RootDiagnostics {
     private const val HMA_CONFIG_GLOB = "/data/misc/hide_my_applist*/config.json"
     private const val HMA_ZYGISK_PATH = "/data/adb/modules/hma_oss_zygisk"
     private const val LSP_CONFIG_DB = "/data/adb/lspd/config/modules_config.db"
+    private const val LSP_LOG_GLOB = "/data/adb/lspd/log/*.log"
 
     private val SEPOLICY_PATTERN = Pattern.compile("(?i)sepolicy")
     private val ISSUE_PATTERN = Pattern.compile("(?i)error|invalid|failed|not loaded properly")
+    private val DENYLIST_LOG_PATTERN = Pattern.compile("\\[([^\\]]+)] is on the denylist")
 
     private val WHATSAPP_PACKAGES = listOf(
         "com.whatsapp",
@@ -30,6 +33,8 @@ object RootDiagnostics {
     )
 
     enum class LogType { INFO, SUCCESS, WARNING, ERROR }
+
+    enum class FixResult { FIXED, NOTHING_TO_FIX, FAILED }
 
     data class LogEntry(val message: String, val type: LogType = LogType.INFO)
 
@@ -51,8 +56,37 @@ object RootDiagnostics {
             callback.onLog(LogEntry(context.getString(R.string.diag_root_granted), LogType.SUCCESS))
 
             checkSepolicy(context, callback)
+            checkMagiskDenylist(context, callback)
             checkHideMyAppList(context, callback)
         }
+    }
+
+    /**
+     * Removes WhatsApp/Business from the Magisk DenyList and force-stops them, so the next launch
+     * is no longer unmounted by Magisk and the Zygisk modules (LSPosed) can load again.
+     */
+    fun fixMagiskDenylist(context: Context, callback: Callback): FixResult {
+        if (!isMagiskInstalled()) {
+            callback.onLog(LogEntry(context.getString(R.string.diag_denylist_fix_failed), LogType.ERROR))
+            return FixResult.FAILED
+        }
+        val listed = getDenylistedWhatsappPackages(context)
+        if (listed == null) {
+            callback.onLog(LogEntry(context.getString(R.string.diag_denylist_fix_failed), LogType.ERROR))
+            return FixResult.FAILED
+        }
+        if (listed.isEmpty()) return FixResult.NOTHING_TO_FIX
+
+        var failed = false
+        listed.forEach { pkg ->
+            if (Shell.cmd("magisk --denylist rm $pkg").exec().isSuccess) {
+                Shell.cmd("am force-stop $pkg").exec()
+                callback.onLog(LogEntry("- $pkg", LogType.SUCCESS))
+            } else {
+                failed = true
+            }
+        }
+        return if (failed) FixResult.FAILED else FixResult.FIXED
     }
 
     private fun checkSepolicy(context: Context, callback: Callback) {
@@ -91,6 +125,71 @@ object RootDiagnostics {
                     LogType.ERROR
                 )
             )
+        }
+    }
+
+    private fun isMagiskInstalled(): Boolean =
+        Shell.cmd("magisk -v 2>/dev/null").exec().out.any { it.contains("MAGISK", true) }
+
+    /**
+     * Installed WhatsApp packages that have any process on the Magisk DenyList, or null when the
+     * list could not be read.
+     */
+    private fun getDenylistedWhatsappPackages(context: Context): List<String>? {
+        val result = Shell.cmd("magisk --denylist ls").exec()
+        if (!result.isSuccess) return null
+        // Each line is "package|process"
+        val listed = result.out.map { it.substringBefore('|').trim() }.toSet()
+        return getInstalledWhatsappPackages(context).filter { it in listed }
+    }
+
+    private fun checkMagiskDenylist(context: Context, callback: Callback) {
+        val installedTargets = getInstalledWhatsappPackages(context)
+        if (installedTargets.isEmpty() || !isMagiskInstalled()) return
+
+        callback.onLog(LogEntry(""))
+        callback.onLog(LogEntry(context.getString(R.string.diag_denylist_checking)))
+
+        // Magisk only logs "[process] is on the denylist" when the DenyList is enforced
+        val logLines = Shell.cmd("cat $LSP_LOG_GLOB 2>/dev/null").exec().out.filter { line ->
+            val matcher = DENYLIST_LOG_PATTERN.matcher(line)
+            matcher.find() && matcher.group(1)!!.substringBefore(':') in installedTargets
+        }
+
+        val enforced = Shell.cmd("magisk --denylist status").exec().isSuccess
+        val listed = getDenylistedWhatsappPackages(context)
+        val blocked = if (listed != null) {
+            if (enforced) listed else emptyList()
+        } else {
+            // Fall back to the log when the list cannot be read
+            installedTargets.filter { pkg ->
+                logLines.any { it.contains("[$pkg]") || it.contains("[$pkg:") }
+            }
+        }
+
+        if (blocked.isEmpty()) {
+            callback.onLog(
+                LogEntry(context.getString(R.string.diag_denylist_no_blocks), LogType.SUCCESS)
+            )
+            return
+        }
+
+        callback.onLog(LogEntry(context.getString(R.string.diag_denylist_blocked), LogType.ERROR))
+        blocked.forEach { callback.onLog(LogEntry("- $it", LogType.WARNING)) }
+        logLines.lastOrNull()?.let { callback.onLog(LogEntry(it.trim(), LogType.WARNING)) }
+        callback.onLog(LogEntry(""))
+        callback.onLog(LogEntry(context.getString(R.string.diag_denylist_disable), LogType.ERROR))
+    }
+
+    private fun getInstalledWhatsappPackages(context: Context): List<String> {
+        val pm = context.packageManager
+        return WHATSAPP_PACKAGES.filter { pkg ->
+            try {
+                pm.getPackageInfo(pkg, 0)
+                true
+            } catch (e: PackageManager.NameNotFoundException) {
+                false
+            }
         }
     }
 

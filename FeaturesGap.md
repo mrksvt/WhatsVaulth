@@ -2,7 +2,7 @@
 
 **Tanggal:** 2026-09-06  
 **Fork:** git@github.com:mrksvt/WhatsVaulth.git (HEAD db1342de)  
-**Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (HEAD 883041c6)  
+**Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (HEAD 82c7a50a, 1.6.2)  
 **Version:** 1.5.5 (both)  
 **Fork package:** `com.mrksvt.waen` | **Upstream package:** `com.wmods.wppenhacer`  
 **Git histories:** unrelated (no merge-base) — sync manual, bukan git merge
@@ -15,7 +15,7 @@
 |--------|-------------------|----------|
 | Total .kt/.java source | 201 | 165 |
 | Registered features | 71 | 51 |
-| WA versions supported | 2.26.29–2.26.35 | 2.26.25–2.26.33 |
+| WA versions supported | 2.26.29–2.26.41 | 2.26.25–2.26.41 |
 | Business build variant | ya (restored) | ya |
 | Kotlin features | majority | majority |
 | Java rewrites (Kt→Java) | 7 files | original |
@@ -259,3 +259,33 @@ Fork me-rewrite 7 file upstream dari Kotlin ke Java. Isi functionally equivalent
 | crowdin.yml (translations) | N | Y |
 | LICENSE | N | Y |
 | dexkit-android.source.jar | N | Y |
+
+---
+
+## Port WaEnhancer 1.6.2 (f4a8da1e..82c7a50a)
+
+Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kecuali item N/A.
+
+| Upstream commit | Topik | Status di fork |
+|-----------------|-------|----------------|
+| f2551e79 | SharedPreferencesWrapper skip abstract class | ported |
+| 2d2301a7 | Finder channel header, outgoing call, locked chats | ported (outgoing call N/A: finder tidak ada di fork) |
+| 2fc180b0 | Hide Delivered untuk nomor tidak dikenal | ported |
+| 01a8bb72 | AntiRevoke hasil type-safe | ported |
+| 3d01fad6 | Others: schedule message + View Once text | ported |
+| 1ef4e190 | ScopeHook SettingsProvider + visibility | ported (ScopeHook.java, legacy API) |
+| 8db37f41 | CustomPrivacy key per-LID | ported |
+| e5c347ec | IGStatus force load status | ported |
+| 5db954a2 | StickerColoredOutline Rect | ported |
+| cc51ac76 | WA/Business 2.26.41.xx | sudah ada di arrays.xml |
+| 1abe476b | ChatLimit via msgstore WhatsApp | ported |
+| 790a7e22 | PinnedLimit bypass limit | ported |
+| 7c4d1401 | ProGuard optimasi + nama tetap terbaca | ported |
+| 2f7ea490 | R8 obfuscation + shrink resources | adaptasi: `-dontobfuscate` dipertahankan, shrink resources + locale filter diaktifkan |
+| 509c4ec1 | TextStatusComposer param order | ported |
+| bc5029d8 | RootDiagnostics Magisk DenyList | ported |
+| ebc7d339 | Terjemahan AssemblyAI | ported |
+| df141fe9 | Flyme checkDowngrade log | N/A: Patch.java sudah silent |
+| 570d0e94 | YukiHookAPI 1.5.0 | N/A: fork tidak memakai YukiHookAPI |
+| 42f16320 | CI release variants + mapping upload | N/A |
+| 9b68b21f, 76572693, changelog/chore commits | versi/README/changelog | N/A |

@@ -561,7 +561,7 @@
     <string name="alert_module_notfound">WhatsVault module not found, HMA is probably hiding the module, remove WhatsApp from the HMA list and try again.</string>
     <!-- Root Diagnostics -->
     <string name="diag_title">Root Diagnostics</string>
-    <string name="diag_summary">Check for sepolicy issues and Hide My App List blocks affecting WhatsApp.</string>
+    <string name="diag_summary">Check for sepolicy issues, Magisk DenyList and Hide My App List blocks affecting WhatsApp.</string>
     <string name="diag_button">Analyze Device</string>
     <string name="diag_dialog_title">Diagnostic Log</string>
     <string name="diag_root_granted">Root access granted.</string>
@@ -585,6 +585,16 @@
     <string name="diag_hma_no_blocks">No Hide My App List blocks detected for WhatsApp.</string>
     <string name="diag_hma_blocked">Hide My App List is hiding WhatsVault from:</string>
     <string name="diag_hma_disable">Disable the block for WhatsApp/Business in Hide My App List so WhatsVault can work correctly.</string>
+    <string name="diag_denylist_checking">Checking Magisk DenyList...</string>
+    <string name="diag_denylist_no_blocks">No Magisk DenyList blocks detected for WhatsApp.</string>
+    <string name="diag_denylist_blocked">Magisk DenyList is unloading the Zygisk modules (LSPosed) from:</string>
+    <string name="diag_denylist_disable">Remove WhatsApp/Business from the Magisk DenyList so WhatsVault can be loaded.</string>
+    <string name="diag_denylist_fix">Fix Magisk DenyList</string>
+    <string name="diag_denylist_fix_confirm_title">Fix Magisk DenyList?</string>
+    <string name="diag_denylist_fix_confirm_message">WhatsApp/Business will be removed from the Magisk DenyList and force-stopped. No restart is needed.</string>
+    <string name="diag_denylist_fix_done">WhatsApp was removed from the Magisk DenyList and stopped.</string>
+    <string name="diag_denylist_fix_nothing">Nothing to fix in the Magisk DenyList.</string>
+    <string name="diag_denylist_fix_failed">Could not remove WhatsApp from the Magisk DenyList.</string>
     <string name="diag_copied">Line copied to clipboard</string>
 
     <!-- Contact block detection (locale strings; defaults required by AAPT) -->
@@ -736,4 +746,6 @@
     <string name="confirm_delete_message">Permanently delete this backup entry?</string>
     <string name="messages_deleted_success">Messages deleted</string>
     <string name="messages_restored_success">Messages restored</string>
+<string name="hide_delivered_unknown">Hide Delivered for unknown numbers</string>
+    <string name="hide_delivered_unknown_sum">Shows only one tick for numbers not saved in your contacts, as if the message hadn\'t arrived</string>
 </resources>

@@ -116,7 +116,7 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
     fun checkCallBlock(userJid: FMessageWpp.UserJid, type: PrivacyType?): Boolean {
         val phoneNumber = userJid.phoneNumber ?: return false
 
-        val customprivacy = CustomPrivacy.getJSON(phoneNumber);
+        val customprivacy = CustomPrivacy.getJSON(userJid)
 
         return when (type) {
             PrivacyType.ALL_BLOCKED -> customprivacy.optBoolean("BlockCall", true)

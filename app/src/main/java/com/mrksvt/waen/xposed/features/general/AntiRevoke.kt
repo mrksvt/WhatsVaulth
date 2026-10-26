@@ -27,6 +27,7 @@ import com.mrksvt.waen.BuildConfig
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import java.text.DateFormat
 import java.util.Date
 import java.util.concurrent.CompletableFuture
@@ -107,45 +108,107 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
 
         /**
+         * Nilai balik type-safe untuk blokir revoke status.
+         *
+         * - return enum -> konstanta DIDNT_STORE, kalau tidak ada ordinal 3, kalau tidak ada yang terakhir
+         * - return Int -> 0
+         * - return Boolean -> false
+         * - lain-lain -> null
+         */
+        private fun blockedStatusRevokeResult(returnType: Class<*>): Any? {
+            return when {
+                Enum::class.java.isAssignableFrom(returnType) -> {
+                    val constants = returnType.declaredFields
+                        .filter { Modifier.isStatic(it.modifiers) && it.type == returnType }
+                        .mapNotNull { field ->
+                            field.isAccessible = true
+                            field.get(null) as? Enum<*>
+                        }
+                        .sortedBy { it.ordinal }
+                    (constants.firstOrNull { it.name == "DIDNT_STORE" }
+                        ?: constants.getOrNull(3)
+                        ?: constants.lastOrNull())
+                }
+
+                returnType == Int::class.javaPrimitiveType || returnType == Int::class.javaObjectType -> 0
+                returnType == Boolean::class.javaPrimitiveType || returnType == Boolean::class.javaObjectType -> false
+                else -> null
+            }
+        }
+
+        /**
+         * Nilai balik type-safe untuk blokir revoke pesan: instance dari returnType dengan
+         * parameter non-primitif diisi instance none-ack supaya tidak ada field null.
+         */
+        private fun blockedMessageRevokeResult(returnType: Class<*>): Any? {
+            val constructor = returnType.constructors[0]
+            val params = ReflectionUtils.initArray(constructor.parameterTypes)
+            constructor.parameterTypes.forEachIndexed { index, type ->
+                if (type.isPrimitive) return@forEachIndexed
+                try {
+                    val noneClass = Unobfuscator.loadNoneIncomingAckClass(
+                        returnType.classLoader ?: Utils.application.classLoader,
+                        type
+                    )
+                    params[index] = noneClass.declaredFields
+                        .first { it.type == noneClass && Modifier.isStatic(it.modifiers) }
+                        .apply { isAccessible = true }
+                        .get(null)
+                } catch (_: Throwable) {
+                }
+            }
+            return constructor.newInstance(*params)
+        }
+
+        /**
          * Hentikan eksekusi method revoke dengan cara membatalkan pemanggilan.
          *
          * `param.result` harus bertipe sama dengan `method.returnType`; LSPosed
          * melempar ClassCastException kalau tidak cocok. Karena itu:
-         * - return boolean -> `true` (penanda "sudah ditangani")
+         * - return enum (status) -> konstanta aman, bukan instance enum baru
+         * - return boolean -> `true` untuk pesan, `false` untuk status
          * - return primitif lain -> nilai default primitifnya
          * - return void -> `null`
-         * - return objek -> instance baru dari returnType (konstruktor default)
-         *   supaya pemanggil menerima objek bertipe benar, bukan null.
+         * - return objek -> instance bertipe benar dari konstruktor returnType
          *
          * @return true kalau result berhasil dipasang.
          */
-        private fun blockRevokeCall(param: XC_MethodHook.MethodHookParam): Boolean {
+        private fun blockRevokeCall(
+            param: XC_MethodHook.MethodHookParam,
+            status: Boolean = false
+        ): Boolean {
             val method = param.method as? Method ?: return false
             val returnType = method.returnType
             return try {
                 param.result = when {
                     returnType == Void.TYPE -> null
+                    status -> blockedStatusRevokeResult(returnType)
+                        ?: fallbackObjectInstance(returnType)
+                    Enum::class.java.isAssignableFrom(returnType) -> blockedStatusRevokeResult(returnType)
                     returnType == Boolean::class.javaPrimitiveType ||
                         returnType == java.lang.Boolean::class.java -> true
                     returnType.isPrimitive -> ReflectionUtils.getDefaultValue(returnType)
-                    else -> {
-                        val constructor = returnType.declaredConstructors
-                            .filter { !it.isSynthetic }
-                            .minByOrNull { it.parameterCount }
-                        if (constructor == null) {
-                            return false
-                        }
-                        constructor.isAccessible = true
-                        constructor.newInstance(
-                            *ReflectionUtils.initArray(constructor.parameterTypes)
-                        )
-                    }
+                    else -> runCatching { blockedMessageRevokeResult(returnType) }
+                        .getOrElse { fallbackObjectInstance(returnType) }
                 }
                 true
             } catch (e: Throwable) {
                 XposedBridge.log("WAE_ANTIREVOKE: gagal blokir revoke: ${e.message}")
                 false
             }
+        }
+
+        private fun fallbackObjectInstance(returnType: Class<*>): Any? {
+            if (returnType == Void.TYPE || returnType.isPrimitive) {
+                return ReflectionUtils.getDefaultValue(returnType)
+            }
+            val constructor = returnType.declaredConstructors
+                .filter { !it.isSynthetic }
+                .minByOrNull { it.parameterCount } ?: return null
+            constructor.isAccessible = true
+            return constructor.newInstance(
+                *ReflectionUtils.initArray(constructor.parameterTypes)
+            )
         }
     }
 
@@ -168,7 +231,7 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
                 val fstatus = fStatusKey.fStatus ?: return
                 val fMessage = fstatus.fMessage ?: return
                 if (!fStatusKey.isFromMe && handleRevocationAttempt(fMessage, fStatusKey.messageID) != 0) {
-                    blockRevokeCall(param)
+                    blockRevokeCall(param, status = true)
                 }
             }
 

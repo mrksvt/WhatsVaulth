@@ -1,3 +1,23 @@
+WhatsVault 1.5.5 - port WaEnhancer 1.6.2
+
+[ADDED]
+* Root Diagnostics: deteksi Magisk DenyList yang memblokir WhatsApp/Business dan tombol Fix Magisk DenyList untuk menghapusnya
+* Hide Delivered for unknown numbers: pesan dari nomor yang tidak tersimpan hanya menampilkan satu centang
+* Others: aktifkan native schedule message dan View Once text lewat feature flag WhatsApp
+
+[IMPROVED]
+* Custom Privacy: entri privasi per-kontak sekarang memakai JID (LID/grup) sehingga tidak bergantung pada nomor telepon; entri lama otomatis dimigrasi
+* IG Status: status kontak dipaksa termuat tanpa harus membuka tab Status, termasuk retry pemuatan pager
+* Pinned Limit: melewati limit pin pada build terbaru yang meng-inline pengecekan limit
+* Build release: optimasi R8 dan shrink resources aktif, nama class tetap terbaca untuk crash log
+
+[FIXED]
+* Anti-Revoke: hasil blokir revoke status/pesan dibuat type-safe agar tidak memicu ClassCastException
+* Chat Limit: update anti-disappearing lewat koneksi msgstore milik WhatsApp sendiri, bukan koneksi terpisah
+* Share Limit: limit forward dihapus berdasarkan tipe argumen, sekaligus membuka blokir grup dan channel
+* Scope Hook: SettingsProvider di-hook dari scope system framework dan bypass visibility diperkuat (AppsFilterImpl pada Android 13+)
+* Unobfuscator: finder diperbarui untuk TextStatusComposer, GetViewConversation, StickerColoredOutline, HeaderChannelItem, LockedChats, dan SharedPreferences abstrak
+
 WhatsVault 1.5.5 - call recording HD
 
 [ADDED]

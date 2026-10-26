@@ -20,8 +20,9 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 -dontwarn *
+# Keep every class and member name as-is; shrinking and optimizations (inlining, class merging,
+# dead code removal, etc.) still apply
 -dontobfuscate
--dontoptimize
 
 # (R fields are accessed and rewritten via reflection)
 -keep class com.wmods.wppenhacer.R { *; }

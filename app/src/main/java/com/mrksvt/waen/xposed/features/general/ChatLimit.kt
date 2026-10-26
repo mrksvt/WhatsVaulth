@@ -1,23 +1,34 @@
 package com.mrksvt.waen.xposed.features.general
 
 import android.content.ContentValues
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteTransactionListener
 import android.os.Bundle
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore.homeActivityClass
-import com.mrksvt.waen.xposed.core.db.MessageStore.Companion.getInstance
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadChatLimitDelete2Method
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadChatLimitDeleteMethod
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadEphemeralInsertdb
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadFmessageTimestampField
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator.loadSeeMoreConstructor
 import com.mrksvt.waen.xposed.utils.ReflectionUtils
+import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
-import android.content.SharedPreferences 
+import android.content.SharedPreferences
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
+import java.lang.ref.WeakReference
 
 class ChatLimit(loader: ClassLoader, preferences:SharedPreferences) :
     Feature(loader, preferences) {
+
+    // WhatsApp's own msgstore connection; writing through it queues behind WhatsApp's
+    // transactions instead of racing them for the file lock like a second connection does
+    @Volatile
+    private var msgStoreDb: WeakReference<SQLiteDatabase>? = null
+
+    @Volatile
+    private var msgStoreHook: XC_MethodHook.Unhook? = null
 
     override fun doHook() {
         val antiDisappearing = prefs.getBoolean("antidisappearing", false)
@@ -29,6 +40,12 @@ class ChatLimit(loader: ClassLoader, preferences:SharedPreferences) :
 
         val epUpdateMethod = loadEphemeralInsertdb(classLoader)
 
+        if (antiDisappearing) {
+            captureMsgStoreDatabase()
+        } else {
+            msgStoreDb = null
+        }
+
         XposedHelpers.findAndHookMethod(
             homeActivityClass,
             "onCreate",
@@ -36,7 +53,7 @@ class ChatLimit(loader: ClassLoader, preferences:SharedPreferences) :
             object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam?) {
                     if (antiDisappearing) {
-                        getInstance().executeSQL("UPDATE message_ephemeral SET expire_timestamp = 2553512370000")
+                        keepEphemeralMessages()
                     }
                 }
             })
@@ -46,7 +63,7 @@ class ChatLimit(loader: ClassLoader, preferences:SharedPreferences) :
             override fun afterHookedMethod(param: MethodHookParam) {
                 if (antiDisappearing) {
                     val contentValues = param.result as ContentValues
-                    contentValues.put("expire_timestamp", 2553512370000L)
+                    contentValues.put("expire_timestamp", KEEP_EXPIRE_TIMESTAMP)
                 }
             }
         })
@@ -103,7 +120,50 @@ class ChatLimit(loader: ClassLoader, preferences:SharedPreferences) :
         })
     }
 
+    private fun captureMsgStoreDatabase() {
+        if (msgStoreDb != null) return
+        val hook = XposedHelpers.findAndHookMethod(
+            SQLiteDatabase::class.java,
+            "beginTransactionWithListener",
+            SQLiteTransactionListener::class.java,
+            object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (msgStoreDb != null) return
+                    val database = param.thisObject as? SQLiteDatabase ?: return
+                    if (database.path?.endsWith("/msgstore.db") != true) return
+                    msgStoreDb = WeakReference(database)
+                    unhook()
+                    keepEphemeralMessages()
+                }
+            })
+        this.msgStoreHook = hook
+    }
+
+    private fun keepEphemeralMessages() {
+        val database = msgStoreDb?.get() ?: return
+        Utils.databaseExecutor.execute {
+            try {
+                if (!database.isOpen) return@execute
+                database.execSQL(
+                    "UPDATE message_ephemeral SET expire_timestamp = $KEEP_EXPIRE_TIMESTAMP " +
+                            "WHERE expire_timestamp IS NULL OR expire_timestamp != $KEEP_EXPIRE_TIMESTAMP"
+                )
+            } catch (e: Exception) {
+                logDebug(e)
+            }
+        }
+    }
+
+    private fun unhook() {
+        msgStoreHook?.unhook()
+        msgStoreHook = null
+    }
+
     override fun getPluginName(): String {
         return "Chat Limit"
+    }
+
+    companion object {
+        private const val KEEP_EXPIRE_TIMESTAMP = 2553512370000L
     }
 }

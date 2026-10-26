@@ -132,8 +132,7 @@ android {
 
         release {
             isMinifyEnabled = true
-            //noinspection NotShrinkingResources
-            isShrinkResources = false
+            isShrinkResources = true
             signingConfig =
                 if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
             proguardFiles(
@@ -162,6 +161,11 @@ android {
         disable += "SelectedPhotoAccess"
         baseline = file("lint-baseline.xml")
     }
+
+    // Ship only the languages the app is translated to; libraries bring many others
+    androidResources.localeFilters += listOf(
+        "en", "ar", "de", "es", "fr", "id", "in", "it", "pt", "ru", "tr", "zh"
+    )
 
     applicationVariants.all {
         val isBusiness = flavorName == "business"

@@ -574,6 +574,14 @@ public class FeatureCatalog {
                 null,
                 Arrays.asList("hide", "delivered", "receipt")));
 
+        catalog.add(new SearchableFeature("hidereceipt_unknown",
+                context.getString(R.string.hide_delivered_unknown),
+                context.getString(R.string.hide_delivered_unknown_sum),
+                SearchableFeature.Category.PRIVACY,
+                SearchableFeature.FragmentType.PRIVACY,
+                null,
+                Arrays.asList("hide", "delivered", "receipt", "unknown", "contact")));
+
         catalog.add(new SearchableFeature("ghostmode_t",
                 context.getString(R.string.ghostmode),
                 context.getString(R.string.ghostmode_sum),

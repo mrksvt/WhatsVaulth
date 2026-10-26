@@ -48,15 +48,14 @@ public class CustomPrivacyAdapter extends ArrayAdapter {
         }
         holder.textView.setText(item.name);
         convertView.setOnClickListener(v -> {
-            // Only Groups
-            if (item.number.length() > 15) {
-                Intent intent = new Intent(getContext(), groupClass);
-                intent.putExtra("gid", item.number + "@g.us");
-                getContext().startActivity(intent);
-                return;
+            Intent intent;
+            if (item.isGroup) {
+                intent = new Intent(getContext(), groupClass);
+                intent.putExtra("gid", item.jid);
+            } else {
+                intent = new Intent(getContext(), contactClass);
+                intent.putExtra("jid", item.jid);
             }
-            Intent intent = new Intent(getContext(), contactClass);
-            intent.putExtra("jid", item.number + "@s.whatsapp.net");
             getContext().startActivity(intent);
         });
         holder.button.setOnClickListener(v -> {
@@ -104,7 +103,8 @@ public class CustomPrivacyAdapter extends ArrayAdapter {
 
     public static class Item {
         public String name;
-        public String number;
+        public String jid;
+        public boolean isGroup;
         public String key;
     }
 
