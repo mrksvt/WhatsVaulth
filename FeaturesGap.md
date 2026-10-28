@@ -1,11 +1,11 @@
-# FeaturesGap.md — WhatsVault (fork) vs OriginalWaEnhancer (upstream Dev4Mod/WaEnhancer)
+# FeaturesGap.md - WhatsVault (fork) vs OriginalWaEnhancer (upstream Dev4Mod/WaEnhancer)
 
-**Tanggal:** 2026-09-06  
-**Fork:** git@github.com:mrksvt/WhatsVaulth.git (HEAD db1342de)  
+**Tanggal:** 2026-10-28  
+**Fork:** git@github.com:mrksvt/WhatsVaulth.git (HEAD 60d940cd)  
 **Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (HEAD 82c7a50a, 1.6.2)  
-**Version:** 1.5.5 (both)  
+**Version:** 1.6.2 (fork mengikuti versi upstream yang diport)  
 **Fork package:** `com.mrksvt.waen` | **Upstream package:** `com.wmods.wppenhacer`  
-**Git histories:** unrelated (no merge-base) — sync manual, bukan git merge
+**Git histories:** unrelated (no merge-base) - sync manual, bukan git merge
 
 ---
 
@@ -75,7 +75,7 @@
 
 ---
 
-### LISTENERS (Fork: 3 | Orig: 3) — identical
+### LISTENERS (Fork: 3 | Orig: 3) - identical
 
 | Fitur | Fork | Orig | Status |
 |-------|------|------|--------|
@@ -85,7 +85,7 @@
 
 ---
 
-### MEDIA (Fork: 6 | Orig: 6) — identical
+### MEDIA (Fork: 6 | Orig: 6) - identical
 
 | Fitur | Fork | Orig | Status |
 |-------|------|------|--------|
@@ -129,7 +129,7 @@
 
 ---
 
-### PRIVACY (Fork: 11 | Orig: 11) — identical
+### PRIVACY (Fork: 11 | Orig: 11) - identical
 
 | Fitur | Fork | Orig | Status |
 |-------|------|------|--------|
@@ -169,7 +169,7 @@
 
 ## Perubahan Yang Sudah Dilakukan (2026-09-06)
 
-1. **ToastViewer.kt** — port full upstream refactor:
+1. **ToastViewer.kt** - port full upstream refactor:
    - `HashMap` → `ConcurrentHashMap` (thread safety)
    - `CompletableFuture.runAsync` → `Utils.databaseExecutor.execute` (dedicated executor)
    - Tambah `AtomicBoolean cleanupStarted` guard (prevent double cleanup)
@@ -180,16 +180,16 @@
    - Safe null handling untuk `getWaContactFromJid` (nullable fallback)
    - Select specific columns di query (performance)
 
-2. **MediaQuality.kt** — tambah CBR support:
+2. **MediaQuality.kt** - tambah CBR support:
    - Import `android.media.MediaCodecInfo`
    - Set `videoBitrateMode = BITRATE_MODE_CBR` (constant bitrate = kualitas konsisten)
 
-3. **build.gradle.kts** — restore business flavor:
+3. **build.gradle.kts** - restore business flavor:
    - Tambah `create("business")` block (applicationIdSuffix `.w4b`)
    - `applicationVariants.all`: dynamic APK name + app_name per flavor
    - Business APK: `WhatsVault-Business-<version>.apk` + `application-label: WhatsVault Business`
 
-4. **.github/workflows/build-business.yml** — CI workflow business:
+4. **.github/workflows/build-business.yml** - CI workflow business:
    - Consistent dengan fork conventions (NDK+CMake, dynamic artifact name, verify native libs)
 
 ---

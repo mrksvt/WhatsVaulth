@@ -1,11 +1,15 @@
-WhatsVault 1.5.5 - port WaEnhancer 1.6.2
+WhatsVault 1.6.2 - Deleted Backup + port WaEnhancer 1.6.2
 
 [ADDED]
+* Deleted Backup: pesan yang dihapus pengirim ditangkap dan bisa dilihat lagi dari daftar chat, termasuk media dan caption
+* Deleted Backup: restore pesan yang sudah tidak ada di database WhatsApp, dengan status restore ditampilkan di viewer
 * Root Diagnostics: deteksi Magisk DenyList yang memblokir WhatsApp/Business dan tombol Fix Magisk DenyList untuk menghapusnya
 * Hide Delivered for unknown numbers: pesan dari nomor yang tidak tersimpan hanya menampilkan satu centang
 * Others: aktifkan native schedule message dan View Once text lewat feature flag WhatsApp
 
 [IMPROVED]
+* Preference RemotePrefs sekarang lewat Settings provider bridge, sehingga perubahan dari UI modul langsung terbaca di proses WhatsApp
+* Floating Bottom Bar: tinggi bar tidak lagi berubah saat pindah tab
 * Custom Privacy: entri privasi per-kontak sekarang memakai JID (LID/grup) sehingga tidak bergantung pada nomor telepon; entri lama otomatis dimigrasi
 * IG Status: status kontak dipaksa termuat tanpa harus membuka tab Status, termasuk retry pemuatan pager
 * Pinned Limit: melewati limit pin pada build terbaru yang meng-inline pengecekan limit
@@ -38,7 +42,7 @@ WhatsVault 1.5.5 - call recording HD
 * Rekaman layar selalu seluruh layar; mode hanya lawan bicara atau hanya diri sendiri tidak dibuat
 * Format WAV lossless tidak dibuat karena MediaRecorder Android tidak bisa output PCM mentah
 
-WhatsVault 1.5.5 — dc1b0195
+WhatsVault 1.5.5 - dc1b0195
 
 [ADDED]
 * ComposerTranslator: per-chat enabled toggle setiap conversation punya ON/OFF sendiri
@@ -67,7 +71,7 @@ WhatsVault 1.5.5 — dc1b0195
 * Conversation baru tanpa config default ke Composer OFF tidak mewarisi config chat lain
 * Rebuild + re-enable di LSPosed; force-stop WhatsApp / WhatsApp Business setelah install
 
-WhatsVault 1.5.5 — 098bd4e6
+WhatsVault 1.5.5 - 098bd4e6
 
 [ADDED]
 * Support WhatsApp / Business 2.26.28.xx and 2.26.29.xx (supported_versions lists)
