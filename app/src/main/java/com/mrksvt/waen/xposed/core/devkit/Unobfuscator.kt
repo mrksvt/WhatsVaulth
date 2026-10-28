@@ -2201,6 +2201,7 @@ object Unobfuscator {
                 "NewsletterHeaderDataItem(enableExploreButton="
             )
                 ?: findFirstClassUsingStrings(classLoader, StringMatchType.Contains, "statusTilesEnabled")
+                ?: findFirstClassUsingStrings(classLoader, StringMatchType.Contains, "NewsletterHeaderDataItem")
                 ?: throw RuntimeException("HeaderChannelItem class not found")
         }
     }
