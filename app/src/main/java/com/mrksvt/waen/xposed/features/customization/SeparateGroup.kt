@@ -84,18 +84,15 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     override fun doHook() {
-        val bottomNavigationViewCls = Unobfuscator.findFirstClassUsingName(
-            classLoader,
-            StringMatchType.EndsWith,
-            ".BottomNavigationView"
-        )
-        XposedHelpers.findAndHookMethod(
-            bottomNavigationViewCls,
-            "getMaxItemCount",
-            XC_MethodReplacement.returnConstant(99)
-        )
+        hookMaxItemCount()
 
         if (!prefs.getBoolean("separategroups", false)) return
+
+        // Tanpa anchor judul tab, GROUPS di tabs akan memicu IllegalArgumentException di X.1Fe.A0N
+        // (WhatsApp 2.26.43+). Lebih aman nonaktifkan fitur daripada crash HomeActivity.
+        val tabNameMethod = runCatching { Unobfuscator.loadTabNameMethod(classLoader) }
+            .onFailure { logDebug("SeparateGroup: tab name anchor missing, feature disabled: ${it.message}") }
+            .getOrNull() ?: return
 
         // Modifying tab list order
         hookTabList()
@@ -107,7 +104,7 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
         hookTabInstance()
 
         // Setting group tab name
-        hookTabName()
+        hookTabName(tabNameMethod)
 
         // Setting tab count
         hookTabCount()
@@ -115,6 +112,38 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
 
     override fun getPluginName(): String {
         return "Separate Group"
+    }
+
+    private fun hookMaxItemCount() {
+        val bottomNavigationViewCls = sequenceOf(
+            ".BottomNavigationView",
+            "HomeLegacyBottomNavigationView"
+        ).mapNotNull { suffix ->
+            runCatching {
+                Unobfuscator.findFirstClassUsingName(classLoader, StringMatchType.EndsWith, suffix)
+            }.getOrNull()
+        }.firstOrNull()
+        if (bottomNavigationViewCls == null) {
+            logDebug("SeparateGroup: BottomNavigationView class not found")
+            return
+        }
+        // WhatsApp 2.26.43+: HomeLegacyBottomNavigationView does not declare getMaxItemCount,
+        // it is inherited from the base bottom bar class. Hook the declaring class instead.
+        val declaring = generateSequence(bottomNavigationViewCls) { it.superclass }
+            .firstOrNull { cls ->
+                runCatching { cls.getDeclaredMethod("getMaxItemCount") }.isSuccess
+            }
+        if (declaring == null) {
+            logDebug("SeparateGroup: getMaxItemCount not declared in ${bottomNavigationViewCls.name} hierarchy")
+            return
+        }
+        runCatching {
+            XposedHelpers.findAndHookMethod(
+                declaring,
+                "getMaxItemCount",
+                XC_MethodReplacement.returnConstant(99)
+            )
+        }.onFailure { logDebug("SeparateGroup: getMaxItemCount hook failed: ${it.message}") }
     }
 
     private fun hookTabCount() {
@@ -235,8 +264,7 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     @SuppressLint("ResourceType")
-    private fun hookTabName() {
-        val tabNameMethod = Unobfuscator.loadTabNameMethod(classLoader)
+    private fun hookTabName(tabNameMethod: java.lang.reflect.Method) {
         XposedBridge.hookMethod(tabNameMethod, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val tab = param.args[0] as Int

@@ -477,15 +477,27 @@ object Unobfuscator {
     fun loadTabNameMethod(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
             val id = UnobfuscatorCache.getInstance().getOfuscateIDString("updates")
-            if (id < 1) throw Exception("TabName ID not found")
-            val result = bridge.findMethod {
+            if (id > 0) {
+                val result = bridge.findMethod {
+                    matcher {
+                        returnType(String::class.java)
+                        usingNumbers(id)
+                    }
+                }
+                if (result.isNotEmpty()) return@getMethod result[0].getMethodInstance(classLoader)
+            }
+            // WhatsApp 2.26.43+ menghapus nama resource "updates" (arsc name removed), jadi anchor
+            // ID string tidak lagi ketemu. Method judul tab tetap ada dan punya literal unik ini.
+            val fallback = bridge.findMethod {
                 matcher {
                     returnType(String::class.java)
-                    usingNumbers(id)
+                    paramCount(1)
+                    addParamType(Int::class.javaPrimitiveType!!)
+                    addUsingString("No tab title override for tab id: ", StringMatchType.Contains)
                 }
             }
-            if (result.isEmpty()) throw Exception("TabName method not found")
-            result[0].getMethodInstance(classLoader)
+            if (fallback.isEmpty()) throw Exception("TabName method not found")
+            fallback[0].getMethodInstance(classLoader)
         }
     }
 
@@ -2772,13 +2784,24 @@ object Unobfuscator {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
             val classData = bridge.getClassData(WppCore.homeActivityClass)
                 ?: return@getMethod null
-            val methodData = classData.findMethod {
+            var methodData = classData.findMethod {
                 matcher {
                     addUsingNumber(Utils.getID("menuitem_search", "id"))
                     addUsingNumber(200)
                     paramCount(1)
                     addParamType(Menu::class.java)
                 }
+            }
+            // WhatsApp 2.26.43+ moved onPrepareOptionsMenu/menu building into HomeActivityKt (superclass)
+            if (methodData.isEmpty()) {
+                methodData = classData.superClass?.findMethod {
+                    matcher {
+                        addUsingNumber(Utils.getID("menuitem_search", "id"))
+                        addUsingNumber(200)
+                        paramCount(1)
+                        addParamType(Menu::class.java)
+                    }
+                } ?: methodData
             }
             if (methodData.isEmpty()) throw NoSuchMethodError("MenuSearch not found in HomeActivity")
             methodData[0].getMethodInstance(classLoader)
