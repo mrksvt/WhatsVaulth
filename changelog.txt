@@ -1,4 +1,4 @@
-WhatsVault 1.6.2 - port WaEnhancer 1.6.3
+WhatsVault 1.6.2-patch-01 - port WaEnhancer 1.6.3
 
 [IMPROVED]
 * Startup: DexKit dibuka saat dibutuhkan dan ditutup otomatis setelah 30 detik idle, sehingga startup lebih ringan
@@ -9,6 +9,7 @@ WhatsVault 1.6.2 - port WaEnhancer 1.6.3
 * Bridge: force-start hanya dilakukan saat koneksi awal gagal
 
 [FIXED]
+* IG Status: border hijau untuk status baru yang belum dibuka kembali tampil di WhatsApp 2.26.43.4
 * Send Blue Tick: pesan dikirim dalam satu batch update, bukan per pesan
 * Locked Chats Enhancer: crash saat daftar locked chat kosong atau tidak lengkap sudah diperbaiki, dan kontak terkunci disembunyikan dengan benar
 

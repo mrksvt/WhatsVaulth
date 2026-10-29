@@ -230,9 +230,11 @@ public class IGStatusAdapter extends ArrayAdapter {
                 }
                 this.userJid = new FMessageWpp.UserJid(jid);
                 var waContact = WaContactWpp.getWaContactFromJid(this.userJid);
+                int[] counts = readStatusCounts(item);
                 XposedBridge.log("[IGStatus] jid=" + this.userJid.getPhoneRawString()
                         + " statusCls=" + statusInfo.getClass().getSimpleName()
-                        + " waContact=" + (waContact != null));
+                        + " waContact=" + (waContact != null)
+                        + " unseen=" + counts[0] + " total=" + counts[1]);
 
                 Drawable profile = null;
                 String contactName = null;
@@ -258,7 +260,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                 igStatusContactName.setText(contactName);
                 igStatusContactPhoto.setImageDrawable(profile != null ? profile : defaultPhoto(contactName));
 
-                setCountStatus(readIntField(item, "A01"), readIntField(item, "A00"));
+                setCountStatus(counts[0], counts[1]);
             } catch (Throwable e) {
                 XposedBridge.log(e);
             }
@@ -312,6 +314,48 @@ public class IGStatusAdapter extends ArrayAdapter {
                 XposedBridge.log(e);
             }
             return null;
+        }
+
+        /**
+         * Mengembalikan {unseen, total}. Di 2.26.43.4 item status (E4y) membawa counter
+         * di `A02` (objek A88). Nama field di A88: A01 = unseen_count, A00 = total_count
+         * (lihat ApA yang mengisi dari kolom "unseen_count"/"total_count"), jadi angka
+         * dibaca langsung tanpa pengurangan. Counter dicari lewat tipe field int agar
+         * tidak tertukar dengan field lain bernama sama. Jika tidak ada, fallback lama.
+         */
+        private int[] readStatusCounts(Object item) {
+            Object counter = findCounter(item);
+            if (counter != null) {
+                return new int[]{readIntField(counter, "A01"), readIntField(counter, "A00")};
+            }
+            return new int[]{readIntField(item, "A01"), readIntField(item, "A00")};
+        }
+
+        /**
+         * Cari objek counter status: kelas yang punya dua field int bernama A00 dan A01.
+         * Dicek pada item itu sendiri lalu pada setiap field objek milik item.
+         */
+        private Object findCounter(Object item) {
+            if (item == null) return null;
+            if (hasCounterShape(item.getClass())) return item;
+            try {
+                for (var f : item.getClass().getDeclaredFields()) {
+                    if (f.getType().isPrimitive()) continue;
+                    var value = ReflectionUtils.getObjectField(f, item);
+                    if (value != null && hasCounterShape(value.getClass())) return value;
+                }
+            } catch (Throwable ignored) {
+            }
+            return null;
+        }
+
+        private boolean hasCounterShape(Class<?> type) {
+            return findIntField(type, "A00") != null && findIntField(type, "A01") != null;
+        }
+
+        private java.lang.reflect.Field findIntField(Class<?> type, String name) {
+            var f = findFieldByName(type, name);
+            return (f != null && f.getType() == int.class) ? f : null;
         }
 
         private int readIntField(Object target, String name) {
