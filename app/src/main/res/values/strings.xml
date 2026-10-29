@@ -733,6 +733,21 @@
     <string name="notification_menu_title">Updates</string>
     <string name="notification_mark_all_read">Mark all as read</string>
     <string name="notification_all_read">All caught up</string>
+    <!-- In-app APK installer -->
+    <string name="changelog_downloading">Downloading %1$d%%</string>
+    <string name="changelog_downloading_unknown">Downloading…</string>
+    <string name="changelog_cancel_download">Cancel download</string>
+    <string name="changelog_install">Install</string>
+    <string name="changelog_open_in_browser">Open in browser</string>
+    <string name="changelog_download_failed">Download failed. Open the release page in the browser instead.</string>
+    <string name="changelog_install_failed">Could not install the update. Open the release page in the browser instead.</string>
+    <string name="changelog_install_needs_permission">Allow WhatsVault to install apps, then continue.</string>
+    <string name="changelog_install_wrong_package">This APK is not a WhatsVault build.</string>
+    <string name="changelog_install_not_newer">This APK is not newer than the installed version.</string>
+    <string name="changelog_install_signature_mismatch">This APK is signed with a different key. Uninstall the old version first, then install again.</string>
+    <string name="changelog_install_invalid_apk">The downloaded file is not a valid APK.</string>
+    <string name="changelog_install_asset_missing">No downloadable APK for this release. Open the release page in the browser instead.</string>
+    <string name="changelog_install_unknown_error">Install failed. Open the release page in the browser instead.</string>
     <!-- Deleted message capture / backup viewer -->
     <string name="deleted_message_capture_title">Deleted Message Capture</string>
     <string name="deleted_message_capture_sum">Capture and store deleted messages for later viewing and restoration</string>

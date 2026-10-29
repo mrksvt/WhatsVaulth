@@ -450,7 +450,9 @@ public class MainActivity extends BaseActivity {
                 .putExtra(ChangelogActivity.EXTRA_HASH, release.hash)
                 .putExtra(ChangelogActivity.EXTRA_CHANGELOG, release.changelog)
                 .putExtra(ChangelogActivity.EXTRA_RELEASE_URL, release.releaseUrl)
-                .putExtra(ChangelogActivity.EXTRA_PUBLISHED_AT, release.publishedAt);
+                .putExtra(ChangelogActivity.EXTRA_PUBLISHED_AT, release.publishedAt)
+                .putExtra(ChangelogActivity.EXTRA_APK_URL, release.apkUrl)
+                .putExtra(ChangelogActivity.EXTRA_APK_SIZE, release.apkSize);
         startActivity(intent, options.toBundle());
     }
 

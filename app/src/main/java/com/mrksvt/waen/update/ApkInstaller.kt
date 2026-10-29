@@ -67,6 +67,7 @@ fun verifySignature(archiveDigests: Set<String>, installedDigests: Set<String>):
 object ApkInstaller {
 
     /** Verifies [file] against the installed app. Returns null when the APK is installable. */
+    @JvmStatic
     fun verifyApk(context: Context, file: File): InstallFailure? {
         if (!file.isFile || file.length() == 0L) return InstallFailure.ASSET_MISSING
         if (!isValidApkArchive(file)) return InstallFailure.NOT_AN_APK
@@ -92,12 +93,14 @@ object ApkInstaller {
     }
 
     /** True when the user already allowed this app to install packages. */
+    @JvmStatic
     fun canInstall(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
         return context.packageManager.canRequestPackageInstalls()
     }
 
     /** Settings screen that grants the unknown sources permission to this app. */
+    @JvmStatic
     fun unknownSourcesIntent(context: Context): Intent {
         return Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
             .setData(Uri.parse("package:${context.packageName}"))
@@ -107,6 +110,7 @@ object ApkInstaller {
      * Builds the install intent for [file] using a FileProvider uri. Returns null when the
      * file does not exist.
      */
+    @JvmStatic
     fun installIntent(context: Context, file: File): Intent? {
         if (!file.isFile) return null
         val uri = FileProvider.getUriForFile(

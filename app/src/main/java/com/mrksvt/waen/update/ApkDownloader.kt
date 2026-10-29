@@ -31,7 +31,7 @@ fun progressPercent(bytesRead: Long, totalBytes: Long): Int {
  * Downloads a release APK into the app specific external files dir. All network and disk
  * work happens on a background executor; the caller is notified through [listener].
  */
-class ApkDownloader(
+class ApkDownloader @JvmOverloads constructor(
     private val context: Context,
     private val client: OkHttpClient = defaultClient()
 ) {
@@ -134,6 +134,22 @@ class ApkDownloader(
 
         /** Visible for tests: the file name used for an APK keyed by [fileKey]. */
         fun apkFileName(fileKey: String): String = "$fileKey.apk"
+
+        /**
+         * Removes downloaded APKs that do not belong to [keepKey]. Called when the update
+         * screen opens so files left over from an earlier release do not pile up.
+         */
+        @JvmStatic
+        fun cleanupStale(dir: File, keepKey: String): Int {
+            val keep = apkFileName(keepKey)
+            val apks = dir.listFiles { file -> file.isFile && file.name.endsWith(".apk") }
+                ?: return 0
+            var removed = 0
+            for (apk in apks) {
+                if (apk.name != keep && apk.delete()) removed++
+            }
+            return removed
+        }
 
         private fun defaultClient(): OkHttpClient =
             OkHttpClient.Builder()
