@@ -49,6 +49,8 @@ public final class UpdateInfoStore {
                 object.put("url", release.releaseUrl);
                 object.put("published", release.publishedAt);
                 object.put("prerelease", release.prerelease);
+                object.put("apkUrl", release.apkUrl);
+                object.put("apkSize", release.apkSize);
                 array.put(object);
             } catch (JSONException ignored) {
                 // Every key is a plain string/boolean, so this cannot happen.
@@ -76,7 +78,9 @@ public final class UpdateInfoStore {
                         object.optString("changelog", ""),
                         object.optString("url", ""),
                         object.optString("published", ""),
-                        object.optBoolean("prerelease", false)));
+                        object.optBoolean("prerelease", false),
+                        object.optString("apkUrl", ""),
+                        object.optLong("apkSize", 0)));
             }
         } catch (JSONException ignored) {
             // Corrupt cache: treat as empty and refetch next launch.

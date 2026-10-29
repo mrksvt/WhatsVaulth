@@ -9,6 +9,36 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
+ * A downloadable release asset. Plain data so the selection rules can be unit tested
+ * without the Android JSON stubs.
+ */
+data class ApkAsset(val name: String, val url: String, val size: Long)
+
+/** True for the business flavor application id (`com.mrksvt.waen.w4b`). */
+fun isBusinessApplicationId(applicationId: String): Boolean =
+    applicationId.endsWith(".w4b")
+
+/**
+ * Picks the APK asset that matches the installed flavor.
+ *
+ * Business only accepts `WhatsVault-Business` assets and whatsapp only accepts plain
+ * `WhatsVault` assets, so one flavor never installs the other one. Returns null when the
+ * release has no matching APK, which the UI turns into the browser fallback.
+ */
+fun selectApkAsset(assets: List<ApkAsset>, isBusiness: Boolean): ApkAsset? {
+    val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) && it.url.isNotEmpty() }
+    val business = apks.filter { it.name.contains(BUSINESS_MARKER, ignoreCase = true) }
+    val plain = apks.filter {
+        it.name.contains(PLAIN_MARKER, ignoreCase = true) &&
+            !it.name.contains(BUSINESS_MARKER, ignoreCase = true)
+    }
+    return if (isBusiness) business.firstOrNull() else plain.firstOrNull()
+}
+
+private const val PLAIN_MARKER = "WhatsVault"
+private const val BUSINESS_MARKER = "-Business"
+
+/**
  * Fetches the GitHub release list, persists it through [UpdateInfoStore], and
  * reports whether a newer build is available. Runs off the main thread.
  */
@@ -87,13 +117,15 @@ class UpdateChecker(
     }
 
     private fun buildReleases(array: JSONArray): List<ReleaseInfo> {
+        val isBusiness = isBusinessApplicationId(BuildConfig.APPLICATION_ID)
         val releases = ArrayList<ReleaseInfo>()
         for (i in 0 until array.length()) {
             val release = array.optJSONObject(i) ?: continue
             if (release.optBoolean("draft", false)) continue
             val tagName = release.optString("tag_name", "")
-            val hash = extractHash(tagName, release.optJSONArray("assets"))
-                ?: continue
+            val assets = release.optJSONArray("assets")
+            val hash = extractHash(tagName, assets) ?: continue
+            val apk = selectApkAsset(parseAssets(assets), isBusiness)
             releases.add(ReleaseInfo(
                 tagName,
                 release.optString("name", ""),
@@ -101,11 +133,27 @@ class UpdateChecker(
                 release.optString("body", "").trim(),
                 release.optString("html_url", ""),
                 release.optString("published_at", ""),
-                release.optBoolean("prerelease", false)
+                release.optBoolean("prerelease", false),
+                apk?.url ?: "",
+                apk?.size ?: 0L
             ))
         }
         // Newest first; the API already returns newest-first, but be safe.
         releases.sortByDescending { it.publishedAt }
         return releases
+    }
+
+    private fun parseAssets(assets: JSONArray?): List<ApkAsset> {
+        if (assets == null) return emptyList()
+        val result = ArrayList<ApkAsset>()
+        for (i in 0 until assets.length()) {
+            val asset = assets.optJSONObject(i) ?: continue
+            result.add(ApkAsset(
+                asset.optString("name", ""),
+                asset.optString("browser_download_url", ""),
+                asset.optLong("size", 0L)
+            ))
+        }
+        return result
     }
 }
