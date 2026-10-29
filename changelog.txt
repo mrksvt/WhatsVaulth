@@ -1,6 +1,13 @@
 WhatsVault 1.6.2-patch-01 - port WaEnhancer 1.6.3
 
+[ADDED]
+* Update in-app: tombol di layar What's New mengunduh APK rilis langsung dari GitHub, menampilkan progres, dan bisa dibatalkan
+* Update in-app: APK diverifikasi dulu (package name, versionCode, signature) sebelum installer sistem dibuka
+* Update in-app: bila izin install belum ada, app membuka Settings lalu melanjutkan install saat kembali
+* Update in-app: fallback ke browser bila release tidak menyediakan asset APK atau verifikasi gagal
+
 [IMPROVED]
+* Header layar What's New sekarang memakai latar gradient dan tipografi yang sama dengan header utama
 * Startup: DexKit dibuka saat dibutuhkan dan ditutup otomatis setelah 30 detik idle, sehingga startup lebih ringan
 * Scroll dan pindah tab lebih halus, termasuk daftar status IG yang tidak lagi tersendat
 * Floating Bottom Bar: layout hanya diubah saat nilainya benar-benar berubah, mengurangi layout pass berulang

@@ -19,6 +19,7 @@ Fitur-fitur berikut sedang dalam perencanaan atau pengembangan.
 | 5 | 🗑️ Deleted Log                        | ✅     | Log pesan yang dihapus dengan export JSON ke Downloads                                                 |
 | 6 | 🤖 Groq AI Translator (Bubble + Composer) | ✅   | Bubble translator jalan (WA reguler + Business), Composer translator jalan, model updated              |
 | 7 | 🔐 Enhanced KeyBox & Bootloader Spoofer | ⚠️   | KeyBox manual ada, auto-fetch + fingerprint Pixel Canary + hourly refresh belum                        |
+| 8 | ⬇️ In-App Update Installer              | ✅     | Unduh APK dari GitHub release di dalam app lalu install lewat installer sistem                          |
 
 ---
 
@@ -181,6 +182,38 @@ Perkuat fitur Custom KeyBox dan Bootloader Spoofer yang sudah ada dengan kemampu
 - Android < 13: STRONG sangat sulit, target realistis DEVICE integrity
 - Restart GMS tidak butuh reboot: `kill com.google.android.gms.unstable` via root
 - Xposed/LSPosed manager harus di-exclude dari attestation target
+
+---
+
+## ⬇️ In-App Update Installer
+
+Layar What's New (`ChangelogActivity`) bisa mengunduh APK rilis langsung dari GitHub dan
+menginstall-nya lewat installer sistem, tanpa keluar app.
+
+**Alur:**
+
+1. `UpdateChecker` membaca asset APK pada release GitHub dan memilih asset yang cocok dengan
+   flavor terpasang (`WhatsVault-...` untuk whatsapp, `WhatsVault-Business-...` untuk business).
+   URL dan ukuran disimpan di `UpdateInfoStore`.
+2. Tombol utama di layar changelog menjadi `Download`. Progres tampil di tombol
+   (`Downloading 42%`) dan ada tombol `Cancel download`.
+3. Setelah selesai, APK diverifikasi sebelum install: package name, versionCode harus lebih
+   baru, signature harus kompatibel.
+4. Tombol berubah menjadi `Install`. Bila izin unknown sources belum ada, app membuka
+   Settings lalu melanjutkan install saat kembali.
+
+**Batasan:**
+
+- Installer butuh izin **Install unknown apps** (Settings → Special app access) untuk WhatsVault.
+- Build business bisa update in-app **hanya bila** release punya asset `WhatsVault-Business-*.apk`.
+  `release.yml` saat ini baru membangun varian whatsapp, jadi build business akan jatuh ke
+  fallback browser.
+- APK harus ditandatangani kunci yang sama dengan yang terpasang. Build debug lokal berbeda
+  signature dengan build release, sehingga menampilkan pesan signature mismatch.
+- Release tanpa asset APK: tombol langsung menjadi `Open in browser`.
+
+**Berkas terkait:** `update/ApkDownloader.kt`, `update/ApkInstaller.kt`, `ChangelogActivity.java`,
+`ChangelogViewModel.java`.
 
 ---
 
