@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -14,10 +16,12 @@ import com.mrksvt.waen.ReleaseInfo;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
 import com.mrksvt.waen.databinding.ActivityChangelogBinding;
+import com.mrksvt.waen.update.ApkCleanupPolicy;
 import com.mrksvt.waen.update.ApkDownloader;
 import com.mrksvt.waen.update.ApkInstaller;
 import com.mrksvt.waen.update.DownloadState;
 import com.mrksvt.waen.update.InstallFailure;
+import com.mrksvt.waen.update.InstallFailureMessages;
 
 import java.io.File;
 import java.text.ParseException;
@@ -109,18 +113,29 @@ public class ChangelogActivity extends BaseActivity {
         binding.btnCancelDownload.setOnClickListener(v -> cancelDownload());
         binding.btnDownload.setOnClickListener(v -> onPrimaryAction());
         viewModel.setUiCallback(state -> renderState());
-        cleanupStaleApks();
+        cleanupStaleApksAsync();
         renderState();
     }
 
-    /** Removes APKs left over from an earlier release so old downloads do not pile up. */
-    private void cleanupStaleApks() {
-        try {
-            ApkDownloader cleanup = viewModel.downloader(this);
-            ApkDownloader.cleanupStale(cleanup.updateDir(), releaseKey);
-        } catch (Exception e) {
-            // Cleanup is best effort: a leftover file is harmless.
-        }
+    /**
+     * Removes APKs that no live download or install-ready state owns. Runs on the downloader's
+     * background executor because it touches the filesystem (NFR-01).
+     *
+     * <p>A successful install replaces this process, so the in-memory state is gone by the
+     * time the user returns. Any APK left on disk at that point has no owner and is deleted.
+     */
+    private void cleanupStaleApksAsync() {
+        DownloadState state = viewModel.getState();
+        boolean ownsFile = state instanceof DownloadState.Done || state instanceof DownloadState.Progress;
+        String keep = ApkCleanupPolicy.keepFileKey(ownsFile, releaseKey);
+        ApkDownloader downloader = viewModel.downloader(this);
+        viewModel.runInBackground(() -> {
+            try {
+                ApkDownloader.cleanupStale(downloader.updateDir(), keep);
+            } catch (Exception e) {
+                // Cleanup is best effort: a leftover file is harmless.
+            }
+        });
     }
 
     @Override
@@ -134,13 +149,41 @@ public class ChangelogActivity extends BaseActivity {
             }
             return;
         }
+        // Safety net for an app restart after a successful install: the installer result
+        // covers installs finished during this session, this covers the rest.
         if (viewModel.getState() instanceof DownloadState.Done && isInstalledVersionNewer()) {
-            // The installer replaced this build, so the downloaded APK is no longer needed.
-            deleteTemporaryApk();
-            viewModel.setState(DownloadState.Idle.INSTANCE);
-            renderState();
+            onInstallSucceeded();
         }
     }
+
+    /** Drops the downloaded APK once the new build is installed. */
+    private void onInstallSucceeded() {
+        removeDownloadedApk();
+        viewModel.setState(DownloadState.Idle.INSTANCE);
+        renderState();
+    }
+
+    /** Deletes the downloaded APK, including its `.part` sidecar, off the main thread. */
+    private void removeDownloadedApk() {
+        File file = viewModel.getDownloadedFile();
+        viewModel.clearDownloadedFile();
+        if (file == null) return;
+        File partial = new File(file.getParentFile(), file.getName() + ".part");
+        viewModel.runInBackground(() -> {
+            if (file.exists()) file.delete();
+            if (partial.exists()) partial.delete();
+        });
+    }
+
+    private final ActivityResultLauncher<Intent> installLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (ApkCleanupPolicy.shouldDeleteAfterInstall(result.getResultCode() == RESULT_OK)) {
+                    onInstallSucceeded();
+                    return;
+                }
+                // The installer was cancelled or failed: keep the APK so the user can retry.
+                renderState();
+            });
 
     /** True when the installed package version is newer than the running build. */
     private boolean isInstalledVersionNewer() {
@@ -158,7 +201,7 @@ public class ChangelogActivity extends BaseActivity {
         // The system installer still reads the file while it is open, so keep it when the
         // APK is install-ready. Stale files are removed on the next open.
         if (isFinishing() && !(viewModel.getState() instanceof DownloadState.Done)) {
-            deleteTemporaryApk();
+            removeDownloadedApk();
         }
         super.onDestroy();
     }
@@ -183,13 +226,11 @@ public class ChangelogActivity extends BaseActivity {
             startDownload();
             return;
         }
-        if (TextUtils.isEmpty(apkUrl)) {
-            showBrowserFallback(getString(R.string.changelog_install_asset_missing));
-            openUrl(TextUtils.isEmpty(releaseUrl)
-                    ? UpdateInfoStore.FALLBACK_RELEASE_URL : releaseUrl);
+        if (state instanceof DownloadState.Progress) {
             return;
         }
-        if (state instanceof DownloadState.Progress) {
+        if (TextUtils.isEmpty(apkUrl)) {
+            showBrowserFallback(getString(R.string.changelog_install_asset_missing));
             return;
         }
         startDownload();
@@ -205,10 +246,9 @@ public class ChangelogActivity extends BaseActivity {
     }
 
     private void cancelDownload() {
-        ApkDownloader downloader = viewModel.downloader(this);
-        downloader.cancel();
-        viewModel.setState(DownloadState.Cancelled.INSTANCE);
-        deleteTemporaryApk();
+        // The worker thread reports Cancelled once it stops; setting it here would race with
+        // the terminal state and could leave a stale label on the button.
+        viewModel.downloader(this).cancel();
         renderState();
     }
 
@@ -240,7 +280,7 @@ public class ChangelogActivity extends BaseActivity {
                         return;
                     }
                     try {
-                        startActivity(intent);
+                        installLauncher.launch(intent);
                     } catch (Exception e) {
                         showBrowserFallback(getString(R.string.changelog_install_unknown_error));
                     }
@@ -251,27 +291,19 @@ public class ChangelogActivity extends BaseActivity {
         }
     }
 
+    /**
+     * Reports a failure and switches the primary action to the browser fallback, so every
+     * [InstallFailure] path (including SIGNATURE_MISMATCH and UNKNOWN) really ends up on the
+     * browser label instead of a dead-end message.
+     */
     private void showBrowserFallback(String message) {
+        viewModel.setState(new DownloadState.Failed(message));
+        renderState();
         binding.tvChangelog.setText(message);
     }
 
     private String messageFor(InstallFailure failure) {
-        switch (failure) {
-            case ASSET_MISSING:
-                return getString(R.string.changelog_install_asset_missing);
-            case NOT_AN_APK:
-                return getString(R.string.changelog_install_invalid_apk);
-            case WRONG_PACKAGE:
-                return getString(R.string.changelog_install_wrong_package);
-            case NOT_NEWER:
-                return getString(R.string.changelog_install_not_newer);
-            case SIGNATURE_MISMATCH:
-                return getString(R.string.changelog_install_signature_mismatch);
-            case PERMISSION_DENIED:
-                return getString(R.string.changelog_install_needs_permission);
-            default:
-                return getString(R.string.changelog_install_unknown_error);
-        }
+        return getString(InstallFailureMessages.resourceId(failure));
     }
 
     private void renderState() {
@@ -314,14 +346,6 @@ public class ChangelogActivity extends BaseActivity {
         } else {
             binding.btnDownload.setText(R.string.download);
         }
-    }
-
-    private void deleteTemporaryApk() {
-        File file = viewModel.getDownloadedFile();
-        if (file != null && file.exists()) {
-            file.delete();
-        }
-        viewModel.clearDownloadedFile();
     }
 
     private void openUrl(String url) {

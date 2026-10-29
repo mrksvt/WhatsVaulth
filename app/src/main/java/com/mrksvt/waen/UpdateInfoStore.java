@@ -63,29 +63,14 @@ public final class UpdateInfoStore {
     }
 
     public static List<ReleaseInfo> getReleases(Context context) {
-        List<ReleaseInfo> releases = new ArrayList<>();
         String raw = prefs(context).getString(KEY_RELEASES, "");
-        if (raw == null || raw.isEmpty()) return releases;
+        if (raw == null || raw.isEmpty()) return new ArrayList<>();
         try {
-            JSONArray array = new JSONArray(raw);
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject object = array.optJSONObject(i);
-                if (object == null) continue;
-                releases.add(new ReleaseInfo(
-                        object.optString("tag", ""),
-                        object.optString("title", ""),
-                        object.optString("hash", ""),
-                        object.optString("changelog", ""),
-                        object.optString("url", ""),
-                        object.optString("published", ""),
-                        object.optBoolean("prerelease", false),
-                        object.optString("apkUrl", ""),
-                        object.optLong("apkSize", 0)));
-            }
-        } catch (JSONException ignored) {
+            return ReleaseCacheParser.parseReleases(raw);
+        } catch (RuntimeException corrupt) {
             // Corrupt cache: treat as empty and refetch next launch.
+            return new ArrayList<>();
         }
-        return releases;
     }
 
     /** Newest release with a hash, or null when nothing was fetched yet. */

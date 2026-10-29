@@ -51,6 +51,18 @@ public class ChangelogViewModel extends ViewModel {
         return downloadListener;
     }
 
+    /** Runs a short filesystem task off the main thread. Best effort, no result reported. */
+    public void runInBackground(Runnable task) {
+        if (downloader == null) {
+            // No downloader yet (no Context seen): fall back to a one-shot thread.
+            Thread thread = new Thread(task, "changelog-fs");
+            thread.setDaemon(true);
+            thread.start();
+            return;
+        }
+        downloader.runInBackground(task);
+    }
+
     public void setUiCallback(UiCallback callback) {
         this.uiCallback = callback;
     }

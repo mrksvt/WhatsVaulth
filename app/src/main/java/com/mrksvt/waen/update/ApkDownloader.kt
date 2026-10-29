@@ -63,7 +63,16 @@ class ApkDownloader @JvmOverloads constructor(
         }
         cancelled.set(false)
         executor.execute {
+            // A cancel that arrives before the worker starts must not touch the disk at all.
+            if (cancelled.get()) {
+                listener.onState(DownloadState.Cancelled)
+                return@execute
+            }
             val target = File(updateDir(), apkFileName(fileKey))
+            // Data is written to a sidecar and renamed on completion, so a previous good APK
+            // is never truncated by a restart or a cancel.
+            val partial = File(target.parentFile, partialFileName(fileKey))
+            var completed = false
             try {
                 val request = Request.Builder().url(url).build()
                 val call = client.newCall(request)
@@ -77,7 +86,7 @@ class ApkDownloader @JvmOverloads constructor(
                     val total = body.contentLength()
                     val source = body.source()
                     var read = 0L
-                    target.outputStream().use { out ->
+                    partial.outputStream().use { out ->
                         val buffer = ByteArray(64 * 1024)
                         var lastPercent = -2
                         while (true) {
@@ -94,14 +103,18 @@ class ApkDownloader @JvmOverloads constructor(
                         }
                     }
                     if (cancelled.get()) {
-                        target.delete()
                         listener.onState(DownloadState.Cancelled)
                         return@use
                     }
+                    if (target.exists()) target.delete()
+                    if (!partial.renameTo(target)) {
+                        listener.onState(DownloadState.Failed("rename failed"))
+                        return@use
+                    }
+                    completed = true
                     listener.onState(DownloadState.Done(target))
                 }
             } catch (e: Exception) {
-                target.delete()
                 if (cancelled.get()) {
                     listener.onState(DownloadState.Cancelled)
                 } else {
@@ -109,6 +122,9 @@ class ApkDownloader @JvmOverloads constructor(
                 }
             } finally {
                 runningCall = null
+                // The partial file never survives the transfer, whatever the outcome.
+                if (partial.exists()) partial.delete()
+                if (!completed && cancelled.get() && target.exists()) target.delete()
             }
         }
     }
@@ -122,6 +138,17 @@ class ApkDownloader @JvmOverloads constructor(
         runningCall?.cancel()
     }
 
+    /** Runs a short filesystem task on the background executor. */
+    fun runInBackground(task: Runnable) {
+        if (executor.isShutdown) {
+            val thread = Thread(task, "apk-download-fs")
+            thread.isDaemon = true
+            thread.start()
+            return
+        }
+        executor.execute(task)
+    }
+
     /** Releases the executor. Call when the owner is destroyed. */
     fun shutdown() {
         cancelled.set(true)
@@ -132,21 +159,30 @@ class ApkDownloader @JvmOverloads constructor(
     companion object {
         private const val UPDATE_DIR = "updates"
 
-        /** Visible for tests: the file name used for an APK keyed by [fileKey]. */
+        /** The file name used for an APK keyed by [fileKey]. */
+        @JvmStatic
         fun apkFileName(fileKey: String): String = "$fileKey.apk"
 
+        /** Sidecar the bytes are written to before the atomic rename. */
+        @JvmStatic
+        fun partialFileName(fileKey: String): String = "$fileKey.apk.part"
+
         /**
-         * Removes downloaded APKs that do not belong to [keepKey]. Called when the update
-         * screen opens so files left over from an earlier release do not pile up.
+         * Removes downloaded APKs and `.part` sidecars except those keyed by [keepKey]. A null
+         * [keepKey] removes everything. Called when the update screen opens: a file left behind
+         * after a successful install has no owner any more, so it goes.
          */
         @JvmStatic
-        fun cleanupStale(dir: File, keepKey: String): Int {
-            val keep = apkFileName(keepKey)
-            val apks = dir.listFiles { file -> file.isFile && file.name.endsWith(".apk") }
-                ?: return 0
+        fun cleanupStale(dir: File, keepKey: String?): Int {
+            val keep = keepKey?.let { apkFileName(it) }
+            val keepPartial = keepKey?.let { partialFileName(it) }
+            val files = dir.listFiles { file ->
+                file.isFile && (file.name.endsWith(".apk") || file.name.endsWith(".apk.part"))
+            } ?: return 0
             var removed = 0
-            for (apk in apks) {
-                if (apk.name != keep && apk.delete()) removed++
+            for (file in files) {
+                if (file.name == keep || file.name == keepPartial) continue
+                if (file.delete()) removed++
             }
             return removed
         }
