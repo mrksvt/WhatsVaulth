@@ -371,6 +371,8 @@ class FMessageWpp(fMessage: Any?) {
 
     class UserJid {
         companion object {
+            private val DEVICE_SUFFIX_REGEX = Regex("\\.[\\d:]+@")
+
             lateinit var TYPE_DEVICEJID: Class<*>
 
             lateinit var TYPE_USERJID: Class<*>
@@ -411,7 +413,7 @@ class FMessageWpp(fMessage: Any?) {
                     null
                 }
                 raw?.let {
-                    val rawJidSanitized = raw.replaceFirst("\\.[\\d:]+@".toRegex(), "@")
+                    val rawJidSanitized = raw.replaceFirst(DEVICE_SUFFIX_REGEX, "@")
                     if (checkValidLID(rawJidSanitized)) {
                         return UserJid(rawJidSanitized)
                     }
@@ -469,7 +471,7 @@ class FMessageWpp(fMessage: Any?) {
             val raw =
                 XposedHelpers.callMethod(this.phoneJid, "getRawString") as? String
                     ?: return@lazy null
-            raw.replaceFirst("\\.[\\d:]+@".toRegex(), "@")
+            raw.replaceFirst(DEVICE_SUFFIX_REGEX, "@")
         }
 
         val userRawString: String? by lazy {
@@ -477,7 +479,7 @@ class FMessageWpp(fMessage: Any?) {
             val raw =
                 XposedHelpers.callMethod(this.userJid, "getRawString") as? String
                     ?: return@lazy null
-            raw.replaceFirst("\\.[\\d:]+@".toRegex(), "@")
+            raw.replaceFirst(DEVICE_SUFFIX_REGEX, "@")
         }
 
         val phoneNumber: String?

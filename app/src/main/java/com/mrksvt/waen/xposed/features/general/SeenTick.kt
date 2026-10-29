@@ -61,6 +61,8 @@ class SeenTick(
         private var mSendReadClass: Class<*>? = null
         private var waJobManagerMethod: Method? = null
 
+        private const val MAX_BLUE_TICK_SEND_MESSAGES = 50
+
         private var cachedSeenDrawable: Drawable? = null
         private var cachedUnseenDrawable: Drawable? = null
 
@@ -549,16 +551,24 @@ class SeenTick(
             val userRaw = userJid.userRawString ?: ""
             if (phoneNumber == Utils.getMyNumber() || userRaw.contains("lid_me") || userRaw.contains("status_me")) return@launch
 
-            val messages = ArrayList<FMessageWpp>()
             val hiddenMessages = MessageHistoryStore.getInstance()
                 .getHideSeenMessages(
                     userJid.phoneRawString,
                     MessageHistoryStore.ReceiptType.READ,
                     false
                 )
-            logDebug("BlueOnReply sendBlueTick jid=${userJid.phoneRawString} hidden=${hiddenMessages?.size}")
+            if (hiddenMessages.isNullOrEmpty()) return@launch
+            logDebug("BlueOnReply sendBlueTick jid=${userJid.phoneRawString} hidden=${hiddenMessages.size}")
 
-            hiddenMessages?.forEach { message ->
+            MessageHistoryStore.getInstance().updateViewedMessagesBatch(
+                userJid.phoneRawString,
+                hiddenMessages.map { it.message },
+                MessageHistoryStore.ReceiptType.READ,
+                true
+            )
+
+            val messages = ArrayList<FMessageWpp>(MAX_BLUE_TICK_SEND_MESSAGES)
+            hiddenMessages.takeLast(MAX_BLUE_TICK_SEND_MESSAGES).forEach { message ->
                 message.fMessage?.let { messages.add(it) }
             }
 
@@ -574,15 +584,6 @@ class SeenTick(
                     )
                     sendBlueTickMedia(m)
                 }
-            }
-
-            messages.forEach { msg ->
-                MessageHistoryStore.getInstance().updateViewedMessage(
-                    userJid.phoneRawString,
-                    msg.key.messageID,
-                    MessageHistoryStore.ReceiptType.READ,
-                    true
-                )
             }
 
             sendBlueTickMsg(userJid, messages)

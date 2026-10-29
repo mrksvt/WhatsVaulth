@@ -34,6 +34,7 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.ViewHookDispatcher
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
 import com.mrksvt.waen.xposed.core.db.MessageStore
@@ -43,8 +44,7 @@ import com.mrksvt.waen.xposed.utils.DesignUtils
 import com.mrksvt.waen.xposed.utils.HKDF
 import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
-import de.robv.android.xposed.XC_MethodHook
-import android.content.SharedPreferences 
+import android.content.SharedPreferences
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.OkHttpClient
@@ -101,32 +101,35 @@ class MediaPreview(
         Others.propsBoolean[24205] = false
 
         val layoutClass = Unobfuscator.loadLayoutClass(classLoader)
-        XposedHelpers.findAndHookMethod(View::class.java,"onAttachedToWindow",
-            object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                if (!layoutClass.isInstance(param.thisObject))return
-                val view = param.thisObject as View
-                view.postDelayed(
-                    {
-                        var resourceNames = listOf("invisible_press_surface","video_control_frame_view")
-                        for (rn in resourceNames){
-                            val viewGroup = view.findViewById<View>(Utils.getID(rn, "id")) ?: continue
-                            if (!viewGroup.isVisible)continue
-                            logDebug("Found Surface: $viewGroup")
-                            handlePressSurface(view,viewGroup)
-                            return@postDelayed
-                        }
-                        resourceNames = listOf("control_frame_new","control_frame","control_frame_view","mms_control_frame_new","mms_control_frame")
-                        for (rn in resourceNames){
-                            val viewGroup = view.findViewById<View>(Utils.getID(rn, "id")) ?: continue
-                            if (!viewGroup.isVisible)continue
-                            logDebug("Found ControlFrame: $viewGroup")
-                            handleMediaControlFrame(view,viewGroup)
-                            return@postDelayed
-                        }
-                    },200)
-            }
-        })
+        val surfaceIds = listOf("invisible_press_surface", "video_control_frame_view")
+            .map { Utils.getID(it, "id") }
+        val controlFrameIds = listOf(
+            "control_frame_new",
+            "control_frame",
+            "control_frame_view",
+            "mms_control_frame_new",
+            "mms_control_frame"
+        ).map { Utils.getID(it, "id") }
+        ViewHookDispatcher.onAttachedToWindow { view ->
+            if (!layoutClass.isInstance(view)) return@onAttachedToWindow
+            view.postDelayed(
+                {
+                    for (id in surfaceIds) {
+                        val viewGroup = view.findViewById<View>(id) ?: continue
+                        if (!viewGroup.isVisible) continue
+                        logDebug("Found Surface: $viewGroup")
+                        handlePressSurface(view, viewGroup)
+                        return@postDelayed
+                    }
+                    for (id in controlFrameIds) {
+                        val viewGroup = view.findViewById<View>(id) ?: continue
+                        if (!viewGroup.isVisible) continue
+                        logDebug("Found ControlFrame: $viewGroup")
+                        handleMediaControlFrame(view, viewGroup)
+                        return@postDelayed
+                    }
+                }, 200)
+        }
 
     }
 

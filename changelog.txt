@@ -1,3 +1,17 @@
+WhatsVault 1.6.2 - port WaEnhancer 1.6.3
+
+[IMPROVED]
+* Startup: DexKit dibuka saat dibutuhkan dan ditutup otomatis setelah 30 detik idle, sehingga startup lebih ringan
+* Scroll dan pindah tab lebih halus, termasuk daftar status IG yang tidak lagi tersendat
+* Floating Bottom Bar: layout hanya diubah saat nilainya benar-benar berubah, mengurangi layout pass berulang
+* Wallpaper kustom dimuat async dan sudah siap saat frame Home pertama
+* Hot path tema dan view: warna dan pengecekan layar dicache, id resource dihitung sekali
+* Bridge: force-start hanya dilakukan saat koneksi awal gagal
+
+[FIXED]
+* Send Blue Tick: pesan dikirim dalam satu batch update, bukan per pesan
+* Locked Chats Enhancer: crash saat daftar locked chat kosong atau tidak lengkap sudah diperbaiki, dan kontak terkunci disembunyikan dengan benar
+
 WhatsVault 1.6.2 - Deleted Backup + port WaEnhancer 1.6.2
 
 [ADDED]

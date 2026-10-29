@@ -215,7 +215,7 @@ kotlin {
 dependencies {
     implementation(libs.colorpicker)
     implementation(libs.androidsvg)
-    implementation(files("libs/dexkit-android.aar"))
+    implementation(libs.dexkit)
     implementation(libs.flatbuffers)
     compileOnly(libs.libxposed.legacy)
     ksp(libs.androidx.room.compiler)

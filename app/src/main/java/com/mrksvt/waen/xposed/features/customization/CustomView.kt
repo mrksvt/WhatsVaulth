@@ -34,6 +34,7 @@ import com.mrksvt.waen.preference.ThemePreference
 import com.mrksvt.waen.utils.ColorReplacement.replaceColors
 import com.mrksvt.waen.utils.IColors
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.ViewHookDispatcher
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
@@ -72,6 +73,7 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
     private var properties: Properties? = null
     private val processedViews = WeakHashMap<View, Boolean>()
     private val forcedVisibilityMap = WeakHashMap<View, Int>()
+    private var visibilityHook: ViewHookDispatcher.DeferredSetFlags? = null
     private val forcedBackgroundMap = WeakHashMap<View, Drawable>()
     private val forcedDrawableMap = WeakHashMap<View, Drawable>()
     private var mapIds: HashMap<Int, ArrayList<CachedRuleItem>>? = null
@@ -94,8 +96,6 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
             if (type != WppCore.ActivityChangeState.ChangeType.CREATED) return@addListenerActivity
             changeDPI(activity1, prefs, properties!!)
         }
-
-        hookDrawableViews()
 
         themeDir = File(ThemePreference.rootDirectory, folderTheme)
         val cssContent = "$filterItens\n$customCss"
@@ -265,32 +265,20 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
     }
 
     private fun registerHooks() {
-        XposedHelpers.findAndHookMethod(
-            View::class.java, "onAttachedToWindow",
-            object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    applyRulesForView(param.thisObject as View)
-                }
-            })
+        ViewHookDispatcher.onAttachedToWindow { view ->
+            applyRulesForView(view)
+        }
 
-        XposedHelpers.findAndHookMethod(
-            View::class.java, "onDetachedFromWindow",
-            object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    processedViews.remove(param.thisObject as View)
-                }
-            })
+        ViewHookDispatcher.onDetachedFromWindow { view ->
+            processedViews.remove(view)
+        }
 
-        XposedHelpers.findAndHookMethod(
-            View::class.java, "setFlags", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
-            object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    if (param.args[1] as Int and 0x0000000C == 0) return
-                    val view = param.thisObject as View
-                    val forced = forcedVisibilityMap[view] ?: return
-                    param.args[0] = (param.args[0] as Int and 0x0000000C.inv()) or forced
-                }
-            })
+        visibilityHook = ViewHookDispatcher.deferSetFlags { view, flags, mask ->
+            if (mask and 0x0000000C == 0) return@deferSetFlags flags
+            if (forcedVisibilityMap.isEmpty()) return@deferSetFlags flags
+            val forced = forcedVisibilityMap[view] ?: return@deferSetFlags flags
+            (flags and 0x0000000C.inv()) or forced
+        }
     }
 
     private fun applyRulesForView(view: View) {
@@ -347,7 +335,7 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
         return null
     }
 
-    private fun hookDrawableViews() {
+    private val backgroundHook = lazy {
         XposedHelpers.findAndHookMethod(
             View::class.java, "setBackground", Drawable::class.java,
             object : XC_MethodHook() {
@@ -358,7 +346,9 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                     if (newDrawable !== forced) param.result = null
                 }
             })
+    }
 
+    private val imageDrawableHook = lazy {
         XposedHelpers.findAndHookMethod(
             ImageView::class.java, "setImageDrawable", Drawable::class.java,
             object : XC_MethodHook() {
@@ -423,14 +413,19 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                 "display" -> {
                     when (terms[0].strValue) {
                         "none" -> {
+                            visibilityHook?.activate()
                             forcedVisibilityMap[view] = View.GONE
                             view.visibility = View.GONE
                         }
+
                         "block" -> {
+                            visibilityHook?.activate()
                             forcedVisibilityMap[view] = View.VISIBLE
                             view.visibility = View.VISIBLE
                         }
+
                         "invisible" -> {
+                            visibilityHook?.activate()
                             forcedVisibilityMap[view] = View.INVISIBLE
                             view.visibility = View.INVISIBLE
                         }
@@ -787,9 +782,11 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
 
     private fun setHookedDrawable(view: View, draw: Drawable) {
         if (view is ImageView) {
+            imageDrawableHook.value
             forcedDrawableMap[view] = draw
             view.setImageDrawable(draw)
         } else {
+            backgroundHook.value
             forcedBackgroundMap[view] = draw
             view.background = draw
         }
@@ -805,6 +802,7 @@ class CustomView(loader: ClassLoader, preferences:SharedPreferences) : Feature(l
                         view.width, view.height)
                     chacheDrawables[term.strValue] = gradientDrawable
                 }
+                backgroundHook.value
                 forcedBackgroundMap[view] = gradientDrawable
                 view.background = gradientDrawable
             } catch (e: Exception) {

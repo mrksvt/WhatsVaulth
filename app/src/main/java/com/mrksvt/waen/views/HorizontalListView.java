@@ -346,6 +346,9 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
         if (mDataChanged) {
             int oldCurrentX = mCurrentX;
             initView();
+            for (int index = 0; index < getChildCount(); index++) {
+                mRemovedViewQueue.offer(getChildAt(index));
+            }
             removeAllViewsInLayout();
             mNextX = oldCurrentX;
             mDataChanged = false;

@@ -36,13 +36,14 @@ import java.util.Date
 import java.util.Locale
 import java.util.Properties
 import java.util.Random
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.regex.Pattern
 
 object Utils {
     lateinit var xprefs: SharedPreferences
-    private val ids = HashMap<String?, Int?>()
+    private val ids = ConcurrentHashMap<String, Int>()
     lateinit var appClassLoader: ClassLoader
 
     fun init() {
@@ -107,7 +108,7 @@ object Utils {
             try {
                 val overrideId = context.resources.getIdentifier(overrideName, type, context.packageName)
                 if (overrideId != 0) {
-                    synchronized(ids) { ids.put(key, overrideId) }
+                    ids[key] = overrideId
                     return overrideId
                 }
             } catch (e: Exception) {
@@ -115,19 +116,12 @@ object Utils {
             }
         }
 
-        synchronized(ids) {
-            if (ids.containsKey(key)) {
-                val cachedId = ids[key]
-                return cachedId ?: -1
-            }
-        }
+        ids[key]?.let { return it }
 
         try {
             val id = context.resources.getIdentifier(name, type, application.packageName)
 
-            synchronized(ids) {
-                ids.put(key, id)
-            }
+            ids[key] = id
 
             return id
         } catch (e: Exception) {

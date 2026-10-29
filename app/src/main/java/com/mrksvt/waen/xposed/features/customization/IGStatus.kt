@@ -20,6 +20,7 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import android.os.Handler
 import android.os.Looper
+import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.Collections
 import java.util.WeakHashMap
@@ -40,7 +41,11 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         private const val PAGER_RETRY_MS = 500L
         private const val PAGER_MAX_ATTEMPTS = 30
         private const val PAGER_OFFSCREEN_PAGES = 6
+        private const val PAGER_RESTORE_DELAY_MS = 2000L
     }
+
+    private var raisedPager: WeakReference<ViewGroup>? = null
+    private var originalPageLimit = 1
 
     // UpdatesFragment instances whose async init already ran, naturally or forced
     private val initializedFragments = Collections.synchronizedSet(
@@ -123,8 +128,10 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 newList.add(0, null)
                 itens = newList
                 for (mStatusContainer in mListStatusContainer) {
-                    val mStatusAdapter = IGStatusAdapter(WppCore.getCurrentActivity()!!, statusInfoClass)
-                    mStatusContainer.adapter = mStatusAdapter
+                    val activity = WppCore.getCurrentActivity()!!
+                    if (mStatusContainer.adapter?.context !== activity) {
+                        mStatusContainer.adapter = IGStatusAdapter(activity, statusInfoClass)
+                    }
                     mStatusContainer.updateList()
                 }
             }
@@ -224,14 +231,25 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 val fragment = param.thisObject
                 logDebug("UpdatesFragment.onStart", fragment)
                 handler.postDelayed({
-                    if (initializedFragments.contains(fragment)) return@postDelayed
-                    runCatching {
-                        initializedFragments.add(fragment)
-                        asyncInit.invoke(fragment)
-                    }.onFailure { logDebug(it) }
+                    if (fragment !in initializedFragments) {
+                        runCatching {
+                            initializedFragments.add(fragment)
+                            asyncInit.invoke(fragment)
+                        }.onFailure { logDebug(it) }
+                    }
+                    handler.postDelayed({ restorePageLimit() }, PAGER_RESTORE_DELAY_MS)
                 }, FORCE_LOAD_DELAY_MS)
             }
         })
+    }
+
+    private fun restorePageLimit() {
+        val pager = raisedPager?.get() ?: return
+        raisedPager = null
+        runCatching {
+            XposedHelpers.callMethod(pager, "setOffscreenPageLimit", originalPageLimit)
+        }.onFailure { logDebug(it) }
+        logDebug("home pager", "restored limit=$originalPageLimit")
     }
 
     private fun keepAllTabsAlive(handler: Handler) {
@@ -260,6 +278,8 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                             if (limit < PAGER_OFFSCREEN_PAGES) {
                                 runCatching {
                                     XposedHelpers.callMethod(pager, "setOffscreenPageLimit", PAGER_OFFSCREEN_PAGES)
+                                    raisedPager = WeakReference(pager)
+                                    originalPageLimit = limit
                                 }.onFailure { logDebug(it) }
                             }
                         }

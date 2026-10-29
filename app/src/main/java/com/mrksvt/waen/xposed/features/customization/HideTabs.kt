@@ -3,8 +3,8 @@ package com.mrksvt.waen.xposed.features.customization
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
-import android.widget.FrameLayout
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.ViewHookDispatcher
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.utils.ReflectionUtils
@@ -54,24 +54,22 @@ class HideTabs(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         val loadTabFrameClass = Unobfuscator.loadTabFrameClass(classLoader)
         logDebug(loadTabFrameClass)
 
-        XposedBridge.hookAllMethods(FrameLayout::class.java, "onMeasure", object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                if (!loadTabFrameClass.isInstance(param.thisObject)) return
-                if (SeparateGroup.tabs.isNotEmpty()) {
-                    val arr = ArrayList(SeparateGroup.tabs)
-                    arr.removeAll(hideTabsList.toSet())
-                    if (arr.size == 1) {
-                        (param.thisObject as View).visibility = View.GONE
-                    }
-                }
-                for (item in hideTabsList) {
-                    val view = (param.thisObject as View).findViewById<View>(item)
-                    if (view != null) {
-                        view.visibility = View.GONE
-                    }
+        ViewHookDispatcher.onFrameLayoutMeasured { rootView ->
+            if (!loadTabFrameClass.isInstance(rootView)) return@onFrameLayoutMeasured
+            if (SeparateGroup.tabs.isNotEmpty()) {
+                val arr = ArrayList(SeparateGroup.tabs)
+                arr.removeAll(hideTabsList.toSet())
+                if (arr.size == 1) {
+                    rootView.visibility = View.GONE
                 }
             }
-        })
+            for (item in hideTabsList) {
+                val view = rootView.findViewById<View>(item)
+                if (view != null) {
+                    view.visibility = View.GONE
+                }
+            }
+        }
 
         XposedHelpers.findAndHookMethod(WppCore.homeActivityClass, "onCreate", Bundle::class.java, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {

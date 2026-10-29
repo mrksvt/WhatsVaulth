@@ -8,7 +8,9 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -45,6 +47,33 @@ import de.robv.android.xposed.XposedHelpers;
 
 public class IGStatusAdapter extends ArrayAdapter {
 
+    private static final long PHOTO_TTL_MS = 5 * 60 * 1000L;
+
+    private static final LruCache<String, CachedPhoto> photoCache = new LruCache<>(64);
+
+    private static class CachedPhoto {
+        final Drawable drawable;
+        final long loadedAt;
+
+        CachedPhoto(Drawable drawable, long loadedAt) {
+            this.drawable = drawable;
+            this.loadedAt = loadedAt;
+        }
+    }
+
+    private static Drawable cachedPhoto(String key, java.util.function.Supplier<Drawable> loader) {
+        if (key == null) return loader.get();
+        long now = SystemClock.elapsedRealtime();
+        CachedPhoto cached = photoCache.get(key);
+        if (cached != null && now - cached.loadedAt < PHOTO_TTL_MS) {
+            return cached.drawable;
+        }
+        Drawable loaded = loader.get();
+        if (loaded != null) {
+            photoCache.put(key, new CachedPhoto(loaded, now));
+        }
+        return loaded;
+    }
 
     private final Class<?> clazzImageStatus;
     private final Class<?> statusInfoClazz;
@@ -174,13 +203,16 @@ public class IGStatusAdapter extends ArrayAdapter {
             if (Objects.equals(item, "my_status")) {
                 myStatus = true;
                 igStatusContactName.setText(UnobfuscatorCache.getInstance().getString("mystatus"));
-                var profile = WppCore.getMyPhoto();
-                if (profile == null)
-                    profile = DesignUtils.createInitialsAvatar(
-                            WppCore.getMyName(),
-                            WppCore.getMyUserJid() != null ? WppCore.getMyUserJid().getPhoneRawString() : WppCore.getMyName(),
-                            Utils.dipToPixels(64)
-                    );
+                var profile = cachedPhoto("my_status", () -> {
+                    var photo = WppCore.getMyPhoto();
+                    if (photo == null)
+                        photo = DesignUtils.createInitialsAvatar(
+                                WppCore.getMyName(),
+                                WppCore.getMyUserJid() != null ? WppCore.getMyUserJid().getPhoneRawString() : WppCore.getMyName(),
+                                Utils.dipToPixels(64)
+                        );
+                    return photo;
+                });
                 igStatusContactPhoto.setImageDrawable(profile);
                 setCountStatus(0, 0);
                 return;
@@ -206,11 +238,15 @@ public class IGStatusAdapter extends ArrayAdapter {
                 String contactName = null;
                 if (waContact != null) {
                     contactName = waContact.getDisplayName();
-                    try (var stream = waContact.getProfilePhoto(false)) {
-                        if (stream != null) {
-                            profile = BitmapDrawable.createFromStream(stream, "profile");
+                    String photoKey = this.userJid.getPhoneRawString();
+                    profile = cachedPhoto(photoKey, () -> {
+                        try (var stream = waContact.getProfilePhoto(false)) {
+                            if (stream == null) return null;
+                            return BitmapDrawable.createFromStream(stream, "profile");
+                        } catch (Exception e) {
+                            return null;
                         }
-                    }
+                    });
                 }
 
                 if (contactName == null || contactName.isEmpty()) {

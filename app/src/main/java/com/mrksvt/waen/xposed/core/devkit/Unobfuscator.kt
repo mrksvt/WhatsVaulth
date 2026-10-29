@@ -24,11 +24,14 @@ import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
-import org.luckypray.dexkit.DexKitBridge
+import org.luckypray.dexkit.query.FindClass
+import org.luckypray.dexkit.query.FindMethod
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.base.OpCodesMatcher
 import org.luckypray.dexkit.result.ClassData
+import org.luckypray.dexkit.result.ClassDataList
 import org.luckypray.dexkit.result.MethodData
+import org.luckypray.dexkit.result.MethodDataList
 import org.luckypray.dexkit.util.DexSignUtil
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -45,7 +48,8 @@ import java.util.stream.Collectors
 
 object Unobfuscator {
 
-    private lateinit var bridge: DexKitBridge
+    private var dexKitManager: DexKitManager? = null
+    private val bridge = BridgeRouter()
 
     val cacheClasses = HashMap<String, Class<*>>()
 
@@ -56,11 +60,24 @@ object Unobfuscator {
     @JvmStatic
     fun initWithPath(path: String): Boolean {
         return try {
-            bridge = DexKitBridge.create(path)
+            dexKitManager?.close()
+            dexKitManager = DexKitManager(path)
             true
         } catch (_: Exception) {
             false
         }
+    }
+
+    @JvmStatic
+    @Throws(Exception::class)
+    fun <T> withDexKitBridge(callable: DexKitManager.BridgeCallable<T>): T {
+        val manager = dexKitManager ?: throw IllegalStateException("DexKit manager not initialized")
+        return manager.withBridge(callable)
+    }
+
+    @JvmStatic
+    fun releaseDexKitResources() {
+        dexKitManager?.releaseStartupBridge()
     }
 
     @Throws(Exception::class)
@@ -2896,9 +2913,8 @@ object Unobfuscator {
                 }
             }.firstOrNull() ?: throw Exception("ConversationsFragment A00 method not found")
 
-            val dimenId = methodData.usingNumbers.map { n ->
-                java.lang.Float.floatToIntBits(n.toFloat())
-            }.firstOrNull { idInt ->
+            val dimenId = methodData.usingNumbers.filter { it.bitWidth == 32 }.map { it.intValue() }
+                .firstOrNull { idInt ->
                 (idInt ushr 24) == 0x7F && ((idInt ushr 16) and 0xFF) == 0x07
             } ?: throw Exception("Filter dimen ID not found in ConversationsFragment")
             dimenId
@@ -3827,4 +3843,34 @@ object Unobfuscator {
         }
     }
 
+    private class BridgeRouter {
+
+        private fun <T> execute(callable: DexKitManager.BridgeCallable<T>): T {
+            return try {
+                withDexKitBridge(callable)
+            } catch (e: RuntimeException) {
+                throw e
+            } catch (e: Exception) {
+                throw RuntimeException(e)
+            }
+        }
+
+        fun findMethod(query: FindMethod.() -> Unit): MethodDataList =
+            execute { it.findMethod(query) }
+
+        fun findClass(query: FindClass.() -> Unit): ClassDataList =
+            execute { it.findClass(query) }
+
+        fun getClassData(clazz: Class<*>): ClassData? = execute { it.getClassData(clazz) }
+
+        fun getClassData(className: String): ClassData? = execute { it.getClassData(className) }
+
+        fun getMethodData(method: Method): MethodData? = execute { it.getMethodData(method) }
+
+        fun getMethodData(constructor: Constructor<*>): MethodData? =
+            execute { it.getMethodData(constructor) }
+
+        fun getMethodData(methodDescriptor: String): MethodData? =
+            execute { it.getMethodData(methodDescriptor) }
+    }
 }

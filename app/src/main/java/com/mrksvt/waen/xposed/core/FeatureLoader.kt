@@ -228,6 +228,8 @@ class FeatureLoader {
                                     .joinToString(prefix = "[", postfix = "]")
                             }
                             list.add(error)
+                        } finally {
+                            Unobfuscator.releaseDexKitResources()
                         }
                     }
                 })

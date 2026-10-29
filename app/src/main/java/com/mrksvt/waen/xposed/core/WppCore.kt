@@ -43,6 +43,8 @@ object WppCore {
     @JvmField
     internal var mCurrentActivity: Activity? = null
 
+    private val DEVICE_SUFFIX_REGEX = Regex("\\.[\\d:]+@")
+
     private var mGenJidMethod: Method? = null
     private var bottomDialog: Class<*>? = null
     private lateinit var privPrefs: SharedPreferences
@@ -166,7 +168,7 @@ object WppCore {
         try {
             var rawString = XposedHelpers.callMethod(lid, "getRawString") as? String
             if (rawString == null || !rawString.contains("@lid")) return lid
-            rawString = rawString.replaceFirst("\\.[\\d:]+@".toRegex(), "@")
+            rawString = rawString.replaceFirst(DEVICE_SUFFIX_REGEX, "@")
             val newUser = createUserJid(rawString)
             val result = ReflectionUtils.callMethod(convertLidToJid, mWaJidMapRepository, newUser)
             return result ?: lid
@@ -182,7 +184,7 @@ object WppCore {
         try {
             var rawString = XposedHelpers.callMethod(userJid, "getRawString") as? String
             if (rawString == null || rawString.contains("@lid")) return userJid
-            rawString = rawString.replaceFirst("\\.[\\d:]+@".toRegex(), "@")
+            rawString = rawString.replaceFirst(DEVICE_SUFFIX_REGEX, "@")
             val newUser = createUserJid(rawString)
             val result = ReflectionUtils.callMethod(convertJidToLid, mWaJidMapRepository, newUser)
             return result ?: userJid

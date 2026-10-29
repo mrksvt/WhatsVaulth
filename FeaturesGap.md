@@ -289,3 +289,27 @@ Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kec
 | 570d0e94 | YukiHookAPI 1.5.0 | N/A: fork tidak memakai YukiHookAPI |
 | 42f16320 | CI release variants + mapping upload | N/A |
 | 9b68b21f, 76572693, changelog/chore commits | versi/README/changelog | N/A |
+
+---
+
+## Port WaEnhancer 1.6.3 (82c7a50a..36c22aed)
+
+**Tanggal:** 2026-10-29
+**Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (36c22aed)
+**Range:** 12 commit, port ke API legacy `de.robv.android.xposed`
+
+| Upstream commit | Topik | Status di fork |
+|-----------------|-------|----------------|
+| 39907bc3 | DexKit 2.3.0 dependency | ported: aar lokal diganti `org.luckypray:dexkit:2.3.0`, `usingNumbers` memakai `UsingNumberData` |
+| c0cfdd3a | DexKitManager lazy open | ported: `devkit/DexKitManager.kt` baru, lease count + idle close 30 detik |
+| dcda601d | ViewHookDispatcher | adapted: dispatcher baru di API legacy, konsumen CustomThemeV2/CustomView/FloatingBottomBar/HideTabs/MediaPreview/Stickers dipindah |
+| b0a86814 | Others filter item | ported: hook `View.invalidate` diganti `onAttachedToWindow` + `onSetFlags` |
+| 549218e7 | ReflectionUtils best-match cache | N/A: fork `ReflectionUtils` tidak punya API name-based `callMethod`/`findMethodBestMatchByArgs` |
+| 6813a52d | JID device-suffix regex | ported: regex dikompilasi sekali di `WppCore` dan `FMessageWpp.UserJid` |
+| 5d1b37a8 | Wallpaper prefetch | adapted: `WallpaperView` di fork bahasa Java, ditulis ulang dengan load async + `prefetch()` statis |
+| 847bba6b | Bridge force-start | ported: `performConnection(forceStart)` hanya force-start saat percobaan pertama gagal |
+| a0e1c894 | Hot-path trims | adapted: cache warna `CustomThemeV2`, lazy drawable hook `CustomView`, id resource dihitung sekali, `Utils.getID` pakai `ConcurrentHashMap` |
+| e08a833f | IGStatus stutter + perf | adapted: cache foto `IGStatusAdapter.java`, antrean view `HorizontalListView.java`, guard layout `FloatingBottomBar`, reuse adapter + restore page limit `IGStatus` |
+| d2c71a5d | SeenTick batch update | adapted: batch DAO + `updateViewedMessagesBatch`, tanpa hop executor karena fork `allowMainThreadQueries()` |
+| 1a06ff0d | LockedChatsEnhancer | ported: satu set locked (phone/user/number), field HashSet kedua opsional, guard crash |
+| 36c22aed | Changelog upstream | adapted: changelog fork berbahasa Indonesia |

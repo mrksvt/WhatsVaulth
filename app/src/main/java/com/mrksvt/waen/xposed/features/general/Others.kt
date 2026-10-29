@@ -17,6 +17,7 @@ import androidx.core.view.isVisible
 import com.mrksvt.waen.R
 import com.mrksvt.waen.listeners.OnMultiClickListener
 import com.mrksvt.waen.xposed.core.Feature
+import com.mrksvt.waen.xposed.core.ViewHookDispatcher
 import com.mrksvt.waen.xposed.core.FeatureLoader
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
@@ -671,15 +672,20 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
                 it > 0
             }
         }
-        XposedHelpers.findAndHookMethod(View::class.java, "invalidate", Boolean::class.javaPrimitiveType, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val view = param.thisObject as View
-                val id = view.id
-                if (id > 0 && idsFilter.contains(id) && view.isVisible) {
-                    view.visibility = View.GONE
-                }
+        ViewHookDispatcher.onAttachedToWindow { view ->
+            val id = view.id
+            if (id > 0 && idsFilter.contains(id) && view.isVisible) {
+                view.visibility = View.GONE
             }
-        })
+        }
+
+        val visibilityMask = 0x0000000C
+        ViewHookDispatcher.onSetFlags { view, flags, mask ->
+            if ((mask and visibilityMask) == 0) return@onSetFlags flags
+            val id = view.id
+            if (id <= 0 || !idsFilter.contains(id)) return@onSetFlags flags
+            (flags and visibilityMask.inv()) or View.GONE
+        }
     }
 
     private fun showOnline(showOnline: Boolean) {

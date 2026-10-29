@@ -71,6 +71,7 @@ class MessageHistoryStore private constructor(context: Context) {
         private const val MESSAGE_CACHE_SIZE = 100
         private const val SEEN_MESSAGE_CACHE_SIZE = 200
         private const val SEEN_MESSAGES_LIST_CACHE_SIZE = 50
+        private const val BATCH_CHUNK_SIZE = 500
 
         private val EMPTY_SEEN_ITEM = MessageSeenItem("", "", false)
         private val EMPTY_MESSAGE_LIST = ArrayList<MessageItem>()
@@ -208,6 +209,40 @@ class MessageHistoryStore private constructor(context: Context) {
             invalidateSeenMessagesListCache(jid, type)
 
             hideSeenChangeListener?.onHideSeenChanged(jid, messageId, type, viewed)
+            return true
+        } catch (t: Throwable) {
+            XposedBridge.log(t)
+            return false
+        }
+    }
+
+    fun updateViewedMessagesBatch(
+        jid: String?,
+        messageIds: List<String>,
+        type: ReceiptType?,
+        viewed: Boolean
+    ): Boolean {
+        try {
+            if (jid == null || type == null || messageIds.isEmpty()) return false
+
+            val isViewedInt = if (viewed) 1 else 0
+            var updatedRows = 0
+            db.runInTransaction {
+                for (chunk in messageIds.chunked(BATCH_CHUNK_SIZE)) {
+                    updatedRows += if (type == ReceiptType.PLAYED) {
+                        hideSeenDao.updatePlayedBatch(jid, chunk, isViewedInt)
+                    } else {
+                        hideSeenDao.updateReadBatch(jid, chunk, isViewedInt)
+                    }
+                }
+            }
+            if (updatedRows <= 0) return false
+
+            for (messageId in messageIds) {
+                seenMessageCache.remove(createSeenMessageCacheKey(jid, messageId, type))
+                hideSeenChangeListener?.onHideSeenChanged(jid, messageId, type, viewed)
+            }
+            invalidateSeenMessagesListCache(jid, type)
             return true
         } catch (t: Throwable) {
             XposedBridge.log(t)
