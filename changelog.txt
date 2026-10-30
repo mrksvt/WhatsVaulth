@@ -8,9 +8,7 @@ WhatsVault 1.6.2-patch2 2.26.43.xx
 
 [NOTE]
 * versionCode dikembalikan ke 1 pada rilis ini. Pengguna yang sudah memasang WhatsVault (versionCode 162) harus uninstall dulu, lalu install ulang.
-* Sebelum uninstall: buka layar Home, tekan tombol Export untuk backup pengaturan (JSON).
-* Setelah install ulang: buka layar Home, tekan tombol Import, pilih file JSON tadi.
-* Mulai rilis berikutnya versionCode naik (2, 3, dst) dan update in-app bisa langsung menimpa tanpa uninstall.
+* Backup config (export) -> import setelah instalasi selesai.
 
 [IMPROVED]
 * Header layar What's New sekarang memakai latar gradient dan tipografi yang sama dengan header utama
