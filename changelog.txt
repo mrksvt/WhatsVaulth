@@ -1,10 +1,16 @@
-WhatsVault 1.6.2-patch-01 - port WaEnhancer 1.6.3
+WhatsVault 1.6.2-patch2 2.26.43.xx
 
 [ADDED]
 * Update in-app: tombol di layar What's New mengunduh APK rilis langsung dari GitHub, menampilkan progres, dan bisa dibatalkan
 * Update in-app: APK diverifikasi dulu (package name, versionCode, signature) sebelum installer sistem dibuka
 * Update in-app: bila izin install belum ada, app membuka Settings lalu melanjutkan install saat kembali
 * Update in-app: fallback ke browser bila release tidak menyediakan asset APK atau verifikasi gagal
+
+[NOTE]
+* versionCode dikembalikan ke 1 pada rilis ini. Pengguna yang sudah memasang WhatsVault (versionCode 162) harus uninstall dulu, lalu install ulang.
+* Sebelum uninstall: buka layar Home, tekan tombol Export untuk backup pengaturan (JSON).
+* Setelah install ulang: buka layar Home, tekan tombol Import, pilih file JSON tadi.
+* Mulai rilis berikutnya versionCode naik (2, 3, dst) dan update in-app bisa langsung menimpa tanpa uninstall.
 
 [IMPROVED]
 * Header layar What's New sekarang memakai latar gradient dan tipografi yang sama dengan header utama
