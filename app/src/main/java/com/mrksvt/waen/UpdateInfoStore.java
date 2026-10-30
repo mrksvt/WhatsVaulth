@@ -27,6 +27,7 @@ public final class UpdateInfoStore {
     private static final String KEY_UPDATE_AVAILABLE = "update_available";
     private static final String KEY_IGNORED_HASH = "ignored_hash";
     private static final String KEY_READ_TAGS = "read_tags";
+    private static final String KEY_CHANNEL = "channel";
 
     private UpdateInfoStore() {
     }
@@ -71,6 +72,67 @@ public final class UpdateInfoStore {
             // Corrupt cache: treat as empty and refetch next launch.
             return new ArrayList<>();
         }
+    }
+
+    /** Channel the update centre, badge and notifications follow. */
+    public static UpdateChannel getChannel(Context context) {
+        return UpdateChannel.fromKey(prefs(context).getString(KEY_CHANNEL, ""));
+    }
+
+    public static void setChannel(Context context, UpdateChannel channel) {
+        UpdateChannel next = channel == null ? UpdateChannel.defaultChannel() : channel;
+        prefs(context).edit()
+                .putString(KEY_CHANNEL, next.key())
+                .apply();
+    }
+
+    /** Stored releases belonging to {@code channel}, newest-first. */
+    public static List<ReleaseInfo> getReleasesForChannel(Context context,
+                                                          UpdateChannel channel) {
+        return resolve(channel).filter(getReleases(context));
+    }
+
+    /** {@link #getReleasesForChannel(Context, UpdateChannel)} on the stored channel. */
+    public static List<ReleaseInfo> getReleasesForChannel(Context context) {
+        return getReleasesForChannel(context, getChannel(context));
+    }
+
+    /** Newest release with a hash on {@code channel}, or null when nothing matches. */
+    public static ReleaseInfo getNewest(Context context, UpdateChannel channel) {
+        for (ReleaseInfo release : getReleasesForChannel(context, channel)) {
+            if (!release.hash.isEmpty()) return release;
+        }
+        return null;
+    }
+
+    /**
+     * True when the newest release on {@code channel} differs from the installed build
+     * and the user has not ignored it.
+     */
+    public static boolean hasUpdate(Context context, UpdateChannel channel) {
+        ReleaseInfo newest = getNewest(context, channel);
+        if (newest == null) return false;
+        String ignored = value(prefs(context).getString(KEY_IGNORED_HASH, ""));
+        return !newest.hash.equalsIgnoreCase(ignored);
+    }
+
+    /** Unread count on {@code channel}, for the header bell badge. */
+    public static int unreadCount(Context context, UpdateChannel channel) {
+        Set<String> read = getReadTags(context);
+        int count = 0;
+        for (ReleaseInfo release : getReleasesForChannel(context, channel)) {
+            if (!read.contains(release.tagName)) count++;
+        }
+        return count;
+    }
+
+    public static String unreadLabel(Context context, UpdateChannel channel) {
+        int count = unreadCount(context, channel);
+        return count > 9 ? "9+" : String.valueOf(count);
+    }
+
+    private static UpdateChannel resolve(UpdateChannel channel) {
+        return channel == null ? UpdateChannel.defaultChannel() : channel;
     }
 
     /** Newest release with a hash, or null when nothing was fetched yet. */
