@@ -16,6 +16,11 @@
             android:id="@+id/menu_tts"
             android:icon="@drawable/ic_tts"
             android:title="@string/tts" />
+
+        <item
+            android:id="@+id/menu_update"
+            android:icon="@drawable/ic_update"
+            android:title="@string/main_sidebar_update" />
     </group>
 
     <item

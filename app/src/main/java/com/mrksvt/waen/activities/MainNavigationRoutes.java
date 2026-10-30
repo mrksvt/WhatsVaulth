@@ -13,7 +13,8 @@ public final class MainNavigationRoutes {
     public static final int POSITION_CUSTOMIZATION = 4;
     public static final int POSITION_RECORDINGS = 5;
     public static final int POSITION_TTS = 6;
-    public static final int PAGE_COUNT = 7;
+    public static final int POSITION_UPDATE = 7;
+    public static final int PAGE_COUNT = 8;
     public static final int NO_PAGE = -1;
     public static final int NO_MENU_ID = 0;
 
@@ -26,9 +27,11 @@ public final class MainNavigationRoutes {
     private final int customizationId;
     private final int recordingsId;
     private final int ttsId;
+    private final int updateId;
 
     public MainNavigationRoutes(int generalId, int privacyId, int homeId, int mediaId,
-                                int moreId, int customizationId, int recordingsId, int ttsId) {
+                                int moreId, int customizationId, int recordingsId, int ttsId,
+                                int updateId) {
         this.generalId = generalId;
         this.privacyId = privacyId;
         this.homeId = homeId;
@@ -37,6 +40,7 @@ public final class MainNavigationRoutes {
         this.customizationId = customizationId;
         this.recordingsId = recordingsId;
         this.ttsId = ttsId;
+        this.updateId = updateId;
         pagesByMenuId = new HashMap<>();
         pagesByMenuId.put(generalId, POSITION_GENERAL);
         pagesByMenuId.put(privacyId, POSITION_PRIVACY);
@@ -45,6 +49,7 @@ public final class MainNavigationRoutes {
         pagesByMenuId.put(customizationId, POSITION_CUSTOMIZATION);
         pagesByMenuId.put(recordingsId, POSITION_RECORDINGS);
         pagesByMenuId.put(ttsId, POSITION_TTS);
+        pagesByMenuId.put(updateId, POSITION_UPDATE);
     }
 
     /** Lainnya toggles the sidebar, so it has no pager destination. */
@@ -59,7 +64,7 @@ public final class MainNavigationRoutes {
             case POSITION_PRIVACY -> privacyId;
             case POSITION_HOME -> homeId;
             case POSITION_MEDIA -> mediaId;
-            case POSITION_CUSTOMIZATION, POSITION_RECORDINGS, POSITION_TTS -> moreId;
+            case POSITION_CUSTOMIZATION, POSITION_RECORDINGS, POSITION_TTS, POSITION_UPDATE -> moreId;
             default -> NO_MENU_ID;
         };
     }
@@ -70,6 +75,7 @@ public final class MainNavigationRoutes {
             case POSITION_CUSTOMIZATION -> customizationId;
             case POSITION_RECORDINGS -> recordingsId;
             case POSITION_TTS -> ttsId;
+            case POSITION_UPDATE -> updateId;
             default -> NO_MENU_ID;
         };
     }

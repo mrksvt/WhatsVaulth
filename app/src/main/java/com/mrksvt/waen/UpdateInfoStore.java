@@ -39,6 +39,15 @@ public final class UpdateInfoStore {
 
     public static void saveReleases(Context context, List<ReleaseInfo> releases,
                                     boolean updateAvailable) {
+        saveReleases(context, releases, updateAvailable, getChannel(context));
+    }
+
+    /**
+     * Persists the release list and records [updateAvailable] for [channel] only, so a
+     * prerelease build never flips the flag for users following stable releases.
+     */
+    public static void saveReleases(Context context, List<ReleaseInfo> releases,
+                                    boolean updateAvailable, UpdateChannel channel) {
         JSONArray array = new JSONArray();
         for (ReleaseInfo release : releases) {
             JSONObject object = new JSONObject();
@@ -57,10 +66,12 @@ public final class UpdateInfoStore {
                 // Every key is a plain string/boolean, so this cannot happen.
             }
         }
-        prefs(context).edit()
-                .putString(KEY_RELEASES, array.toString())
-                .putBoolean(KEY_UPDATE_AVAILABLE, updateAvailable)
-                .apply();
+        SharedPreferences.Editor editor = prefs(context).edit()
+                .putString(KEY_RELEASES, array.toString());
+        if (updateAvailable || resolve(channel) == getChannel(context)) {
+            editor.putBoolean(KEY_UPDATE_AVAILABLE, updateAvailable);
+        }
+        editor.apply();
     }
 
     public static List<ReleaseInfo> getReleases(Context context) {

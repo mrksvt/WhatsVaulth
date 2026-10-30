@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Update Center strings (sidebar page 7).
+
+  MissingTranslation is ignored here on purpose: only values/ and values-id/ are
+  maintained by hand, every other locale arrives through Crowdin later. This keeps
+  the gate honest for the rest of the project instead of baselining new debt.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
+
+    <string name="main_sidebar_update">Update</string>
+    <string name="update_channel_title">Update channel</string>
+    <string name="update_channel_release">Release</string>
+    <string name="update_channel_release_sum">Stable and latest builds only. Beta builds are hidden.</string>
+    <string name="update_channel_prerelease">Prerelease</string>
+    <string name="update_channel_prerelease_sum">Includes beta builds on top of stable releases.</string>
+    <string name="update_in_app_notification">Push in-app notification</string>
+    <string name="update_in_app_notification_sum">Show a system notification when an update is available on the selected channel.</string>
+    <string name="update_notification_channel">Update notifications</string>
+    <string name="update_notification_channel_desc">Notifies when a new build is available on the update channel you follow</string>
+    <string name="update_notification_title">New update available</string>
+    <string name="update_notification_permission_denied">Notification permission is not granted. Allow notifications to receive update alerts.</string>
+    <string name="update_notification_open_settings">Open notification settings</string>
+    <string name="update_center_empty">No releases on this channel yet. Pull down to refresh.</string>
+    <string name="update_center_load_failed">Could not reach the update server</string>
+    <string name="update_center_release_installed">Installed</string>
+    <string name="update_center_release_available">Update available</string>
+    <string name="update_center_release_new">New</string>
+</resources>

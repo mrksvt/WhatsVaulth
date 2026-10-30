@@ -30,6 +30,7 @@ import com.mrksvt.waen.App;
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.ReleaseInfo;
 import com.mrksvt.waen.UpdateChecker;
+import com.mrksvt.waen.UpdateChannel;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
 import com.mrksvt.waen.adapter.MainPagerAdapter;
@@ -38,6 +39,7 @@ import com.mrksvt.waen.databinding.ActivityMainBinding;
 import com.mrksvt.waen.ui.fragments.GeneralFragment;
 import com.mrksvt.waen.ui.fragments.HomeFragment;
 import com.mrksvt.waen.ui.fragments.base.BasePreferenceFragment;
+import com.mrksvt.waen.update.UpdateNotifier;
 import com.mrksvt.waen.utils.FilePicker;
 
 import java.io.File;
@@ -84,7 +86,7 @@ public class MainActivity extends BaseActivity {
         navigationRoutes = new MainNavigationRoutes(
                 R.id.navigation_chat, R.id.navigation_privacy, R.id.navigation_home,
                 R.id.navigation_media, R.id.navigation_more, R.id.navigation_colors,
-                R.id.navigation_recordings, R.id.menu_tts);
+                R.id.navigation_recordings, R.id.menu_tts, R.id.menu_update);
         // Extra pages are opened explicitly; swiping must not cross sidebar/TTS routes.
         binding.viewPager.setUserInputEnabled(false);
         sidebarBackCallback = new OnBackPressedCallback(false) {
@@ -392,7 +394,7 @@ public class MainActivity extends BaseActivity {
      * ponytail: no pagination - the list is capped by the API page (20 releases).
      */
     private void showReleaseMenu(View anchor) {
-        List<ReleaseInfo> releases = UpdateInfoStore.getReleases(this);
+        List<ReleaseInfo> releases = UpdateInfoStore.getReleasesForChannel(this);
         if (releases.isEmpty()) {
             openChangelog();
             return;
@@ -459,17 +461,34 @@ public class MainActivity extends BaseActivity {
     private void startUpdateCheck() {
         CompletableFuture.runAsync(new UpdateChecker(
                 this, hasUpdate -> {
-                    runOnUiThread(this::refreshNotificationBadge);
+                    runOnUiThread(() -> {
+                        refreshNotificationBadge();
+                        notifyUpdateIfNeeded();
+                    });
                 }));
+    }
+
+    /**
+     * Posts the update system notification when the toggle is on, the permission is
+     * granted and the active channel found a build the user does not run.
+     */
+    private void notifyUpdateIfNeeded() {
+        UpdateChannel channel = UpdateInfoStore.getChannel(this);
+        ReleaseInfo newest = UpdateInfoStore.getNewest(this, channel);
+        if (newest == null) return;
+        boolean enabled = UpdateNotifier.getInAppNotificationEnabled(this);
+        UpdateNotifier.notifyIfNeeded(this, newest,
+                UpdateInfoStore.hasUpdate(this, channel), enabled);
     }
 
     private void refreshNotificationBadge() {
         if (notificationActionView == null) return;
         TextView badge = notificationActionView.findViewById(R.id.notification_badge);
         if (badge == null) return;
-        int count = UpdateInfoStore.unreadCount(this);
+        UpdateChannel channel = UpdateInfoStore.getChannel(this);
+        int count = UpdateInfoStore.unreadCount(this, channel);
         if (count > 0) {
-            badge.setText(UpdateInfoStore.unreadLabel(this));
+            badge.setText(UpdateInfoStore.unreadLabel(this, channel));
             badge.setContentDescription(getString(
                     R.string.notification_unread_content_description, count));
             badge.setVisibility(View.VISIBLE);

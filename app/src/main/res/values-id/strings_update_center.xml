@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Indonesian copy of values/strings_update_center.xml. Keep both in sync. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
+
+    <string name="main_sidebar_update">Pembaruan</string>
+    <string name="update_channel_title">Channel pembaruan</string>
+    <string name="update_channel_release">Rilis</string>
+    <string name="update_channel_release_sum">Hanya build stabil dan terbaru. Build beta disembunyikan.</string>
+    <string name="update_channel_prerelease">Pra-rilis</string>
+    <string name="update_channel_prerelease_sum">Menyertakan build beta di samping rilis stabil.</string>
+    <string name="update_in_app_notification">Notifikasi push dalam aplikasi</string>
+    <string name="update_in_app_notification_sum">Tampilkan notifikasi sistem saat ada pembaruan pada channel yang dipilih.</string>
+    <string name="update_notification_channel">Notifikasi pembaruan</string>
+    <string name="update_notification_channel_desc">Memberi tahu saat ada build baru pada channel pembaruan yang Anda ikuti</string>
+    <string name="update_notification_title">Pembaruan baru tersedia</string>
+    <string name="update_notification_permission_denied">Izin notifikasi belum diberikan. Izinkan notifikasi agar peringatan pembaruan bisa muncul.</string>
+    <string name="update_notification_open_settings">Buka pengaturan notifikasi</string>
+    <string name="update_center_empty">Belum ada rilis pada channel ini. Tarik ke bawah untuk menyegarkan.</string>
+    <string name="update_center_load_failed">Tidak dapat menghubungi server pembaruan</string>
+    <string name="update_center_release_installed">Terpasang</string>
+    <string name="update_center_release_available">Pembaruan tersedia</string>
+    <string name="update_center_release_new">Baru</string>
+</resources>

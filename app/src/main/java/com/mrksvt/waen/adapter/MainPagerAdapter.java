@@ -13,6 +13,7 @@ import com.mrksvt.waen.ui.fragments.MediaFragment;
 import com.mrksvt.waen.ui.fragments.PrivacyFragment;
 import com.mrksvt.waen.ui.fragments.RecordingsFragment;
 import com.mrksvt.waen.ui.fragments.TtsFragment;
+import com.mrksvt.waen.ui.fragments.UpdateCenterFragment;
 
 public class MainPagerAdapter extends FragmentStateAdapter {
 
@@ -23,6 +24,7 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     public static final int POSITION_CUSTOMIZATION = MainNavigationRoutes.POSITION_CUSTOMIZATION;
     public static final int POSITION_RECORDINGS = MainNavigationRoutes.POSITION_RECORDINGS;
     public static final int POSITION_TTS = MainNavigationRoutes.POSITION_TTS;
+    public static final int POSITION_UPDATE = MainNavigationRoutes.POSITION_UPDATE;
 
     public MainPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
         super(fragmentActivity);
@@ -38,6 +40,7 @@ public class MainPagerAdapter extends FragmentStateAdapter {
             case POSITION_CUSTOMIZATION -> new CustomizationFragment();
             case POSITION_RECORDINGS -> new RecordingsFragment();
             case POSITION_TTS -> new TtsFragment();
+            case POSITION_UPDATE -> new UpdateCenterFragment();
             default -> new HomeFragment();
         };
     }

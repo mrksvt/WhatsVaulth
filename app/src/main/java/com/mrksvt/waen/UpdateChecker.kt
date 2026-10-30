@@ -39,6 +39,26 @@ private const val PLAIN_MARKER = "WhatsVault"
 private const val BUSINESS_MARKER = "-Business"
 
 /**
+ * Releases that belong to [channel], order preserved (the cache is newest-first).
+ *
+ * Pure so the channel rules stay unit testable on the JVM.
+ */
+fun selectChannelReleases(releases: List<ReleaseInfo>, channel: UpdateChannel): List<ReleaseInfo> =
+    channel.filter(releases)
+
+/**
+ * True when [candidate] is a build the user does not run yet.
+ *
+ * The git hash is the only build identity available at runtime, so this keeps the
+ * original rule: the installed versionName carries the hash of the build it was
+ * cut from (see `applicationVariants` in build.gradle.kts).
+ */
+fun isUpdateForChannel(installedVersionName: String, candidate: ReleaseInfo): Boolean {
+    if (candidate.hash.isEmpty()) return false
+    return !installedVersionName.lowercase().contains(candidate.hash.lowercase())
+}
+
+/**
  * Fetches the GitHub release list, persists it through [UpdateInfoStore], and
  * reports whether a newer build is available. Runs off the main thread.
  */
@@ -102,13 +122,13 @@ class UpdateChecker(
                 return
             }
 
-            val newest = releases.firstOrNull { it.hash.isNotEmpty() }
-            if (newest == null) {
-                UpdateInfoStore.saveReleases(context, releases, false)
-                return
-            }
-            updateAvailable = !versionName.lowercase().contains(newest.hash.lowercase())
-            UpdateInfoStore.saveReleases(context, releases, updateAvailable)
+            // Only the active channel decides whether this build is outdated, so a
+            // prerelease never nags users who follow stable releases (REQ-03).
+            val channel = UpdateInfoStore.getChannel(context)
+            val candidate = selectChannelReleases(releases, channel)
+                .firstOrNull { it.hash.isNotEmpty() }
+            updateAvailable = candidate != null && isUpdateForChannel(versionName, candidate)
+            UpdateInfoStore.saveReleases(context, releases, updateAvailable, channel)
         } catch (e: Exception) {
             XposedBridge.log(e)
         } finally {

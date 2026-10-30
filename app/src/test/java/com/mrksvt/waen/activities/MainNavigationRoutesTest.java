@@ -8,7 +8,7 @@ import static org.junit.Assert.assertNotEquals;
 public class MainNavigationRoutesTest {
 
     private final MainNavigationRoutes routes = new MainNavigationRoutes(
-            901, 104, 707, 202, 503, 306, 805, 408);
+            901, 104, 707, 202, 503, 306, 805, 408, 909);
 
     @Test
     public void menuIdsSelectStableSearchPositions() {
@@ -19,7 +19,8 @@ public class MainNavigationRoutesTest {
         assertEquals(4, routes.pageForMenuId(306));
         assertEquals(5, routes.pageForMenuId(805));
         assertEquals(6, routes.pageForMenuId(408));
-        assertEquals(7, MainNavigationRoutes.PAGE_COUNT);
+        assertEquals(7, routes.pageForMenuId(909));
+        assertEquals(8, MainNavigationRoutes.PAGE_COUNT);
     }
 
     @Test
@@ -36,6 +37,7 @@ public class MainNavigationRoutesTest {
         assertEquals(503, routes.bottomMenuIdForPage(4));
         assertEquals(503, routes.bottomMenuIdForPage(5));
         assertEquals(503, routes.bottomMenuIdForPage(6));
+        assertEquals(503, routes.bottomMenuIdForPage(7));
     }
 
     @Test
@@ -56,6 +58,7 @@ public class MainNavigationRoutesTest {
         assertEquals(306, routes.sidebarMenuIdForPage(4));
         assertEquals(805, routes.sidebarMenuIdForPage(5));
         assertEquals(408, routes.sidebarMenuIdForPage(6));
+        assertEquals(909, routes.sidebarMenuIdForPage(7));
     }
 
     @Test
@@ -63,7 +66,7 @@ public class MainNavigationRoutesTest {
         for (int page : new int[]{0, 1, 2, 3}) {
             assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(page));
         }
-        assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(7));
+        assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.sidebarMenuIdForPage(8));
     }
 
     @Test
@@ -71,7 +74,7 @@ public class MainNavigationRoutesTest {
         for (int id : new int[]{0, -1, 5, Integer.MAX_VALUE}) {
             assertEquals(MainNavigationRoutes.NO_PAGE, routes.pageForMenuId(id));
         }
-        for (int page : new int[]{-1, 7, Integer.MAX_VALUE}) {
+        for (int page : new int[]{-1, 8, Integer.MAX_VALUE}) {
             assertEquals(MainNavigationRoutes.NO_MENU_ID, routes.bottomMenuIdForPage(page));
         }
     }
@@ -79,10 +82,11 @@ public class MainNavigationRoutesTest {
     @Test
     public void routesDoNotDependOnIdOrderingOrOtherMenuSelections() {
         MainNavigationRoutes reordered = new MainNavigationRoutes(
-                408, 805, 306, 503, 202, 707, 104, 901);
+                408, 805, 306, 503, 202, 707, 104, 901, 909);
         assertEquals(5, reordered.pageForMenuId(104));
         assertEquals(4, reordered.pageForMenuId(707));
         assertEquals(6, reordered.pageForMenuId(901));
+        assertEquals(7, reordered.pageForMenuId(909));
         assertEquals(202, reordered.bottomMenuIdForPage(5));
         assertEquals(5, routes.pageForMenuId(805));
         assertEquals(503, routes.bottomMenuIdForPage(5));
