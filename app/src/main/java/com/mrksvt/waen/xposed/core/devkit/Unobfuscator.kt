@@ -2825,6 +2825,88 @@ object Unobfuscator {
         }
     }
 
+    /**
+     * Resolves a HomeActivity options-menu method ("onCreateOptionsMenu" / "onPrepareOptionsMenu")
+     * by signature instead of by name. WhatsApp 2.26.43+ (R8 full mode) renamed and moved these
+     * methods to a superclass (HomeActivityKt), so name-based reflection
+     * (findAndHookMethod(..., "onCreateOptionsMenu", ...)) fails with NoSuchMethodError.
+     *
+     * Walks the actual superclass chain of [homeActivityClass], so the returned method is always
+     * hookable via XposedBridge.hookMethod (works for static bridge methods too).
+     *
+     * @return the resolved method, or `null` if it does not exist in this WhatsApp build.
+     */
+    @JvmStatic
+    fun findHomeMenuMethod(classLoader: ClassLoader, menuArgPosition: Int = 0): Method? {
+        return try {
+            val menuClass = Menu::class.java
+            var current: Class<*>? = WppCore.homeActivityClass
+
+            while (current != null && current != Any::class.java) {
+                val match = current.declaredMethods.firstOrNull { method ->
+                    method.parameterTypes.size == 1 &&
+                        method.parameterTypes[menuArgPosition] == menuClass
+                }
+                if (match != null) return match
+                current = current.superclass
+            }
+            null
+        } catch (e: Throwable) {
+            XposedBridge.log("[Unobfuscator] findHomeMenuMethod failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Same as [findHomeMenuMethod] but DexKit-based: matches the method using the
+     * `menuitem_search`/`menuitem_conversations` menu ids plus signature. More precise, but it
+     * depends on DexKit being available, therefore [findHomeMenuMethod] is the primary strategy.
+     */
+    @JvmStatic
+    fun loadHomeMenuMethod(classLoader: ClassLoader): Method? {
+        val searchId = Utils.getID("menuitem_search", "id")
+        val conversationsId = Utils.getID("menuitem_conversations", "id")
+
+        return try {
+            UnobfuscatorCache.getInstance().getMethod(classLoader) {
+                val candidates = mutableListOf<ClassData>()
+                var current = bridge.getClassData(WppCore.homeActivityClass)
+                while (current != null && candidates.size < 4) {
+                    candidates.add(current)
+                    current = current.superClass
+                }
+
+                for (classData in candidates) {
+                    val methodData = classData.findMethod {
+                        matcher {
+                            paramCount(1)
+                            addParamType(Menu::class.java)
+                            if (searchId != 0) addUsingNumber(searchId)
+                            if (conversationsId != 0) addUsingNumber(conversationsId)
+                        }
+                    }
+                    if (methodData.isNotEmpty()) return@getMethod methodData[0].getMethodInstance(classLoader)
+                }
+
+                // Fallback: strict matching (2.26.43+ may drop the menu-id literals)
+                for (classData in candidates) {
+                    val methodData = classData.findMethod {
+                        matcher {
+                            paramCount(1)
+                            addParamType(Menu::class.java)
+                        }
+                    }
+                    if (methodData.isNotEmpty()) return@getMethod methodData[0].getMethodInstance(classLoader)
+                }
+                throw NoSuchMethodError("HomeActivity options-menu method not found")
+            }
+        } catch (e: Throwable) {
+            XposedBridge.log("[Unobfuscator] loadHomeMenuMethod failed: ${e.message}")
+            // Last resort: plain reflection over the superclass chain
+            findHomeMenuMethod(classLoader)
+        }
+    }
+
     @Throws(Exception::class)
     @JvmStatic
     fun loadAddMenuAndroidX(classLoader: ClassLoader): Method {

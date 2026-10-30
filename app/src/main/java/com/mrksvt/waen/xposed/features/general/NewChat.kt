@@ -12,31 +12,37 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
-import com.mrksvt.waen.xposed.core.WppCore.homeActivityClass
 import com.mrksvt.waen.xposed.core.components.AlertDialogWpp
+import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.utils.DesignUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
-import de.robv.android.xposed.XposedHelpers
+import de.robv.android.xposed.XposedBridge
 import androidx.core.net.toUri
 
 class NewChat(loader: ClassLoader, preferences:SharedPreferences) : Feature(loader, preferences) {
 
     override fun doHook() {
-        val homeActivity = homeActivityClass
         val action = prefs.getBoolean("buttonaction", true)
 
         if (!prefs.getBoolean("newchat", true)) return
 
-        XposedHelpers.findAndHookMethod(
-            homeActivity,
-            "onCreateOptionsMenu",
-            Menu::class.java,
+        // WhatsApp 2.26.43+ (R8 full mode) renames/moves onCreateOptionsMenu to a superclass
+        // (HomeActivityKt), so discover the method by signature instead of by name.
+        val onCreateOptionsMenu = Unobfuscator.findHomeMenuMethod(classLoader)
+            ?: run {
+                log("NewChat: HomeActivity options-menu method not found, skipping hook")
+                return
+            }
+
+        XposedBridge.hookMethod(
+            onCreateOptionsMenu,
             object : XC_MethodHook() {
                 @Throws(Throwable::class)
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    val activity = param.thisObject as Activity
+                    if (param.args.isEmpty() || param.args[0] !is Menu) return
+                    val activity = param.thisObject as? Activity ?: return
                     val menu = param.args[0] as Menu
                     val item = menu.add(0, 0, 0, R.string.new_chat)
                     val drawable = DesignUtils.getDrawableByName("vec_ic_chat_add")

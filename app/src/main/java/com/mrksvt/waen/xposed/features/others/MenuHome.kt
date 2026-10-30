@@ -9,14 +9,14 @@ import com.mrksvt.waen.BuildConfig
 import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore.getPrivBoolean
-import com.mrksvt.waen.xposed.core.WppCore.homeActivityClass
 import com.mrksvt.waen.xposed.core.WppCore.setPrivBoolean
 import com.mrksvt.waen.xposed.core.components.AlertDialogWpp
+import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.utils.DesignUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import android.content.SharedPreferences 
-import de.robv.android.xposed.XposedHelpers
+import de.robv.android.xposed.XposedBridge
 
 class MenuHome(classLoader: ClassLoader, preferences:SharedPreferences) :
     Feature(classLoader, preferences) {
@@ -223,15 +223,22 @@ class MenuHome(classLoader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private fun hookMenu() {
-        XposedHelpers.findAndHookMethod(
-            homeActivityClass,
-            "onCreateOptionsMenu",
-            Menu::class.java,
+        // WhatsApp 2.26.43+ (R8 full mode) renames/moves onCreateOptionsMenu to a superclass
+        // (HomeActivityKt), so resolve the method by signature instead of by name.
+        val onCreateOptionsMenu = Unobfuscator.findHomeMenuMethod(classLoader)
+        if (onCreateOptionsMenu == null) {
+            log("MenuHome: HomeActivity options-menu method not found, skipping hook")
+            return
+        }
+
+        XposedBridge.hookMethod(
+            onCreateOptionsMenu,
             object : XC_MethodHook() {
                 @Throws(Throwable::class)
                 override fun afterHookedMethod(param: MethodHookParam) {
+                    if (param.args.isEmpty() || param.args[0] !is Menu) return
                     val menu = param.args[0] as Menu
-                    val activity = param.thisObject as Activity
+                    val activity = param.thisObject as? Activity ?: return
                     for (menuItem in menuItems) {
                         menuItem.addMenu(menu, activity)
                     }

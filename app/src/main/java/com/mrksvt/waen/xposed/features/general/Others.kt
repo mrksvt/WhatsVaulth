@@ -98,13 +98,10 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
         propsBoolean[16250] = false
 
         if (newSettings == 2) {
-            XposedBridge.hookAllMethods(WppCore.homeActivityClass, "onCreateOptionsMenu", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val menu = param.args[0] as Menu
-                    val menuItem = menu.findItem(Utils.getID("me_tab_menu_item", "id"))
-                    menuItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-                }
-            })
+            hookHomeOptionsMenu("onCreateOptionsMenu") { menu, _ ->
+                val menuItem = menu.findItem(Utils.getID("me_tab_menu_item", "id"))
+                menuItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+            }
         }
         propsBoolean[14862] = newSettings !=0 // WHATS_HAPPENING_SENDING_ENABLED_CODE
         propsInteger[18564] = newSettings // ME_TAB_V2_VARIANTS_CODE
@@ -802,11 +799,30 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
             }
         })
         
-        XposedHelpers.findAndHookMethod(WppCore.homeActivityClass, "onPrepareOptionsMenu", Menu::class.java, object : XC_MethodHook() {
+        hookHomeOptionsMenu("onPrepareOptionsMenu") { menu, _ ->
+            val item = menu.findItem(Utils.getID("menuitem_search", "id"))
+            item?.isVisible = filterChats == "1"
+        }
+    }
+
+    /**
+     * Hooks a HomeActivity options-menu callback without relying on its (now obfuscated) name.
+     * WhatsApp 2.26.43+ moved the menu callbacks into a superclass and renamed them, so the
+     * method is resolved by signature via [Unobfuscator.findHomeMenuMethod].
+     */
+    private fun hookHomeOptionsMenu(
+        label: String,
+        block: (menu: Menu, activity: android.app.Activity?) -> Unit
+    ) {
+        val method = Unobfuscator.findHomeMenuMethod(classLoader)
+        if (method == null) {
+            log("Others: HomeActivity.$label not found, skipping hook")
+            return
+        }
+        XposedBridge.hookMethod(method, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
-                val menu = param.args[0] as Menu
-                val item = menu.findItem(Utils.getID("menuitem_search", "id"))
-                item?.isVisible = filterChats == "1"
+                val menu = param.args.getOrNull(0) as? Menu ?: return
+                block(menu, param.thisObject as? android.app.Activity)
             }
         })
     }
