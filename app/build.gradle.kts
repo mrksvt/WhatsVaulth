@@ -173,7 +173,7 @@ android {
         resValue("string", "app_name", appName)
 
         val buildSuffix = getBuildTypeSuffix(buildType.name)
-        val baseVersion = "1.6.2$versionSuffix$buildSuffix ($gitHash)_mrksvt"
+        val baseVersion = "1.6.2$versionSuffix-beta$buildSuffix ($gitHash)_mrksvt"
 
         outputs.all {
             val apkName = if (isBusiness) "WhatsVault-Business" else "WhatsVault"
