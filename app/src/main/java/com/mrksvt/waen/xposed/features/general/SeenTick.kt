@@ -70,6 +70,8 @@ class SeenTick(
         private var sendJobParamTypes: Array<Class<*>>? = null
         private var sendJobJidIndexes: List<Pair<Int, Class<*>>>? = null
         private var sendJobMessageIdIndex: Int = -1
+        private var sendJobDeviceJidIndex: Int = -1
+        private var sendJobRecipientIndex: Int = -1
 
         private var sendPlayedClass: Class<*>? = null
         private var sendPlayedConstructor: Constructor<*>? = null
@@ -152,16 +154,47 @@ class SeenTick(
                     val paramTypes = constr.parameterTypes
                     sendJobParamTypes = paramTypes
 
-                    @Suppress("UNCHECKED_CAST")
-                    sendJobJidIndexes = ReflectionUtils.findClassesOfType(
-                        paramTypes as Array<Class<*>>,
-                        FMessageWpp.UserJid.TYPE_JID
-                    ) as List<Pair<Int, Class<*>>>
+                    // Slot JID di constructor (urutan WA 2.26.4x):
+                    //   (0) chat jid, (1) participant, (2) recipient, (3) DeviceJid,
+                    //   (4) peripheralDeviceOrigin, (5) receiptClass, (6) String[] messageIds, ...
+                    // DeviceJid TURUN dari Jid, jadi harus dikeluarkan dulu supaya indeks
+                    // participant/recipient tidak bergeser.
+                    val deviceJidType = try {
+                        Unobfuscator.findFirstClassUsingName(
+                            classLoader,
+                            StringMatchType.EndsWith,
+                            "jid.DeviceJid"
+                        )
+                    } catch (_: Throwable) {
+                        null
+                    }
+                    sendJobDeviceJidIndex = paramTypes.indexOfFirst { t ->
+                        deviceJidType != null && deviceJidType.isAssignableFrom(t)
+                    }
+                    sendJobJidIndexes = paramTypes.indices
+                        .filter { i ->
+                            FMessageWpp.UserJid.TYPE_JID.isAssignableFrom(paramTypes[i]) &&
+                                deviceJidType?.isAssignableFrom(paramTypes[i]) != true
+                        }
+                        .map { i -> Pair(i, paramTypes[i]) }
 
-                    @Suppress("UNCHECKED_CAST")
+                    // Slot ke-3 (indeks 2) = recipient. WA mengisi ini null di semua call site
+                    // miliknya, jadi hanya dipakai untuk diagnostik/verifikasi layout.
+                    sendJobRecipientIndex =
+                        sendJobJidIndexes?.getOrNull(2)?.first ?: -1
+
                     sendJobMessageIdIndex = ReflectionUtils.findIndexOfType(
                         paramTypes as Array<Any?>,
                         Array<String>::class.java
+                    )
+
+                    logDebug(
+                        "SendReadReceiptJob layout: params=" +
+                            (paramTypes.indices).joinToString(",") { i -> paramTypes[i].name } +
+                            " jidIdx=" + sendJobJidIndexes?.map { it.first } +
+                            " recipientIdx=" + sendJobRecipientIndex +
+                            " devIdx=" + sendJobDeviceJidIndex +
+                            " msgIdIdx=" + sendJobMessageIdIndex
                     )
                 }
             }
@@ -505,11 +538,11 @@ class SeenTick(
                 messageJobMethod = onRunMethod
             }
         }
-        val messageSendClass = Unobfuscator.findFirstClassUsingName(
-            classLoader,
-            StringMatchType.Contains,
-            "SendE2EMessageJob"
-        )
+        // messageSendClass harus kelas yang benar-benar mendeklarasikan method hook.
+        // "Contains" bisa nyangkut ke nested class (mis. SendE2EMessageJob$ServerErrorRetryException),
+        // sehingga cast di beforeHookedMethod selalu gagal dan sendBlueTick tidak pernah jalan.
+        val messageSendClass = messageJobMethod.declaringClass
+        logDebug("BlueOnReply: declaringClass=${messageSendClass.name}")
         val blueOnReplayEnabled = prefs.getBoolean("blueonreply", false)
 
         logDebug("BlueOnReply hook registered (enabled=$blueOnReplayEnabled) method=${Unobfuscator.getMethodDescriptor(messageJobMethod)} class=${messageSendClass?.name}")
@@ -670,20 +703,39 @@ class SeenTick(
                 logDebug("BlueOnReply: chat jid null, skip ${messages.size} pesan")
                 return
             }
+            // (0) chat jid
             args[jidIndexes[0].first] = chatJidValue
 
+            // (1) participant: pengirim asli di grup, null untuk chat 1:1
             val participantValue = participant?.let { it.userJid ?: it.phoneJid }
             args[jidIndexes[1].first] = participantValue
 
+            // (2) recipient: WA sendiri mengisi null di semua call site-nya, jadi dibiarkan
+            // null. Yang wajib benar adalah slot 0 (chat) dan slot 1 (participant).
+
+            // (3) DeviceJid opsional; biarkan null supaya WA resolve sendiri.
             args[sendJobMessageIdIndex] = Array(messages.size) { i -> messages[i].key.messageID }
 
             val sendJob = constr.newInstance(*args)
             XposedHelpers.setAdditionalInstanceField(sendJob, "blue_on_reply", true)
             logDebug(
                 "Submitting SendReadReceiptJob for ${messages.size} msgs " +
-                    "chat=${chatJid.phoneRawString} participant=${participant?.userRawString ?: participant?.phoneRawString}"
+                    "chat=${chatJid.phoneRawString} " +
+                    "participant=${participant?.userRawString ?: participant?.phoneRawString} " +
+                    "jidIdx=${jidIndexes.map { it.first }} recipientIdx=$sendJobRecipientIndex " +
+                    "devIdx=$sendJobDeviceJidIndex idIdx=$sendJobMessageIdIndex"
             )
-            waJobManagerMethod?.invoke(mWaJobManager, sendJob)
+            val jobManagerMethod = waJobManagerMethod
+            val jobManager = mWaJobManager
+            if (jobManagerMethod == null || jobManager == null) {
+                logDebug(
+                    "BlueOnReply: WaJobManager belum siap " +
+                        "(method=${jobManagerMethod != null} instance=${jobManager != null}), receipt tidak terkirim"
+                )
+                return
+            }
+            jobManagerMethod.invoke(jobManager, sendJob)
+            logDebug("BlueOnReply: job terkirim ke WaJobManager")
         } catch (ex: Exception) {
             logDebug(ex)
         }
