@@ -601,34 +601,91 @@ class SeenTick(
 
         if (jidIndexes.size < 2 || sendJobMessageIdIndex == -1) return
 
-        @Suppress("UNCHECKED_CAST")
-        val args = ReflectionUtils.initArray(paramTypes)
-        args[jidIndexes[0].first] = userJid.userJid
-
-        val groupedMap = HashMap<FMessageWpp.UserJid, MutableList<FMessageWpp>>(4)
         val isGroup = userJid.isGroup
 
+        // SendReadReceiptJob(<jid chat>, <participant|null>, String[] messageIds).
+        // Pesan di-batch per JID chat: satu job untuk semua pesan di chat yang sama,
+        // dan setiap pesan tetap membawa messageId-nya sendiri di dalam array.
+        val groupedMap = LinkedHashMap<FMessageWpp.UserJid, MutableList<FMessageWpp>>(4)
+        val ungrouped = ArrayList<FMessageWpp>()
+
         for (message in messages) {
-            val userJidMsg = (if (isGroup) message.userJid else message.key.remoteJid)
-            groupedMap.computeIfAbsent(userJidMsg) { ArrayList(if (isGroup) 4 else messages.size) }
-                .add(message)
+            if (!isGroup) {
+                ungrouped.add(message)
+                continue
+            }
+            // Group: reply harus menyebut pengirim aslinya sebagai participant.
+            // message.userJid = pengirim, message.key.remoteJid = grup.
+            val sender = message.userJid
+            if (sender.isNull || sender.phoneRawString == null) {
+                // Pengirim tidak bisa di-resolve (mis. row DB tanpa info sender) —
+                // jangan buang pesannya, kirim lewat jalur tanpa participant.
+                ungrouped.add(message)
+                continue
+            }
+            groupedMap.computeIfAbsent(sender) { ArrayList(4) }.add(message)
         }
 
-        for ((userJidMsg, groupMessages) in groupedMap) {
-            try {
-                val groupSize = groupMessages.size
-                val messageIds = Array(groupSize) { i -> groupMessages[i].key.messageID }
-
-                args[jidIndexes[1].first] = if (isGroup) userJidMsg.userJid else null
-                args[sendJobMessageIdIndex] = messageIds
-
-                val sendJob = constr.newInstance(*args)
-                XposedHelpers.setAdditionalInstanceField(sendJob, "blue_on_reply", true)
-                logDebug("Submitting SendReadReceiptJob for ${groupSize} msgs to $userJidMsg")
-                waJobManagerMethod?.invoke(mWaJobManager, sendJob)
-            } catch (ex: Exception) {
-                logDebug(ex)
+        if (isGroup) {
+            if (ungrouped.isNotEmpty()) {
+                logDebug("BlueOnReply: ${ungrouped.size} pesan grup tanpa sender, dikirim tanpa participant")
             }
+            // Participant wajib untuk chat grup. Tanpa participant, WA menolak/mengabaikan
+            // receipt sehingga centang tetap 1.
+            for ((sender, senderMessages) in groupedMap) {
+                submitReadReceiptJob(constr, paramTypes, jidIndexes, userJid, sender, senderMessages)
+            }
+            if (groupedMap.isNotEmpty()) return
+        }
+
+        // Non-grup (dan fallback grup tanpa participant): satu job untuk seluruh chat.
+        submitReadReceiptJob(
+            constr,
+            paramTypes,
+            jidIndexes,
+            userJid,
+            null,
+            if (ungrouped.isNotEmpty()) ungrouped else messages
+        )
+    }
+
+    private fun submitReadReceiptJob(
+        constr: Constructor<*>,
+        paramTypes: Array<Class<*>>,
+        jidIndexes: List<Pair<Int, Class<*>>>,
+        chatJid: FMessageWpp.UserJid,
+        participant: FMessageWpp.UserJid?,
+        messages: List<FMessageWpp>
+    ) {
+        if (messages.isEmpty()) return
+
+        try {
+            // args dibuat baru per job: object array yang sama tidak boleh dipakai ulang
+            // antar job karena nilainya saling menimpa.
+            @Suppress("UNCHECKED_CAST")
+            val args = ReflectionUtils.initArray(paramTypes)
+
+            val chatJidValue = chatJid.phoneJid ?: chatJid.userJid
+            if (chatJidValue == null) {
+                logDebug("BlueOnReply: chat jid null, skip ${messages.size} pesan")
+                return
+            }
+            args[jidIndexes[0].first] = chatJidValue
+
+            val participantValue = participant?.let { it.userJid ?: it.phoneJid }
+            args[jidIndexes[1].first] = participantValue
+
+            args[sendJobMessageIdIndex] = Array(messages.size) { i -> messages[i].key.messageID }
+
+            val sendJob = constr.newInstance(*args)
+            XposedHelpers.setAdditionalInstanceField(sendJob, "blue_on_reply", true)
+            logDebug(
+                "Submitting SendReadReceiptJob for ${messages.size} msgs " +
+                    "chat=${chatJid.phoneRawString} participant=${participant?.userRawString ?: participant?.phoneRawString}"
+            )
+            waJobManagerMethod?.invoke(mWaJobManager, sendJob)
+        } catch (ex: Exception) {
+            logDebug(ex)
         }
     }
 
