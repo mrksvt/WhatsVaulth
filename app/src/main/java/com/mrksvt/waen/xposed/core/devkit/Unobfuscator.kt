@@ -3147,6 +3147,7 @@ object Unobfuscator {
     @JvmStatic
     fun loadLoadedContactsMethod(classLoader: ClassLoader): Method? {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            // 2.26.43-, anchor: method dengan resource id 8726 (feature flag picker) + 1 param Object
             val methods = bridge.findMethod {
                 matcher {
                     addUsingNumber(8726)
@@ -3154,8 +3155,35 @@ object Unobfuscator {
                     addParamType(Any::class.java)
                 }
             }
-            if (methods.isEmpty()) return@getMethod null
-            methods[0].getMethodInstance(classLoader)
+            if (methods.isNotEmpty()) return@getMethod methods[0].getMethodInstance(classLoader)
+
+            // 2.26.44+, WhatsApp memindahkan callback onContactsLoaded ke ContactPickerFragment
+            // dan mengubur resource-id anchor, tetapi string log-nya masih ada.
+            val loadedAll = bridge.findMethod {
+                matcher {
+                    addUsingString("ContactPickerFragment/onContactsLoaded/loaded all:")
+                    paramCount(1)
+                }
+            }
+            if (loadedAll.isNotEmpty()) return@getMethod loadedAll[0].getMethodInstance(classLoader)
+
+            // Fallback terakhir: method di ContactPickerFragment yang menerima payload list kontak.
+            val pickerFragment = findFirstClassUsingName(
+                classLoader,
+                StringMatchType.EndsWith,
+                "contact.ui.picker.ContactPickerFragment"
+            )
+            if (pickerFragment != null) {
+                val candidate = pickerFragment.declaredMethods.firstOrNull { m ->
+                    m.parameterCount == 1 &&
+                        !Modifier.isStatic(m.modifiers) &&
+                        m.returnType == Void.TYPE &&
+                        m.parameterTypes[0].name.startsWith("X.")
+                }
+                if (candidate != null) return@getMethod candidate
+            }
+
+            throw NoSuchMethodException("ContactPicker onContactsLoaded method not found")
         }
     }
 

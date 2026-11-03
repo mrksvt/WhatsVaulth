@@ -58,12 +58,27 @@ class LockedChatsEnhancer(classLoader: ClassLoader, preferences:SharedPreference
             }
         })
 
-        val loadedContacts = loadLoadedContactsMethod(classLoader)
+        val loadedContacts = try {
+            loadLoadedContactsMethod(classLoader)
+        } catch (e: Throwable) {
+            log("LockedChatsEnhancer: onContactsLoaded tidak ditemukan di versi ini: ${e.message}")
+            null
+        }
+        if (loadedContacts == null) {
+            log("LockedChatsEnhancer: hook daftar kontak dilewati (metode tidak tersedia)")
+            return
+        }
 
         XposedBridge.hookMethod(loadedContacts, object : XC_MethodHook() {
 
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val list = XposedHelpers.getObjectField(param.args[0], "A01") as MutableList<*>
+                // payload.A01 adalah wrapper (LX/7PA di 2.26.44), daftar kontak ada di
+                // wrapper.A01. Sebagian versi lama menaruh list langsung di payload.A01.
+                val payload = param.args.getOrNull(0) ?: return
+                val holder = XposedHelpers.getObjectField(payload, "A01") ?: return
+                val list = (holder as? MutableList<*>)
+                    ?: (XposedHelpers.getObjectField(holder, "A01") as? MutableList<*>)
+                    ?: return
                 val cache = chatCache ?: return
                 val lockedChats = lockedChatsField.get(cache) as? HashSet<*> ?: return
                 if (lockedChats.isEmpty()) return
