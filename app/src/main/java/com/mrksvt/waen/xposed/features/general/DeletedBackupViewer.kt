@@ -19,6 +19,7 @@ import com.mrksvt.waen.xposed.core.db.DelMessageStore
 import com.mrksvt.waen.xposed.core.db.MessageStore
 import com.mrksvt.waen.xposed.core.db.RestoreState
 import com.mrksvt.waen.xposed.core.db.entity.DeletedMessageBackupEntity
+import com.mrksvt.waen.xposed.core.devkit.Unobfuscator
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
@@ -80,22 +81,27 @@ class DeletedBackupViewer(
         }
 
         try {
-            XposedHelpers.findAndHookMethod(
-                WppCore.homeActivityClass,
-                "onCreateOptionsMenu",
-                android.view.Menu::class.java,
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        try {
-                            val activity = param.thisObject as Activity
-                            val menu = param.args[0] as android.view.Menu
-                            addViewerMenuEntry(menu, activity)
-                        } catch (e: Throwable) {
-                            XposedBridge.log(e)
+            // WhatsApp 2.26.43+ (R8 full mode) renames/moves onCreateOptionsMenu ke superclass
+            // (HomeActivityKt), jadi resolve method lewat signature, bukan nama.
+            val onCreateOptionsMenu = Unobfuscator.findHomeMenuMethod(classLoader)
+            if (onCreateOptionsMenu == null) {
+                log("DeletedBackupViewer: HomeActivity options-menu method not found, skipping hook")
+            } else {
+                XposedBridge.hookMethod(
+                    onCreateOptionsMenu,
+                    object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            try {
+                                val activity = param.thisObject as? Activity ?: return
+                                val menu = param.args.getOrNull(0) as? android.view.Menu ?: return
+                                addViewerMenuEntry(menu, activity)
+                            } catch (e: Throwable) {
+                                XposedBridge.log(e)
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         } catch (e: Throwable) {
             log(e)
         }
