@@ -65,8 +65,12 @@ public class ReleaseListAdapter extends RecyclerView.Adapter<ReleaseListAdapter.
         holder.meta.setText(buildMeta(release));
 
         int badge = badgeFor(context, release);
-        holder.badge.setText(badge);
-        holder.badge.setVisibility(badge == 0 ? View.GONE : View.VISIBLE);
+        if (badge == 0) {
+            holder.badge.setVisibility(View.GONE);
+        } else {
+            holder.badge.setText(badge);
+            holder.badge.setVisibility(View.VISIBLE);
+        }
 
         holder.dot.setVisibility(readTags.contains(release.tagName)
                 ? View.INVISIBLE : View.VISIBLE);
