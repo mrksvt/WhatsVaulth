@@ -651,7 +651,7 @@ class SeenTick(
             // message.userJid = pengirim, message.key.remoteJid = grup.
             val sender = message.userJid
             if (sender.isNull || sender.phoneRawString == null) {
-                // Pengirim tidak bisa di-resolve (mis. row DB tanpa info sender) —
+                // Pengirim tidak bisa di-resolve (mis. row DB tanpa info sender),
                 // jangan buang pesannya, kirim lewat jalur tanpa participant.
                 ungrouped.add(message)
                 continue
