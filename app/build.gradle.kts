@@ -63,7 +63,7 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34
-        versionCode = 3
+        versionCode = 4
         versionName = "1.6.2$versionSuffix ($gitHash)_mrksvt"
         // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true
