@@ -1,4 +1,4 @@
-WhatsVault 1.6.2-patch5 2.26.45.xx
+WhatsVault 1.6.2-patch1 2.26.45.xx
 
 [ADDED]
 * Dukungan WhatsApp dan WhatsApp Business 2.26.45.xx
