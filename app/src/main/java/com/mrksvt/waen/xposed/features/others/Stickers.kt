@@ -38,14 +38,18 @@ class Stickers(classLoader: ClassLoader, preferences:SharedPreferences) :
             )
         }
         if (prefs.getBoolean("remove_sticker_white_outline", false)) {
-            val stickerColoredOutline = Unobfuscator.loadStickerColoredOutline(classLoader)
-            XposedBridge.hookMethod(stickerColoredOutline, object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val source = param.args[0] as Bitmap
-                    val safeConfig = source.config ?: Bitmap.Config.ARGB_8888
-                    param.result = source.copy(safeConfig, true)
-                }
-            })
+            try {
+                val stickerColoredOutline = Unobfuscator.loadStickerColoredOutline(classLoader)
+                XposedBridge.hookMethod(stickerColoredOutline, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val source = param.args[0] as Bitmap
+                        val safeConfig = source.config ?: Bitmap.Config.ARGB_8888
+                        param.result = source.copy(safeConfig, true)
+                    }
+                })
+            } catch (t: Throwable) {
+                logDebug("Stickers: sticker outline hook skipped: ${t.message}")
+            }
         }
     }
 

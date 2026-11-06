@@ -3847,19 +3847,32 @@ object Unobfuscator {
 
     fun loadStickerColoredOutline(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
-            bridge.findMethod {
+            val candidates = bridge.findMethod {
                 matcher {
-                    paramCount(3, 4)
+                    paramCount(3, 6)
                     returnType(Bitmap::class.java)
                     usingNumbers(0.70710678118)
                 }
-            }.single {
-                val types = it.paramTypeNames
-                types.size in 3..4 &&
-                        types.first() == Bitmap::class.java.name &&
-                        types[1] == ColorFilter::class.java.name &&
-                        types.last() == "float"
-            }.getMethodInstance(classLoader)
+            }
+            val matched = candidates.firstOrNull { data ->
+                val types = data.paramTypeNames
+                types.size in 3..6 &&
+                    types.firstOrNull() == Bitmap::class.java.name &&
+                    types.getOrNull(1) == ColorFilter::class.java.name &&
+                    types.lastOrNull() == "float"
+            }
+            val target = matched ?: bridge.findMethod {
+                matcher {
+                    paramTypes(
+                        Bitmap::class.java,
+                        ColorFilter::class.java,
+                        Float::class.javaPrimitiveType
+                    )
+                    returnType(Bitmap::class.java)
+                }
+            }.firstOrNull()
+            (target ?: throw Exception("StickerColoredOutline method not found"))
+                .getMethodInstance(classLoader)
         }
     }
 

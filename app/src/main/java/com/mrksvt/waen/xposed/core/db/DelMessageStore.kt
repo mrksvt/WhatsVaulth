@@ -45,11 +45,18 @@ class DelMessageStore private constructor(context: Context) {
 
     fun insertMessage(jid: String, msgid: String, timestamp: Long) {
         val message = DelMessage(jid = jid, msgid = msgid, timestamp = timestamp)
-        dao.insertMessage(message)
+        try {
+            dao.insertMessage(message)
+        } catch (t: Throwable) {
+        }
     }
 
     fun getTimestampByJidAndMsgId(jid: String, msgid: String): Long {
-        return dao.getTimestampByJidAndMsgId(jid, msgid) ?: 0L
+        return try {
+            dao.getTimestampByJidAndMsgId(jid, msgid) ?: 0L
+        } catch (t: Throwable) {
+            0L
+        }
     }
 
     fun insertFullMessage(
@@ -82,27 +89,48 @@ class DelMessageStore private constructor(context: Context) {
             voiceFileName = voiceFileName,
             fileId = fileId
         )
-        dao.insertMessage(message)
+        try {
+            dao.insertMessage(message)
+        } catch (t: Throwable) {
+        }
     }
 
     fun getFullMessagesByJid(jid: String): List<DelMessage> {
-        return dao.getFullMessagesByJid(jid)
+        return try {
+            dao.getFullMessagesByJid(jid)
+        } catch (t: Throwable) {
+            emptyList()
+        }
     }
 
     fun getAllMessages(): List<DelMessage> {
-        return dao.getAllMessages()
+        return try {
+            dao.getAllMessages()
+        } catch (t: Throwable) {
+            emptyList()
+        }
     }
 
     fun getMessagesAfter(lastId: Long, limit: Int): List<DelMessage> {
-        return dao.getMessagesAfter(lastId, limit)
+        return try {
+            dao.getMessagesAfter(lastId, limit)
+        } catch (t: Throwable) {
+            emptyList()
+        }
     }
 
     fun deleteByJid(jid: String) {
-        dao.deleteByJid(jid)
+        try {
+            dao.deleteByJid(jid)
+        } catch (t: Throwable) {
+        }
     }
 
     fun deleteAll() {
-        dao.deleteAll()
+        try {
+            dao.deleteAll()
+        } catch (t: Throwable) {
+        }
     }
 
     // --- backup API (WP-03, FR-13) ---
