@@ -20,6 +20,7 @@ WhatsVault 1.6.2-patch2 2.26.43.xx
 * Bridge: force-start hanya dilakukan saat koneksi awal gagal
 
 [FIXED]
+* IG Status: baris status tidak lagi kosong pada cold start di WhatsApp 2.26.45.xx (snapshot status kosong tidak lagi menimpa daftar yang sudah termuat)
 * IG Status: border hijau untuk status baru yang belum dibuka kembali tampil di WhatsApp 2.26.43.4
 * Send Blue Tick: pesan dikirim dalam satu batch update, bukan per pesan
 * Locked Chats Enhancer: crash saat daftar locked chat kosong atau tidak lengkap sudah diperbaiki, dan kontak terkunci disembunyikan dengan benar

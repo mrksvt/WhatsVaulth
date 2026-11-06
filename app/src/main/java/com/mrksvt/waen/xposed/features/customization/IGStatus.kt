@@ -31,11 +31,15 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
     companion object {
         @JvmField
+        @Volatile
         var itens = ArrayList<Any?>()
 
         private const val RETRY_DELAY_MS = 250L
         private const val MAX_RETRY = 40
         private val RETRY_HANDLER = Handler(Looper.getMainLooper())
+
+        private const val COLD_START_REFRESH_ATTEMPTS = 6
+        private const val COLD_START_REFRESH_STEP_MS = 500L
 
         private const val FORCE_LOAD_DELAY_MS = 1500L
         private const val PAGER_RETRY_MS = 500L
@@ -115,6 +119,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 }
                 mStatusContainer.fragmentId = id
                 mListStatusContainer.add(mStatusContainer)
+                scheduleColdStartRefresh(mStatusContainer)
             }
         })
 
@@ -142,6 +147,13 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         XposedBridge.hookAllConstructors(onStatusListUpdatesClass, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val lists = param.args.filterIsInstance<List<*>>()
+                // Snapshot awal bisa kosong (data belum masuk). Kalau daftar yang sudah
+                // terisi ditimpa snapshot kosong, baris IG Status jadi kosong sampai
+                // pengguna pindah tab. Lihat applyStatusLists().
+                if (lists[0].isEmpty() && lists[1].isEmpty() && itens.size > 1) {
+                    logDebug("StatusListUpdates skip empty snapshot", itens.size)
+                    return
+                }
                 val newList = ArrayList<Any?>()
                 newList.add(0, null)
                 newList.addAll(lists[0])
@@ -202,6 +214,13 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
     }
 
     private fun applyStatusLists(list1: List<*>, list2: List<*>) {
+        // Snapshot dari holder bisa kosong walau daftar yang benar sudah masuk lewat
+        // StatusListUpdates. Menimpanya dengan snapshot kosong membuat IG Status hanya
+        // menampilkan "Status saya" sampai pengguna pindah tab (cold start 2.26.45.xx).
+        if (list1.isEmpty() && list2.isEmpty() && itens.size > 1) {
+            logDebug("applyStatusLists skip empty snapshot", itens.size)
+            return
+        }
         val newList = ArrayList<Any?>()
         newList.add(0, null)
         newList.addAll(list1)
@@ -209,6 +228,19 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         itens = newList
         for (mStatusContainer in mListStatusContainer) {
             mStatusContainer.updateList()
+        }
+    }
+
+    /**
+     * Cold start: daftar status sering tiba sesudah view lahir dan notify dari hook data
+     * bisa terlewat (hook jalan di thread lain). Beberapa refresh murah memastikan baris
+     * terisi tanpa perlu pindah tab.
+     */
+    private fun scheduleColdStartRefresh(container: IGStatusView) {
+        for (attempt in 1..COLD_START_REFRESH_ATTEMPTS) {
+            RETRY_HANDLER.postDelayed({
+                if (itens.size > 1) container.updateList()
+            }, COLD_START_REFRESH_STEP_MS * attempt)
         }
     }
 
