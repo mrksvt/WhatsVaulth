@@ -1,3 +1,16 @@
+WhatsVault 1.6.3 2.26.45.xx
+
+[IMPROVED]
+* Dukungan versi dipangkas ke 2.26.43.xx, 2.26.44.xx, dan 2.26.45.xx. Versi 2.26.35.xx sampai 2.26.41.xx tidak lagi didukung
+* Anchor transcoder lama yang sudah tidak ada di 2.26.43 dan 2.26.45 dihapus, jalur videolite jadi satu-satunya jalur transcoding
+* Build stable sekarang ditandatangani dengan release key sendiri. Build beta tetap memakai debug key dan ada di tag v1.6.3-patch1
+
+[NOTE]
+* Pengguna yang memasang rilis lama (debug key) harus uninstall dulu sebelum memasang versi stable, karena Android menolak instalasi dengan sertifikat berbeda
+* Hide Seen dan Call Recording tetap bekerja di 2.26.43 sampai 2.26.45. Dua hook tambahan tidak terpasang karena nama kelas WhatsApp berubah: enforceHiding di Hide Seen, dan VoipCall.getPeerJid di Call Recording. Fitur inti memakai jalur lain yang lebih dulu ada
+* 2.26.44.xx belum diuji runtime, tidak ada APK di perangkat uji
+* versionCode naik ke 5
+
 WhatsVault 1.6.3-patch1 2.26.45.xx
 
 [IMPROVED]
