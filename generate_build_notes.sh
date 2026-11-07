@@ -8,8 +8,7 @@ SHORT_HASH=$(git rev-parse --short $COMMIT)
 VERSION="1.5.5"
 
 # Get supported versions from arrays.xml
-SUPPORTED_VERSIONS=$(grep -A2 "supported_versions_wpp" app/src/main/res/values/arrays.xml | tail -2 | head -1 | sed -e 's/.*<item>//' -e 's/<\/item>.*//' -e 's/, / - /g')
-SUPPORTED_VERSIONS="$SUPPORTED_VERSIONS - 2.26.30.xx"
+SUPPORTED_VERSIONS=$(awk '/<string-array name="supported_versions_wpp">/{f=1;next} f&&/<\/string-array>/{exit} f' app/src/main/res/values/arrays.xml | sed -e 's/.*<item>//' -e 's/<\/item>.*//' | paste -sd'|' - | sed -e 's/|/ - /g')
 
 # Get latest fixes (last 5 commits with "fix:" in message)
 FIXES=$(git log --oneline --grep="fix:" --since="2026-07-01" --pretty=format:"• %s" | head -5 | sed -e 's/fix: //g' -e 's/• add /• /g' -e 's/• fix /• /g')
