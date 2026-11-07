@@ -382,7 +382,6 @@
     <string name="starting_cache">Starte Hook-Cache-Erstellung in WhatsApp. Dies kann eine Weile dauern.</string>
     <string name="bridge_error">Bridge fehlgeschlagen: Aktivieren Sie das System-Framework in LSPosed und starten Sie das Gerät neu</string>
     <string name="disable_battery_optimization">Batterieoptimierung deaktivieren</string>
-    <string name="bootloader_spoofer">Bootloader Spoofer</string>
     <string name="bootloader_spoofer_sum">Aktivieren, wenn sie gebannt worden und die inoffizielle WhatsApp-Nachricht über inoffizielle Version erhalten haben</string>
     <string name="not_available">Nicht verfügbar</string>
     <string name="select_all">Alle auswählen</string>

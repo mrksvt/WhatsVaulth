@@ -162,9 +162,9 @@ class FeatureLoader {
                         Feature.DEBUG = pref.getBoolean("enablelogs", true)
                         Utils.xprefs = pref
 
-                        if (pref.getBoolean("bootloader_spoofer", false)) {
+                        if (pref.getBoolean("bootloader_spoofer_custom", false)) {
                             HookBL.hook(loader, pref)
-                            XposedBridge.log("Bootloader Spoofer is Injected")
+                            XposedBridge.log("Custom KeyBox is Injected")
                         }
 
                         val packageManager = application.packageManager

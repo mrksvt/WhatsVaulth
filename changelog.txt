@@ -1,3 +1,21 @@
+WhatsVault 1.6.3-port 2.26.45.xx
+
+[ADDED]
+* Call Privacy: notifikasi saat panggilan diblokir, lengkap dengan nama kontak, tipe blokir, metode penolakan, dan sumber setelan (global atau Custom Privacy)
+* Call Privacy: Custom Privacy per kontak sekarang diprioritaskan di atas setelan global
+* General: Custom KeyBox sekarang satu-satunya mode spoofer, memakai file keybox.xml pilihan sendiri
+
+[FIXED]
+* Hide Seen: delivery receipt tidak lagi bocor ke pengirim saat pesan disembunyikan
+* Hide Seen: pesan tersembunyi dilacak per LID, jadi status baca tetap benar untuk kontak yang memakai LID
+* Send Blue Tick: status baca blue tick untuk status sekarang tersimpan, tidak hilang setelah layar ditutup
+* Send Blue Tick: pesan tersembunyi tidak lagi dihitung dua kali
+* Stickers: hapus outline putih sticker bisa aktif tanpa harus menyalakan alert sticker
+* Bootloader Spoofer bawaan dihapus; hanya Custom KeyBox yang tersisa, jadi tidak ada lagi key material bawaan di modul
+
+[NOTE]
+* Hook baru (Hide Seen LID, Call Privacy notification, Custom KeyBox) belum diuji runtime karena tidak ada perangkat saat build.
+
 WhatsVault 1.6.2-patch1 2.26.45.xx
 
 [ADDED]

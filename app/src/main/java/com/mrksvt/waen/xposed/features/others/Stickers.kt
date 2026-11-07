@@ -22,20 +22,21 @@ class Stickers(classLoader: ClassLoader, preferences:SharedPreferences) :
 
     override fun doHook() {
 
-        if (!prefs.getBoolean("alertsticker", false)) return
-        val stickerContainerId = Utils.getID("stickerContainer", "id")
-        ViewHookDispatcher.onAttachedToWindow { view ->
-            if (view.id != stickerContainerId) return@onAttachedToWindow
-            if (view.tag == "wae_hooked") return@onAttachedToWindow
-            view.tag = "wae_hooked"
-            view.setTouchClickAndLongClickListener(
-                onClick = {
-                    showAlertDialog(view)
-                },
-                onLongClick = {
-                    view.performLongClick()
-                }
-            )
+        if (prefs.getBoolean("alertsticker", false)) {
+            val stickerContainerId = Utils.getID("stickerContainer", "id")
+            ViewHookDispatcher.onAttachedToWindow { view ->
+                if (view.id != stickerContainerId) return@onAttachedToWindow
+                if (view.tag == "wae_hooked") return@onAttachedToWindow
+                view.tag = "wae_hooked"
+                view.setTouchClickAndLongClickListener(
+                    onClick = {
+                        showAlertDialog(view)
+                    },
+                    onLongClick = {
+                        view.performLongClick()
+                    }
+                )
+            }
         }
         if (prefs.getBoolean("remove_sticker_white_outline", false)) {
             try {

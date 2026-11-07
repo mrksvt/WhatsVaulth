@@ -2820,6 +2820,22 @@ object Unobfuscator {
                     }
                 } ?: methodData
             }
+            // Fallback: walk the whole com.whatsapp.* superclass chain (2.26.44+ may move
+            // the callback one level deeper, or drop the menu-id literals entirely).
+            if (methodData.isEmpty()) {
+                val chained = homeActivityClassDataChain(WppCore.homeActivityClass)
+                    .firstNotNullOfOrNull { chainData ->
+                        chainData.findMethod {
+                            matcher {
+                                addUsingNumber(Utils.getID("menuitem_search", "id"))
+                                addUsingNumber(200)
+                                paramCount(1)
+                                addParamType(Menu::class.java)
+                            }
+                        }.firstOrNull()
+                    }
+                if (chained != null) return@getMethod chained.getMethodInstance(classLoader)
+            }
             if (methodData.isEmpty()) throw NoSuchMethodError("MenuSearch not found in HomeActivity")
             methodData[0].getMethodInstance(classLoader)
         }
@@ -2905,6 +2921,76 @@ object Unobfuscator {
             // Last resort: plain reflection over the superclass chain
             findHomeMenuMethod(classLoader)
         }
+    }
+
+    /**
+     * Resolves the stanza writer that serializes a [ProtocolTreeNode] into the encrypted
+     * socket stream. Used to drop leaked delivery receipts before they leave the device.
+     *
+     * Anchored on the DeflaterOutputStream constructor invocation inside the writer.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadStanzaWriterMethod(classLoader: ClassLoader): Method {
+        return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            val protocolTreeNodeClass = loadProtocolTreeNodeClass(classLoader)
+            val found = bridge.findMethod {
+                matcher {
+                    paramTypes(protocolTreeNodeClass.name, "int")
+                    returnType = "void"
+                    addInvoke("Ljava/util/zip/DeflaterOutputStream;-><init>(Ljava/io/OutputStream;)V")
+                }
+            }
+            if (found.isEmpty()) throw NoSuchMethodError("StanzaWriter method not found")
+            if (found.size > 1) {
+                XposedBridge.log(
+                    "[Unobfuscator] loadStanzaWriterMethod: ${found.size} candidates, using first"
+                )
+            }
+            found[0].getMethodInstance(classLoader)
+        }
+    }
+
+    /**
+     * Resolves the bottom navigation base class. WhatsApp 2.26.43+ introduced
+     * `WDSBottomBar`, which extends the real bottom bar class that declares
+     * `getMaxItemCount`. The returned class is the base class (superclass when the
+     * match is `WDSBottomBar`).
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadBottomNavigationViewClass(classLoader: ClassLoader): Class<*> {
+        return UnobfuscatorCache.getInstance().getClass(classLoader, "BottomNavigationView") {
+            val clazz = bridge.findClass {
+                matcher {
+                    anyOf {
+                        match {
+                            className(".BottomNavigationView", StringMatchType.EndsWith)
+                        }
+                        match {
+                            className(".WDSBottomBar", StringMatchType.EndsWith)
+                        }
+                    }
+                }
+            }.firstOrNull()?.getInstance(classLoader)
+                ?: throw ClassNotFoundException("BottomNavigationView class not found")
+            if (clazz.simpleName == "WDSBottomBar") clazz.superclass else clazz
+        }
+    }
+
+    /**
+     * Walks the superclass chain of [homeActivityClass] while it stays inside the
+     * `com.whatsapp.` package, so menu callbacks moved to a generated superclass
+     * (WhatsApp 2.26.43+) are still reachable.
+     */
+    private fun homeActivityClassDataChain(homeActivityClass: Class<*>): List<ClassData> {
+        val chain = ArrayList<ClassData>()
+        var current = bridge.getClassData(homeActivityClass)
+        while (current != null && current.name.startsWith("com.whatsapp.")) {
+            chain.add(current)
+            current = current.superClass
+        }
+        return chain
     }
 
     @Throws(Exception::class)
@@ -3638,6 +3724,34 @@ object Unobfuscator {
             }
             if (methodData.isEmpty()) throw RuntimeException("StatusPlaybackReply method not found")
             methodData[0].getMethodInstance(classLoader)
+        }
+    }
+
+    /**
+     * Resolves the getter that returns the reply bar View inside the status playback
+     * reply container holder. WhatsApp 2.26.43+ renamed the getter, so the literal
+     * "A01" call is not reliable anymore.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadStatusPlaybackReplyContainerViewMethod(classLoader: ClassLoader): Method {
+        return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            val holderClass = loadStatusPlaybackReplyContainer(classLoader).returnType
+            bridge.getClassData(holderClass.name)?.findMethod {
+                matcher {
+                    paramCount(0)
+                    returnType(View::class.java)
+                    usingStrings(
+                        listOf("ViewStubHolder.getView()"),
+                        StringMatchType.Contains
+                    )
+                }
+            }?.firstOrNull()?.getMethodInstance(classLoader)?.let { return@getMethod it }
+
+            holderClass.declaredMethods.firstOrNull {
+                it.name == "A01" && it.parameterCount == 0 &&
+                        View::class.java.isAssignableFrom(it.returnType)
+            } ?: throw NoSuchMethodException("StatusPlaybackReplyContainer getView not found")
         }
     }
 

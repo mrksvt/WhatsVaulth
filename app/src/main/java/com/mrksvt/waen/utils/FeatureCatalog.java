@@ -106,13 +106,13 @@ public class FeatureCatalog {
                 "general_home",
                 Arrays.asList("version", "check", "bypass")));
 
-        catalog.add(new SearchableFeature("bootloader_spoofer",
-                context.getString(R.string.bootloader_spoofer),
+        catalog.add(new SearchableFeature("bootloader_spoofer_custom",
+                context.getString(R.string.custom_keybox),
                 context.getString(R.string.bootloader_spoofer_sum),
                 SearchableFeature.Category.GENERAL_HOME,
                 SearchableFeature.FragmentType.GENERAL,
                 "general_home",
-                Arrays.asList("bootloader", "spoofer", "ban")));
+                Arrays.asList("keybox", "bootloader", "spoofer", "ban")));
 
         catalog.add(new SearchableFeature("ampm",
                 context.getString(R.string.ampm),
@@ -661,6 +661,14 @@ public class FeatureCatalog {
                 SearchableFeature.FragmentType.PRIVACY,
                 null,
                 Arrays.asList("call", "blocking", "type")));
+
+        catalog.add(new SearchableFeature("call_block_notification_enabled",
+                context.getString(R.string.call_block_notification_enabled),
+                context.getString(R.string.call_block_notification_enabled_sum),
+                SearchableFeature.Category.PRIVACY,
+                SearchableFeature.FragmentType.PRIVACY,
+                null,
+                Arrays.asList("call", "blocked", "notification")));
 
         // Continue in next part...
         addMediaFeatures(context, catalog);

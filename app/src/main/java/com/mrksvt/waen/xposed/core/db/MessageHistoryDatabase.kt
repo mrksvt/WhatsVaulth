@@ -15,7 +15,7 @@ import com.mrksvt.waen.xposed.core.db.entity.TranslationCacheEntity
 
 @Database(
     entities = [MessageEntity::class, HideSeenEntity::class, TranslationCacheEntity::class, CustomTickPresetEntity::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class MessageHistoryDatabase : RoomDatabase() {
@@ -85,6 +85,14 @@ abstract class MessageHistoryDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS theme_presets")
                 db.execSQL("DROP TABLE IF EXISTS custom_font_presets")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE hide_seen_messages ADD COLUMN userjid TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_hide_seen_userjid_read ON hide_seen_messages (userjid, read)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_hide_seen_userjid_played ON hide_seen_messages (userjid, played)")
             }
         }
     }

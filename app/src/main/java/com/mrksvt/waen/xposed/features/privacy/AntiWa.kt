@@ -16,7 +16,6 @@ class AntiWa(classLoader: ClassLoader, preferences:SharedPreferences) :
     Feature(classLoader, preferences) {
 
     override fun doHook() {
-        if (!prefs.getBoolean("bootloader_spoofer", false)) return
         val rootDetector  = loadRootDetector(classLoader)
         for (detector in rootDetector) {
             XposedBridge.hookMethod(detector, XC_MethodReplacement.returnConstant(false))

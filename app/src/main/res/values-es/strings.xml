@@ -382,7 +382,6 @@
     <string name="starting_cache">Iniciando procesos de WAE en WhatsApp. Esto puede tardar un rato.</string>
     <string name="bridge_error">Fallo del Bridge: Habilita Framework del Sistema en Lsposed y reinicia el dispositivo</string>
     <string name="disable_battery_optimization">Desactivar la optimización de batería</string>
-    <string name="bootloader_spoofer">Bootloader Spoofer</string>
     <string name="bootloader_spoofer_sum">Usa esto si has sido baneado y estás recibiendo el mensaje de WhatsApp no oficial</string>
     <string name="not_available">no disponible</string>
     <string name="select_all">Seleccionar Todo</string>

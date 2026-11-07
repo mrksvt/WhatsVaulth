@@ -268,6 +268,10 @@
     <string name="new_ui_group_filter_sum">Include a new filter on the home screen to separate groups and conversations.</string>
     <string name="call_blocking_type">Call blocking type</string>
     <string name="call_blocking_type_sum">Select the method by which the call blocking will be done.</string>
+    <string name="call_block_notification_enabled">Blocked call notification</string>
+    <string name="call_block_notification_enabled_sum">Show a notification when a call is blocked</string>
+    <string name="call_blocked_notification_title">Call Blocked</string>
+    <string name="call_blocked_source_global">Global Settings</string>
     <string name="call_type_buttons_no_internet">No internet (\"Calling\")</string>
     <string name="call_type_buttons_uncallable">Unable to receive WhatsApp calls</string>
     <string name="call_type_buttons_busy">Busy (On another call)</string>
@@ -416,8 +420,10 @@
     <string name="starting_cache">Starting hook cache in WhatsApp. This may take a while.</string>
     <string name="bridge_error">Bridge Failed: Enable System Framework in Lsposed and reboot device</string>
     <string name="disable_battery_optimization">Disable Battery Optimization</string>
-    <string name="bootloader_spoofer">Bootloader Spoofer</string>
     <string name="bootloader_spoofer_sum">Use this if you have been banned and are receiving the unofficial Whatsapp message</string>
+    <string name="custom_keybox">Custom KeyBox</string>
+    <string name="custom_keybox_file">keybox.xml file</string>
+    <string name="custom_keybox_file_none">No file selected</string>
     <string name="not_available">not available</string>
     <string name="select_all">Select All</string>
     <string name="custom_colors_for_text_status">Custom colors for text status</string>

@@ -382,7 +382,6 @@
     <string name="starting_cache">Запуск кэша хуков в WhatsApp. Это может занять некоторое время.</string>
     <string name="bridge_error">Сбой моста: включите системную структуру в Lsposed и перезагрузите устройство</string>
     <string name="disable_battery_optimization">Отключить оптимизацию батареи</string>
-    <string name="bootloader_spoofer">Bootloader Spoofer</string>
     <string name="bootloader_spoofer_sum">Используйте это, если вы были заблокированы и получаете неофициальное сообщение Whatsapp</string>
     <string name="not_available">недоступен</string>
     <string name="select_all">Выбрать все</string>

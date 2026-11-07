@@ -313,3 +313,24 @@ Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kec
 | d2c71a5d | SeenTick batch update | adapted: batch DAO + `updateViewedMessagesBatch`, tanpa hop executor karena fork `allowMainThreadQueries()` |
 | 1a06ff0d | LockedChatsEnhancer | ported: satu set locked (phone/user/number), field HashSet kedua opsional, guard crash |
 | 36c22aed | Changelog upstream | adapted: changelog fork berbahasa Indonesia |
+
+---
+
+## Port range 36c22aed..ceca486e (WaEnhancer 1.6.3)
+
+**Tanggal:** 2026-11-07
+**Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (ceca486e)
+**Range:** 8 commit, port ke API legacy `de.robv.android.xposed`
+
+| Upstream commit | Topik | Status di fork |
+|-----------------|-------|----------------|
+| bbad12f9 | Support WhatsApp 2.26.43.xx | adapted: anchor DexKit baru (`loadStatusPlaybackReplyContainerViewMethod`, `loadStanzaWriterMethod`, `loadBottomNavigationViewClass`, `homeActivityClassDataChain`) plus fallback chain di `loadAddOptionSearchBarMethod`; migrasi YukiHookAPI di IGStatus/Others/Channels N/A karena fork sudah pakai `findHomeMenuMethod`/`hookAllMethods` |
+| de0d20ad | arrays.xml 2.26.43.xx | N/A: urusan pipeline `new`, bukan port |
+| 5dc59522 | Persist status blue tick | ported: `sendBlueTickStatus` pakai `insertHideSeenMessage`, bukan `updateViewedMessage` |
+| c694caf4 | HideSeen LID + delivery receipt leak | ported: kolom `userjid` + 2 index, query `IN (:jids)`, `MIGRATION_11_12`, `hookStanzaWriter`/`revealsDelivery`, LID param di semua call site |
+| 374d61dd | CallPrivacy notification + Custom Privacy priority | ported: `notifyCallBlocked`, `RejectMethod`, `PrivacyType.labelRes`, `Utils.showNotification(title, content, iconRes)`, switch di `fragment_privacy.xml`, entri `FeatureCatalog` |
+| 4ae79dba | HookBL: buang spoofer bawaan | ported: key material bawaan dihapus, keypair nullable, hanya keybox.xml kustom, gate `bootloader_spoofer_custom` di `FeatureLoader`/`AntiWa`, pref UI + strings |
+| 598d5ed7 | Version bump 1.6.3 | N/A: versi fork dikelola sendiri |
+| ceca486e | Changelog upstream | adapted: changelog fork berbahasa Indonesia |
+
+**Catatan:** semua hook di range ini belum diuji runtime (tidak ada perangkat saat build).

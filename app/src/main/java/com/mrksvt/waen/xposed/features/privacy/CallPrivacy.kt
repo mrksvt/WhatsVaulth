@@ -2,6 +2,7 @@ package com.mrksvt.waen.xposed.features.privacy
 
 import android.os.Message
 import android.widget.Toast
+import com.mrksvt.waen.R
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
@@ -67,6 +68,8 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
                 if (!blockCall) return
 
                 var rejectType =  prefs.getString("call_type", null) ?: "no_internet"
+                val rejectMethod = RejectMethod.fromKey(rejectType)
+                val fromCustomPrivacy = CustomPrivacy.getJSON(userJid).has("BlockCall")
 
                 when (rejectType) {
                     "uncallable", "declined", "busy" -> {
@@ -78,12 +81,14 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
                         params[1] = rejectType
                         ReflectionUtils.callMethod(rejectCallMethod, mVoipManager, *params)
                         param.result = true
+                        notifyCallBlocked(contactName, privacyType, rejectMethod, fromCustomPrivacy)
                     }
                     "ended" -> {
                         val params = ReflectionUtils.initArray(endCallMethod.parameterTypes)
                         params[0] = true
                         ReflectionUtils.callMethod(endCallMethod, mVoipManager, *params)
                         param.result = true
+                        notifyCallBlocked(contactName, privacyType, rejectMethod, fromCustomPrivacy)
                     }
                 }
             }
@@ -106,6 +111,14 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
                         val block = checkCallBlock(userJid, privacyType)
                         if (block) {
                             param.result = 1
+                            val contactName = WaContactWpp.getWaContactFromJid(userJid)?.displayName
+                                ?: userJid.phoneNumber
+                            notifyCallBlocked(
+                                contactName,
+                                privacyType,
+                                RejectMethod.NO_INTERNET,
+                                CustomPrivacy.getJSON(userJid).has("BlockCall")
+                            )
                         }
                     }
                 }
@@ -113,20 +126,42 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
 
+    private fun notifyCallBlocked(
+        contactName: String?,
+        privacyType: PrivacyType?,
+        rejectMethod: RejectMethod?,
+        fromCustomPrivacy: Boolean
+    ) {
+        if (!prefs.getBoolean("call_block_notification_enabled", true)) return
+        runCatching {
+            val typeLabel = privacyType?.let { Utils.getString(it.labelRes) } ?: "?"
+            val methodLabel = rejectMethod?.let { Utils.getString(it.labelRes) } ?: "?"
+            val source = Utils.getString(
+                if (fromCustomPrivacy) R.string.custom_privacy
+                else R.string.call_blocked_source_global
+            )
+            Utils.showNotification(
+                Utils.getString(R.string.call_blocked_notification_title),
+                "$contactName | $typeLabel | $methodLabel | $source",
+                R.drawable.ic_notification_call_blocked
+            )
+        }.onFailure { logDebug(it) }
+    }
+
     fun checkCallBlock(userJid: FMessageWpp.UserJid, type: PrivacyType?): Boolean {
         val phoneNumber = userJid.phoneNumber ?: return false
 
         val customprivacy = CustomPrivacy.getJSON(userJid)
+        if (customprivacy.has("BlockCall")) return customprivacy.optBoolean("BlockCall", false)
 
         return when (type) {
-            PrivacyType.ALL_BLOCKED -> customprivacy.optBoolean("BlockCall", true)
-            PrivacyType.ALL_PERMITTED -> customprivacy.optBoolean("BlockCall", false)
+            PrivacyType.ALL_BLOCKED -> true
+            PrivacyType.ALL_PERMITTED -> false
             PrivacyType.ONLY_UNKNOWN -> {
                 val waContact = WaContactWpp.getWaContactFromJid(userJid) ?: return true
                 !waContact.isSavedContact()
             }
             PrivacyType.BACKLIST -> {
-                if (customprivacy.optBoolean("BlockCall", false)) return true;
                 val callBlockList = prefs.getString("call_block_contacts", "[]")!!
                 val blockList = callBlockList.substring(1, callBlockList.length - 1).split(", ")
                     .map { it.trim() }
@@ -134,7 +169,6 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
             }
 
             PrivacyType.WHITELIST -> {
-                if (customprivacy.optBoolean("BlockCall", false)) return true;
                 val callWhiteList = prefs.getString("call_white_contacts", "[]")!!
                 val whiteList = callWhiteList.substring(1, callWhiteList.length - 1).split(", ")
                     .map { it.trim() }
@@ -147,17 +181,30 @@ class CallPrivacy(loader: ClassLoader, preferences:SharedPreferences) :
 
     override fun getPluginName() = "Call Privacy"
 
-    enum class PrivacyType(val value: Int) {
-        ALL_PERMITTED(0), ALL_BLOCKED(
-            1
+    enum class PrivacyType(val value: Int, val labelRes: Int) {
+        ALL_PERMITTED(0, R.string.call_blocker_buttons_no_block), ALL_BLOCKED(
+            1,
+            R.string.call_blocker_buttons_all_block
         ),
-        ONLY_UNKNOWN(2), BACKLIST(
-            3
+        ONLY_UNKNOWN(2, R.string.call_blocker_buttons_only_unknown_block), BACKLIST(
+            3,
+            R.string.contact_block_list
         ),
-        WHITELIST(4);
+        WHITELIST(4, R.string.contact_white_list);
 
         companion object {
             fun getByValue(value: Int) = entries.find { it.value == value }
+        }
+    }
+
+    enum class RejectMethod(val key: String, val labelRes: Int) {
+        NO_INTERNET("no_internet", R.string.call_type_buttons_no_internet),
+        BUSY("busy", R.string.call_type_buttons_busy),
+        UNCALLABLE("uncallable", R.string.call_type_buttons_uncallable),
+        ENDED("ended", R.string.call_type_buttons_ended);
+
+        companion object {
+            fun fromKey(key: String) = entries.find { it.key == key }
         }
     }
 

@@ -1,8 +1,6 @@
 package com.mrksvt.waen.xposed.features.privacy
 
-import android.os.Handler
 import android.os.Message
-import androidx.room.concurrent.ThreadLocal
 import com.mrksvt.waen.xposed.core.Feature
 import com.mrksvt.waen.xposed.core.WppCore
 import com.mrksvt.waen.xposed.core.components.FMessageWpp
@@ -24,6 +22,10 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
 
     companion object {
         private const val MEDIA_TYPE_VOICE_NOTE = 2
+
+        // Children that mark a receipt as a call signalling stanza instead of a delivery
+        // receipt. Dropping those would break call setup.
+        private val CALL_RECEIPT_TAGS = setOf("offer", "accept", "reject", "enc_rekey")
 
         @JvmStatic
         fun generateFMessageKey(protocolTreeNodeWpp: ProtocolTreeNodeWpp): FMessageWpp.Key? {
@@ -49,6 +51,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         hookReceiptMethod()
         hookSenderPlayed()
         hookSenderPlayedBusiness()
+        hookStanzaWriter()
         hookEnforceHiding()
     }
 
@@ -62,6 +65,52 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         hideReceipt = prefs.getBoolean("hidereceipt", false)
         hideReceiptUnknown = prefs.getBoolean("hidereceipt_unknown", false)
 
+    }
+
+    /**
+     * Drops delivery receipts that WhatsApp writes to the socket directly, bypassing the
+     * receipt builder. Without this the other side can still see "delivered" while
+     * "read" is hidden.
+     */
+    private fun hookStanzaWriter() {
+        val stanzaWriterMethod = try {
+            Unobfuscator.loadStanzaWriterMethod(classLoader)
+        } catch (t: Throwable) {
+            logDebug("HideSeen: stanza writer not found, delivery receipts not filtered: ${t.message}")
+            return
+        }
+
+        XposedBridge.hookMethod(stanzaWriterMethod, object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                try {
+                    val node = param.args.getOrNull(0) ?: return
+                    if (!ProtocolTreeNodeWpp.TYPE.isInstance(node)) return
+                    val receipt = ProtocolTreeNodeWpp(node)
+                    if (receipt.tag != "receipt" || !revealsDelivery(receipt)) return
+
+                    val userJid =
+                        receipt.attributes.firstOrNull { it.key == "to" }?.userJid ?: return
+                    val messageId = receipt.getFirstKeyValue("id") ?: return
+                    if (userJid.isNull || userJid.isStatus || userJid.isNewsletter) return
+
+                    val fmessageKey = FMessageWpp.Key(messageId, userJid, false)
+                    if (!shouldBlockReceipt(fmessageKey)) return
+
+                    param.result = null
+                    insertHiddenIfAbsent(fmessageKey)
+                } catch (t: Throwable) {
+                    logDebug("HideSeen: stanza writer hook error: ${t.message}")
+                }
+            }
+        })
+    }
+
+    private fun revealsDelivery(receipt: ProtocolTreeNodeWpp): Boolean {
+        if (receipt.children.any { it.tag in CALL_RECEIPT_TAGS }) return false
+        return when (receipt.getFirstKeyValue("type")) {
+            null, "inactive" -> true
+            else -> false
+        }
     }
 
     private fun hookSendReadReceiptJob() {
@@ -106,9 +155,10 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         userJid: FMessageWpp.UserJid,
         privacy: JSONObject
     ): Boolean {
+        val hideReceiptRead = checkPrivacyAndHideReceipt(userJid)
         return when {
             userJid.isGroup -> {
-                if (privacy.optBoolean("HideSeen", hideReadGroup) || ghostMode) {
+                if (privacy.optBoolean("HideSeen", hideReadGroup) || ghostMode || hideReceiptRead) {
                     param.result = null
                     true
                 } else false
@@ -127,7 +177,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
             }
 
             else -> {
-                if (privacy.optBoolean("HideSeen", hideRead) || ghostMode) {
+                if (privacy.optBoolean("HideSeen", hideRead) || ghostMode || hideReceiptRead) {
                     param.result = null
                     true
                 } else false
@@ -138,10 +188,13 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
     private fun recordHiddenMessages(sendReadReceiptJob: Any, userJid: FMessageWpp.UserJid) {
         val messageIds =
             XposedHelpers.getObjectField(sendReadReceiptJob, "messageIds") as? Array<*> ?: return
-        for (messageId in messageIds) {
+        val ids = messageIds.filterIsInstance<String>()
+        if (ids.isEmpty()) return
+        for (messageId in ids) {
             MessageHistoryStore.getInstance().insertHideSeenMessage(
                 userJid.phoneRawString,
-                messageId as String?,
+                userJid.userRawString,
+                messageId,
                 MessageHistoryStore.ReceiptType.READ,
                 false
             )
@@ -170,8 +223,18 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
                             FMessageWpp.Key.TYPE.isAssignableFrom(it.type)
                         }
                         val fmessageKey = FMessageWpp.Key(fmessageKeyField.get(obj))
+
+                        // Delivery receipts must not leak when receipts are hidden for this
+                        // contact, otherwise the sender still sees "delivered".
+                        if (shouldBlockReceipt(fmessageKey)) {
+                            message.arg1 = -1
+                            insertHiddenIfAbsent(fmessageKey)
+                            return
+                        }
+
                         val hideSeenItem = MessageHistoryStore.getInstance().getHideSeenMessage(
                             fmessageKey.remoteJid.phoneRawString,
+                            fmessageKey.remoteJid.userRawString,
                             fmessageKey.messageID,
                             MessageHistoryStore.ReceiptType.READ
                         )
@@ -203,44 +266,77 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
 
                 if (fmessageKey.remoteJid.isStatus)return
 
-                val hideSeenItem = MessageHistoryStore.getInstance().getHideSeenMessage(
-                    fmessageKey.remoteJid.phoneRawString,
-                    fmessageKey.messageID,
-                    MessageHistoryStore.ReceiptType.READ
-                )
+                val isReadType = typeKV?.value == "read"
+                val blockSeen = shouldBlockSeen(fmessageKey, isReadType)
+                val blockReceipt = shouldBlockReceipt(fmessageKey)
 
-                if (hideSeenItem?.viewed ?: false) return
+                if (!blockSeen && !blockReceipt) return
 
-                val hideSeen = checkPrivacyAndHideSeen(fmessageKey)
-                val hideReceipt = checkPrivacyAndHideReceipt(fmessageKey)
-
-                if (hideReceipt) {
+                if (blockReceipt) {
                     if (typeKV == null) {
                         protocolTreeNodeWpp.addKeyValue("type", "inactive")
                     } else {
                         typeKV.value = "inactive"
                     }
                     protocolTreeNodeWpp.removeAllKeyValuesByKey("sts")
-                } else if (hideSeen && typeKV?.value == "read") {
+                } else {
                     protocolTreeNodeWpp.removeAllKeyValuesByKey("sts")
                     protocolTreeNodeWpp.removeAllKeyValuesByKey("type")
                 }
 
-                if (hideReceipt || hideSeen) {
-                    MessageHistoryStore.getInstance().insertHideSeenMessage(
-                        fmessageKey.remoteJid.phoneRawString,
-                        fmessageKey.messageID,
-                        MessageHistoryStore.ReceiptType.READ,
-                        false
-                    )
-                }
+                insertHidden(fmessageKey)
             }
         })
+    }
+
+    private fun insertHiddenIfAbsent(fmessageKey: FMessageWpp.Key) {
+        if (getHiddenItem(fmessageKey) == null) insertHidden(fmessageKey)
+    }
+
+    private fun insertHidden(fmessageKey: FMessageWpp.Key) {
+        MessageHistoryStore.getInstance().insertHideSeenMessage(
+            fmessageKey.remoteJid.phoneRawString,
+            fmessageKey.remoteJid.userRawString,
+            fmessageKey.messageID,
+            MessageHistoryStore.ReceiptType.READ,
+            false
+        )
+    }
+
+    private fun getHiddenItem(fmessageKey: FMessageWpp.Key): MessageHistoryStore.MessageSeenItem? {
+        return MessageHistoryStore.getInstance().getHideSeenMessage(
+            fmessageKey.remoteJid.phoneRawString,
+            fmessageKey.remoteJid.userRawString,
+            fmessageKey.messageID,
+            MessageHistoryStore.ReceiptType.READ
+        )
+    }
+
+    private fun isAlreadyViewed(fmessageKey: FMessageWpp.Key): Boolean {
+        return getHiddenItem(fmessageKey)?.viewed == true
+    }
+
+    private fun shouldBlockSeen(
+        fmessageKey: FMessageWpp.Key,
+        isReadType: Boolean = true
+    ): Boolean {
+        if (!isReadType || !checkPrivacyAndHideSeen(fmessageKey)) return false
+        return !isAlreadyViewed(fmessageKey)
+    }
+
+    private fun shouldBlockReceipt(fmessageKey: FMessageWpp.Key): Boolean {
+        if (!checkPrivacyAndHideReceipt(fmessageKey)) return false
+        return !isAlreadyViewed(fmessageKey)
     }
 
     private fun isUnknownNumber(userJid: FMessageWpp.UserJid): Boolean {
         if (!hideReceiptUnknown || userJid.isGroup || userJid.isStatus || userJid.isNewsletter) return false
         return WaContactWpp.getWaContactFromJid(userJid)?.isSavedContact() == false
+    }
+
+    private fun checkPrivacyAndHideReceipt(userJid: FMessageWpp.UserJid): Boolean {
+        val privacy = CustomPrivacy.getJSON(userJid)
+        return privacy.optBoolean("HideReceipt", hideReceipt) || ghostMode || isUnknownNumber(userJid)
     }
 
     private fun checkPrivacyAndHideReceipt(fmessageKey: FMessageWpp.Key): Boolean {
@@ -291,6 +387,7 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
             param.result = null
             MessageHistoryStore.getInstance().insertHideSeenMessage(
                 key.remoteJid.phoneRawString,
+                key.remoteJid.userRawString,
                 key.messageID,
                 MessageHistoryStore.ReceiptType.PLAYED,
                 false
@@ -299,15 +396,23 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
 
         if (fMessage.isViewOnce && !hideOnceSeen && !ghostMode) {
             val phoneRaw = key.remoteJid.phoneRawString
+            val userRaw = key.remoteJid.userRawString
             val messageId = key.messageID
             MessageHistoryStore.getInstance().apply {
                 updateViewedMessage(
                     phoneRaw,
+                    userRaw,
                     messageId,
                     MessageHistoryStore.ReceiptType.PLAYED,
                     true
                 )
-                updateViewedMessage(phoneRaw, messageId, MessageHistoryStore.ReceiptType.READ, true)
+                updateViewedMessage(
+                    phoneRaw,
+                    userRaw,
+                    messageId,
+                    MessageHistoryStore.ReceiptType.READ,
+                    true
+                )
             }
         }
     }

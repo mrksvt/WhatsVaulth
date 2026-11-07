@@ -20,6 +20,7 @@ import android.util.TypedValue
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import com.mrksvt.waen.App
 import com.mrksvt.waen.xposed.core.FeatureLoader
 import com.mrksvt.waen.xposed.core.HookOverrideStore
@@ -338,6 +339,23 @@ object Utils {
         } catch (e: Exception) {
             ""
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showNotification(title: String, content: String, iconRes: Int) {
+        val context: Application = application
+        val notificationManager = NotificationManagerCompat.from(context)
+        val channel =
+            NotificationChannel("wppenhacer", "WAE Enhancer", NotificationManager.IMPORTANCE_HIGH)
+        notificationManager.createNotificationChannel(channel)
+        val icon = DesignUtils.drawableToBitmap(DesignUtils.getDrawable(iconRes))
+        val notification = NotificationCompat.Builder(context, "wppenhacer")
+            .setSmallIcon(IconCompat.createWithBitmap(icon))
+            .setContentTitle(title)
+            .setContentText(content)
+            .setAutoCancel(true)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        notificationManager.notify(Random().nextInt(), notification.build())
     }
 
     @SuppressLint("MissingPermission")

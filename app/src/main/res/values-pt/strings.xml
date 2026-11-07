@@ -382,7 +382,6 @@
     <string name="starting_cache">Iniciando hook cache no WhatsApp. Isso pode demorar um pouco.</string>
     <string name="bridge_error">Bridge Failed: Ative o Framework do Sistema no LSPosed e reinicie o dispositivo</string>
     <string name="disable_battery_optimization">Desativar otimização da bateria</string>
-    <string name="bootloader_spoofer">Falsificador do bootloader</string>
     <string name="bootloader_spoofer_sum">Use isto se você foi banido e está recebendo a mensagem para usar o app oficial do WhatsApp</string>
     <string name="not_available">não disponível</string>
     <string name="select_all">Selecionar tudo</string>

@@ -266,6 +266,10 @@ Saat Anda mengaktifkan bekukan \"terakhir dilihat dan online\", Anda tidak dapat
     <string name="new_ui_group_filter_sum">Filter baru di layar beranda untuk memisahkan grup dan percakapan</string>
     <string name="call_blocking_type">Jenis Pemblokiran Panggilan</string>
     <string name="call_blocking_type_sum">Pilih metode pemblokiran panggilan yang akan dilakukan</string>
+    <string name="call_block_notification_enabled">Notifikasi panggilan diblokir</string>
+    <string name="call_block_notification_enabled_sum">Tampilkan notifikasi saat panggilan diblokir</string>
+    <string name="call_blocked_notification_title">Panggilan Diblokir</string>
+    <string name="call_blocked_source_global">Pengaturan Global</string>
     <string name="call_type_buttons_no_internet">Tidak ada internet (\"Memanggil\")</string>
     <string name="call_type_buttons_uncallable">Tidak dapat menerima panggilan WhatsApp</string>
     <string name="call_type_buttons_busy">Busy (On another call)</string>
@@ -393,8 +397,10 @@ Saat Anda mengaktifkan bekukan \"terakhir dilihat dan online\", Anda tidak dapat
     <string name="starting_cache">Memulai cache hook di WhatsApp. Ini mungkin membutuhkan waktu.</string>
     <string name="bridge_error">Jembatan gagal: Aktifkan Kerangka Kerja Sistem di Lposed dan mulai ulang perangkat</string>
     <string name="disable_battery_optimization">Nonaktifkan pengoptimalan baterai</string>
-    <string name="bootloader_spoofer">Pemalsuan Bootloader</string>
     <string name="bootloader_spoofer_sum">Gunakan ini jika Anda telah diblokir dan menerima pesan WhatsApp tidak resmi</string>
+    <string name="custom_keybox">KeyBox Kustom</string>
+    <string name="custom_keybox_file">File keybox.xml</string>
+    <string name="custom_keybox_file_none">Tidak ada file dipilih</string>
     <string name="not_available">tidak tersedia</string>
     <string name="select_all">Pilih Semua</string>
     <string name="custom_colors_for_text_status">Warna kustom untuk status teks</string>
