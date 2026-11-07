@@ -49,7 +49,6 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         loadPreferences()
         hookSendReadReceiptJob()
         hookReceiptMethod()
-        hookSenderPlayed()
         hookSenderPlayedBusiness()
         hookStanzaWriter()
         hookEnforceHiding()
@@ -352,49 +351,46 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
         return shouldHide
     }
 
-    private fun hookSenderPlayed() {
-        val loadSenderPlayed = Unobfuscator.loadSenderPlayedMethod(classLoader)
+    private fun hookSenderPlayedBusiness() {
+        val loadSenderPlayed = Unobfuscator.loadSenderPlayedBusiness(classLoader)
 
         XposedBridge.hookMethod(loadSenderPlayed, object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val fMessage = FMessageWpp(param.args[0])
-                processSenderPlayed(param, fMessage)
-            }
-        })
-    }
-
-    private fun hookSenderPlayedBusiness() {
-        val loadSenderPlayedBusiness = Unobfuscator.loadSenderPlayedBusiness(classLoader)
-
-        XposedBridge.hookMethod(loadSenderPlayedBusiness, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val set = param.args[0] as? Set<*>
                 if (set.isNullOrEmpty()) return
 
-                val fMessage = FMessageWpp(set.first())
-                processSenderPlayed(param, fMessage)
+                processSenderPlayed(param, set.filterNotNull().map { FMessageWpp(it) })
             }
         })
     }
 
-    private fun processSenderPlayed(param: XC_MethodHook.MethodHookParam, fMessage: FMessageWpp) {
-        val isHideViewOnce = (hideOnceSeen || ghostMode) && fMessage.isViewOnce
-        val isHideVoiceNote =
-            (hideAudioSeen || ghostMode) && fMessage.mediaType == MEDIA_TYPE_VOICE_NOTE
-        val key = fMessage.key
-
-        if (isHideViewOnce || isHideVoiceNote) {
-            param.result = null
-            MessageHistoryStore.getInstance().insertHideSeenMessage(
-                key.remoteJid.phoneRawString,
-                key.remoteJid.userRawString,
-                key.messageID,
-                MessageHistoryStore.ReceiptType.PLAYED,
-                false
-            )
+    private fun processSenderPlayed(param: XC_MethodHook.MethodHookParam, messages: List<FMessageWpp>) {
+        val hiddenMessages = messages.filter { fMessage ->
+            val isHideViewOnce = (hideOnceSeen || ghostMode) && fMessage.isViewOnce
+            val isHideVoiceNote =
+                (hideAudioSeen || ghostMode) && fMessage.mediaType == MEDIA_TYPE_VOICE_NOTE
+            isHideViewOnce || isHideVoiceNote
         }
 
-        if (fMessage.isViewOnce && !hideOnceSeen && !ghostMode) {
+        if (hiddenMessages.isNotEmpty()) {
+            param.result = null
+            for (fMessage in hiddenMessages) {
+                val key = fMessage.key
+                MessageHistoryStore.getInstance().insertHideSeenMessage(
+                    key.remoteJid.phoneRawString,
+                    key.remoteJid.userRawString,
+                    key.messageID,
+                    MessageHistoryStore.ReceiptType.PLAYED,
+                    false
+                )
+            }
+            return
+        }
+
+        if (hideOnceSeen || ghostMode) return
+        for (fMessage in messages) {
+            if (!fMessage.isViewOnce) continue
+            val key = fMessage.key
             val phoneRaw = key.remoteJid.phoneRawString
             val userRaw = key.remoteJid.userRawString
             val messageId = key.messageID

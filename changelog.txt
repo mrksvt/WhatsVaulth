@@ -1,3 +1,21 @@
+WhatsVault 1.6.4 2.26.45.xx
+
+[ADDED]
+* IGStatus: opsi "IG Status native" untuk memakai bar status bawaan WhatsApp di tab chat, jadi tidak perlu lagi bar buatan modul kalau bawaan WhatsApp sudah cukup
+* Ada kolom pencarian untuk opsi baru itu di daftar fitur, jadi mudah ditemukan
+
+[IMPROVED]
+* IGStatus: daftar status sekarang memakai RecyclerView, jadi hanya baris yang berubah yang digambar ulang saat status bertambah. Geser bar status jadi lebih ringan dan tidak lagi berkedip
+* Anti Revoke: pesan yang dihapus tidak lagi memicu pencarian ulang ke database berkali-kali, sehingga chat dengan banyak pesan terhapus tidak tersendat saat digeser
+
+[FIXED]
+* Anti Revoke: teks tanggal pesan yang dihapus tidak lagi tertinggal atau salah tempat saat baris chat dipakai ulang. Sebelumnya baris yang digeser bisa menampilkan tanda "dihapus" pada pesan yang masih ada
+* Anti Revoke: blokir hapus status sekarang tetap bekerja di WhatsApp 2.26.43 ke atas, yang memindahkan posisi kunci status di dalam metode internalnya
+* Hide Seen: kirim ulang media di chat tidak lagi memperlihatkan status "sudah dilihat". Sebelumnya hanya pesan pertama dalam satu kiriman yang ditangani, sisanya tetap terkirim tanda baca
+
+[NOTE]
+* Port dari WaEnhancer 1.6.4. Semua perubahan di atas belum diuji runtime karena tidak ada perangkat saat build
+
 WhatsVault 1.6.3 2.26.45.xx
 
 [IMPROVED]

@@ -337,6 +337,29 @@ Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kec
 
 ---
 
+## Port range ceca486e..44050758 (WaEnhancer 1.6.4)
+
+**Tanggal:** 2026-11-08
+**Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (44050758)
+**Range:** 8 commit, 6 di antaranya portabel
+**Build:** `:app:assembleWhatsappDebug --offline` sukses, R8 minify jalan
+**Runtime:** belum diuji, tidak ada perangkat saat build
+
+| Upstream commit | Topik | Status di fork |
+|-----------------|-------|----------------|
+| 29e51237 | perf(AntiRevoke): cache hasil lookup original key di DB | N/A: fork sudah punya `timestampCache` + `negativeCache` berukuran tetap, key `jid\0msgid`, dan `persistRevokedMessage` yang membuang entri negatif. Struktur upstream (`originalMessageKeyCache`, `loadedRevokedJids`) tidak ada di fork, jadi menambahkannya berarti cache kedua yang paralel, bukan perbaikan |
+| 8e2b5e44 | fix(AntiRevoke): teks tanggal basi saat view dipakai ulang | ported: `FIELD_ORIGINAL_DATE_TEXT`/`FIELD_DECORATED_DATE_TEXT`, `restoreDateText`, `decorateDateText`; parameter `originalMessage` dihapus dari jalur `applyRevokedUI`. Fork memakai `XposedHelpers.get/set/removeAdditionalInstanceField`, bukan `ReflectionUtils` |
+| aecc2265 | fix(AntiRevoke): revoke status di 2.26.43 | ported sebagai fallback: `loadAntiRevokeFStatusMethod` memakai `findMethodUsingFilter` dulu, lalu fallback `declaredMethods` yang return enum dengan minimal 2 parameter `FStatusKey`; `loadFStatusToFMessage` fallback ke `bridge.findMethod` + filter `!isSynthetic`; hook membaca `args.lastOrNull { FStatusKey.TYPE.isInstance(it) }` |
+| 1a82e672 | refactor(IGStatus): RecyclerView + DiffUtil | ported: `IGStatusAdapter.java` jadi `RecyclerView.Adapter` dengan `submitList` + `StatusDiffCallback`, `IGStatusView.java` memakai `RecyclerView` horizontal, `HorizontalListView.java` dihapus, `updateList(itens)` di 5 call site, `adapter = null` saat container didaur ulang. Helper fork (`resolveStatusInfo`, `resolveJid`, `readStatusCounts`, cache foto) tetap utuh |
+| c539ce20 | fix(HideSeen): media dikirim ulang tidak terlihat | ported: hook tunggal ke `loadSenderPlayedBusiness`, `processSenderPlayed` loop semua pesan dalam Set, `hookSenderPlayed` lama dihapus dari `doHook`. Anchor `loadSenderPlayedMethod` tetap ada di `Unobfuscator` sebagai fallback (aturan keep-anchor) |
+| 648e439a | feat(IGStatus): pakai bar status native WhatsApp | ported: pref `native_igstatus`, `propsBoolean[25327] = igstatus && nativeIgStatus` di `Others.kt`, early return di `IGStatus.doHook()`, entri `FeatureCatalog.java`, switch di `fragment_customization.xml` (`app:dependency="igstatus"`), strings `values` + `values-pt` |
+| 7b32d787 | Changelog upstream | N/A: changelog fork ditulis sendiri dalam bahasa Indonesia |
+| 44050758 | Version bump 1.6.4 | N/A: versi fork dikelola sendiri |
+
+**Catatan build:** dependensi `androidx.recyclerview:recyclerview:1.3.2` ditambahkan eksplisit ke `gradle/libs.versions.toml` + `app/build.gradle.kts`. Sebelumnya kelas RecyclerView hanya ikut secara transitif.
+
+---
+
 ## Trim dukungan versi ke 2.26.43.xx - 2.26.45.xx
 
 **Tanggal:** 2026-11-07

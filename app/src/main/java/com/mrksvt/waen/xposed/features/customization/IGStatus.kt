@@ -59,6 +59,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
     @Throws(Throwable::class)
     override fun doHook() {
         if (!prefs.getBoolean("igstatus", false)) return
+        if (prefs.getBoolean("native_igstatus", false)) return
 
         forceStatusLoad()
 
@@ -104,6 +105,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 val igStatus = mListStatusContainer.find { it.fragmentId == id }
                 if (igStatus != null) {
                     mStatusContainer.adapter = igStatus.adapter
+                    igStatus.adapter = null
                     mListStatusContainer.remove(igStatus)
                 } else {
                     // Adapter harus terpasang sejak container dibuat. `updateList()` no-op selama
@@ -115,7 +117,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                     // konstruktor list status jalan sebelum FragmentView dibuat).
                     // Adapter baru belum pernah dapat notify, jadi panggil sekali
                     // di sini supaya baris langsung tampil tanpa harus pindah menu.
-                    mStatusContainer.updateList()
+                    mStatusContainer.updateList(itens)
                 }
                 mStatusContainer.fragmentId = id
                 mListStatusContainer.add(mStatusContainer)
@@ -137,7 +139,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                     if (mStatusContainer.adapter?.context !== activity) {
                         mStatusContainer.adapter = IGStatusAdapter(activity, statusInfoClass)
                     }
-                    mStatusContainer.updateList()
+                    mStatusContainer.updateList(itens)
                 }
             }
         })
@@ -160,7 +162,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 newList.addAll(lists[1])
                 itens = newList
                 for (mStatusContainer in mListStatusContainer) {
-                    mStatusContainer.updateList()
+                    mStatusContainer.updateList(itens)
                 }
             }
         })
@@ -227,7 +229,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         newList.addAll(list2)
         itens = newList
         for (mStatusContainer in mListStatusContainer) {
-            mStatusContainer.updateList()
+            mStatusContainer.updateList(itens)
         }
     }
 
@@ -239,7 +241,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
     private fun scheduleColdStartRefresh(container: IGStatusView) {
         for (attempt in 1..COLD_START_REFRESH_ATTEMPTS) {
             RETRY_HANDLER.postDelayed({
-                if (itens.size > 1) container.updateList()
+                if (itens.size > 1) container.updateList(itens)
             }, COLD_START_REFRESH_STEP_MS * attempt)
         }
     }

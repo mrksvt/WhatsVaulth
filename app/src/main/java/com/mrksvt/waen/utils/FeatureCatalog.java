@@ -969,6 +969,14 @@ public class FeatureCatalog {
                 null,
                 Arrays.asList("instagram", "status", "ig")));
 
+        catalog.add(new SearchableFeature("native_igstatus",
+                context.getString(R.string.native_igstatus),
+                context.getString(R.string.native_igstatus_sum),
+                SearchableFeature.Category.CUSTOMIZATION,
+                SearchableFeature.FragmentType.CUSTOMIZATION,
+                null,
+                Arrays.asList("igstatus", "instagram", "status", "ig", "native")));
+
         catalog.add(new SearchableFeature("channels",
                 context.getString(R.string.disable_channels),
                 context.getString(R.string.disable_channels_sum),

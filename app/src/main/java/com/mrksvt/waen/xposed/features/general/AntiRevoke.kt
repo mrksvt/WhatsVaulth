@@ -42,6 +42,9 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
     companion object {
         private val savedMediaPaths = ConcurrentHashMap<String, String>()
 
+        private const val FIELD_ORIGINAL_DATE_TEXT = "originalMessage"
+        private const val FIELD_DECORATED_DATE_TEXT = "decoratedMessage"
+
         // Per-row async lookup caches. Each visible row does one async point-query
         // on the composite (jid,msgid) index; results are memoized. Both caches are
         // size-bounded, so RAM stays constant regardless of revoke volume.
@@ -227,7 +230,9 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         XposedBridge.hookMethod(antiRevokeFStatusMethod, object : XC_MethodHook() {
 
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val fStatusKey = FStatusWpp.FStatusKey(param.args[1])
+                val targetKey = param.args?.lastOrNull { FStatusWpp.FStatusKey.TYPE.isInstance(it) }
+                    ?: return
+                val fStatusKey = FStatusWpp.FStatusKey(targetKey)
                 val fstatus = fStatusKey.fStatus ?: return
                 val fMessage = fstatus.fMessage ?: return
                 if (!fStatusKey.isFromMe && handleRevocationAttempt(fMessage, fStatusKey.messageID) != 0) {
@@ -322,15 +327,13 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         val boundMessageId = key.messageID
         val jid = key.remoteJid.phoneNumber ?: return
         val rowId = fMessage.rowId
-        val originalMessage =
-            XposedHelpers.getAdditionalInstanceField(dateTextView, "originalMessage") as? String
 
         // Reset synchronously so a recycled view never shows a stale revoke mark,
         // then resolve the real state off the main thread.
         dateTextView.paint.isUnderlineText = false
         dateTextView.setOnClickListener(null)
         dateTextView.setCompoundDrawables(null, null, null, null)
-        if (originalMessage != null) dateTextView.text = originalMessage
+        restoreDateText(dateTextView)
 
         val cacheId = cacheKey(jid, boundMessageId)
         timestampCache[cacheId]?.let { timestamp ->
@@ -383,6 +386,39 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         return 0
     }
 
+    private fun restoreDateText(dateTextView: TextView) {
+        val originalText = XposedHelpers.getAdditionalInstanceField(
+            dateTextView,
+            FIELD_ORIGINAL_DATE_TEXT
+        ) as? String
+        val decoratedText = XposedHelpers.getAdditionalInstanceField(
+            dateTextView,
+            FIELD_DECORATED_DATE_TEXT
+        ) as? String
+        // WhatsApp rewrites the date when it binds a message, so any other text is already fresh.
+        if (originalText != null && dateTextView.text?.toString() == decoratedText) {
+            dateTextView.text = originalText
+        }
+        XposedHelpers.removeAdditionalInstanceField(dateTextView, FIELD_ORIGINAL_DATE_TEXT)
+        XposedHelpers.removeAdditionalInstanceField(dateTextView, FIELD_DECORATED_DATE_TEXT)
+    }
+
+    private fun decorateDateText(dateTextView: TextView) {
+        val currentText = dateTextView.text?.toString().orEmpty()
+        val decoratedText = XposedHelpers.getAdditionalInstanceField(
+            dateTextView,
+            FIELD_DECORATED_DATE_TEXT
+        ) as? String
+        if (currentText == decoratedText) return
+
+        val newTextData = "${
+            UnobfuscatorCache.getInstance().getString("messagedeleted")
+        } | $currentText"
+        dateTextView.text = newTextData
+        XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_ORIGINAL_DATE_TEXT, currentText)
+        XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DECORATED_DATE_TEXT, newTextData)
+    }
+
     private fun applyRevokedUI(
         dateTextView: TextView,
         antirevokeValue: Int,
@@ -400,20 +436,7 @@ class AntiRevoke(loader: ClassLoader, preferences:SharedPreferences) :
         }
 
         when (antirevokeValue) {
-            1 -> {
-                val messageText =
-                    XposedHelpers.getAdditionalInstanceField(dateTextView, "originalMessage") as? String
-                        ?: dateTextView.text
-                val newTextData = "${
-                    UnobfuscatorCache.getInstance().getString("messagedeleted")
-                } | $messageText"
-                dateTextView.text = newTextData
-                XposedHelpers.setAdditionalInstanceField(
-                    dateTextView,
-                    "originalMessage",
-                    messageText.toString()
-                )
-            }
+            1 -> decorateDateText(dateTextView)
 
             2 -> {
                 val drawable = Utils.application.getDrawable(R.drawable.deleted)

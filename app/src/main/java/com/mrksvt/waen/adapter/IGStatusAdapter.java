@@ -1,7 +1,5 @@
 package com.mrksvt.waen.adapter;
 
-import static com.mrksvt.waen.xposed.features.customization.IGStatus.itens;
-
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -15,7 +13,6 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -23,7 +20,8 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.views.dialog.TabDialogContent;
@@ -39,13 +37,15 @@ import com.mrksvt.waen.xposed.utils.Utils;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-public class IGStatusAdapter extends ArrayAdapter {
+public class IGStatusAdapter extends RecyclerView.Adapter<IGStatusAdapter.IGStatusViewHolder> {
 
     private static final long PHOTO_TTL_MS = 5 * 60 * 1000L;
 
@@ -75,25 +75,46 @@ public class IGStatusAdapter extends ArrayAdapter {
         return loaded;
     }
 
+    public final Context context;
+    private final ArrayList<Object> items = new ArrayList<>();
     private final Class<?> clazzImageStatus;
     private final Class<?> statusInfoClazz;
     private final Method setCountStatus;
 
+    public IGStatusAdapter(@NonNull Context context, @NonNull Class<?> statusInfoClazz) throws Exception {
+        this.context = context;
+        this.clazzImageStatus = Unobfuscator.findFirstClassUsingName(context.getClassLoader(), StringMatchType.EndsWith, ".ContactStatusThumbnail");
+        this.statusInfoClazz = statusInfoClazz;
+        this.setCountStatus = ReflectionUtils.findMethodUsingFilter(this.clazzImageStatus, m -> m.getParameterCount() == 3 && Arrays.equals(new Class[]{int.class, int.class, int.class}, m.getParameterTypes()));
+    }
+
+    /**
+     * Menukar isi daftar lewat DiffUtil supaya RecyclerView hanya mengikat baris yang
+     * benar-benar berubah. Daftar lama disalin karena DiffUtil butuh snapshot utuh
+     * selama dispatch.
+     */
+    public void submitList(@NonNull List<?> newItems) {
+        var result = DiffUtil.calculateDiff(new StatusDiffCallback(new ArrayList<>(items), newItems));
+        items.clear();
+        items.addAll(newItems);
+        result.dispatchUpdatesTo(this);
+    }
+
+    @Override
+    public int getItemCount() {
+        return items.size();
+    }
+
     @NonNull
     @Override
-    public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        if (position >= itens.size()) {
-            return convertView != null ? convertView : new View(getContext());
-        }
-        var item = itens.get(position);
-        IGStatusViewHolder holder;
-        if (convertView == null) {
-            holder = new IGStatusViewHolder();
-            convertView = createLayoutStatus(holder);
-            convertView.setTag(holder);
-        } else {
-            holder = (IGStatusViewHolder) convertView.getTag();
-        }
+    public IGStatusViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        return createLayoutStatus();
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull IGStatusViewHolder holder, int position) {
+        if (position >= items.size()) return;
+        var item = items.get(position);
         if (item == null) {
             holder.setInfo("my_status");
             holder.addButton.setVisibility(View.VISIBLE);
@@ -104,7 +125,7 @@ public class IGStatusAdapter extends ArrayAdapter {
             holder.setInfo(item);
             holder.addButton.setVisibility(View.GONE);
         }
-        convertView.setOnClickListener(v -> {
+        holder.itemView.setOnClickListener(v -> {
             if (holder.myStatus) {
                 var activity = WppCore.getCurrentActivity();
                 var dialog = WppCore.createBottomDialog(activity);
@@ -112,7 +133,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                 tabdialog.setTitle(activity.getString(R.string.select_status_type));
                 tabdialog.addTab(UnobfuscatorCache.getInstance().getString("mystatus"), DesignUtils.getIconByName("ic_status", true), (view) -> {
                     try {
-                        var clazz = Unobfuscator.getClassByName("MyStatusesActivity", getContext().getClassLoader());
+                        var clazz = Unobfuscator.getClassByName("MyStatusesActivity", context.getClassLoader());
                         var intent = new Intent(WppCore.getCurrentActivity(), clazz);
                         WppCore.getCurrentActivity().startActivity(intent);
                     } catch (Exception e) {
@@ -127,7 +148,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                 tabdialog.addTab(activity.getString(R.string.open_camera), iconCamera, (view) -> {
                     try {
                         Intent intent = new Intent();
-                        var clazz = Unobfuscator.getClassByName("CameraActivity", getContext().getClassLoader());
+                        var clazz = Unobfuscator.getClassByName("CameraActivity", context.getClassLoader());
                         intent.setClassName(activity.getPackageName(), clazz.getName());
                         intent.putExtra("jid", "status@broadcast");
                         intent.putExtra("camera_origin", 4);
@@ -152,7 +173,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                         try {
                             clazz = Unobfuscator.getClassByName("TextStatusComposerActivity", activity.getClassLoader());
                         } catch (Exception ignored) {
-                            clazz = Unobfuscator.getClassByName("ConsolidatedStatusComposerActivity", getContext().getClassLoader());
+                            clazz = Unobfuscator.getClassByName("ConsolidatedStatusComposerActivity", context.getClassLoader());
                             intent.putExtra("status_composer_mode", 2);
                         }
                         intent.setClassName(activity.getPackageName(), clazz.getName());
@@ -167,36 +188,31 @@ public class IGStatusAdapter extends ArrayAdapter {
                 return;
             }
             try {
-                var clazz = Unobfuscator.getClassByName("StatusPlaybackActivity", getContext().getClassLoader());
+                var clazz = Unobfuscator.getClassByName("StatusPlaybackActivity", context.getClassLoader());
                 var intent = new Intent(WppCore.getCurrentActivity(), clazz);
-                intent.putExtra("jid", holder.userJid.getPhoneRawString());
+                var userJid = holder.userJid;
+                if (userJid == null) return;
+                intent.putExtra("jid", userJid.getPhoneRawString());
                 WppCore.getCurrentActivity().startActivity(intent);
             } catch (Exception e) {
                 Utils.showToast(e.getMessage(), 1);
             }
         });
-
-        return convertView;
     }
 
-    public IGStatusAdapter(@NonNull Context context, @NonNull Class<?> statusInfoClazz) throws Exception {
-        super(context, 0);
-        this.clazzImageStatus = Unobfuscator.findFirstClassUsingName(this.getContext().getClassLoader(), StringMatchType.EndsWith, ".ContactStatusThumbnail");
-        this.statusInfoClazz = statusInfoClazz;
-        this.setCountStatus = ReflectionUtils.findMethodUsingFilter(this.clazzImageStatus, m -> m.getParameterCount() == 3 && Arrays.equals(new Class[]{int.class, int.class, int.class}, m.getParameterTypes()));
-    }
-
-    @Override
-    public int getCount() {
-        return itens.size();
-    }
-
-    class IGStatusViewHolder {
+    class IGStatusViewHolder extends RecyclerView.ViewHolder {
         public ImageView igStatusContactPhoto;
         public RelativeLayout addButton;
         public TextView igStatusContactName;
         public boolean myStatus;
         private FMessageWpp.UserJid userJid;
+
+        IGStatusViewHolder(@NonNull View itemView, ImageView igStatusContactPhoto, RelativeLayout addButton, TextView igStatusContactName) {
+            super(itemView);
+            this.igStatusContactPhoto = igStatusContactPhoto;
+            this.addButton = addButton;
+            this.igStatusContactName = igStatusContactName;
+        }
 
         public void setInfo(Object item) {
 
@@ -217,6 +233,7 @@ public class IGStatusAdapter extends ArrayAdapter {
                 setCountStatus(0, 0);
                 return;
             }
+            myStatus = false;
             try {
                 var statusInfo = resolveStatusInfo(item);
                 if (statusInfo == null) {
@@ -426,41 +443,40 @@ public class IGStatusAdapter extends ArrayAdapter {
     }
 
     @NonNull
-    private RelativeLayout createLayoutStatus(IGStatusViewHolder holder) {
-        RelativeLayout relativeLayout = new RelativeLayout(this.getContext());
+    private IGStatusViewHolder createLayoutStatus() {
+        RelativeLayout relativeLayout = new RelativeLayout(this.context);
         RelativeLayout.LayoutParams relativeParams = new RelativeLayout.LayoutParams(Utils.dipToPixels(86), ViewGroup.LayoutParams.WRAP_CONTENT);
         relativeLayout.setLayoutParams(relativeParams);
 
         // Criando o FrameLayout
-        FrameLayout frameLayout = new FrameLayout(this.getContext());
+        FrameLayout frameLayout = new FrameLayout(this.context);
         frameLayout.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // Criando o LinearLayout
-        LinearLayout linearLayout = new LinearLayout(this.getContext());
+        LinearLayout linearLayout = new LinearLayout(this.context);
         LinearLayout.LayoutParams linearParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
         linearLayout.setLayoutParams(linearParams);
 
         // Criando o RelativeLayout interno
-        RelativeLayout internalRelativeLayout = new RelativeLayout(this.getContext());
+        RelativeLayout internalRelativeLayout = new RelativeLayout(this.context);
         RelativeLayout.LayoutParams internalRelativeParams = new RelativeLayout.LayoutParams(Utils.dipToPixels(64), Utils.dipToPixels(64));
         internalRelativeLayout.setLayoutParams(internalRelativeParams);
 
         // Adicionando os elementos ao RelativeLayout interno
-        var contactPhoto = (ImageView) XposedHelpers.newInstance(this.clazzImageStatus, this.getContext());
+        var contactPhoto = (ImageView) XposedHelpers.newInstance(this.clazzImageStatus, this.context);
         RelativeLayout.LayoutParams photoParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         contactPhoto.setLayoutParams(photoParams);
         contactPhoto.setPadding(Utils.dipToPixels(2.5F), Utils.dipToPixels(2.5F), Utils.dipToPixels(2.5F), Utils.dipToPixels(2.5F));
         contactPhoto.setScaleType(ImageView.ScaleType.CENTER_CROP);
         contactPhoto.setImageDrawable(DesignUtils.getDrawableByName("avatar_contact"));
-        holder.igStatusContactPhoto = contactPhoto;
-        contactPhoto.setClickable(true);
+        contactPhoto.setClickable(false);
         XposedHelpers.callMethod(contactPhoto, "setBorderSize", (float) Utils.dipToPixels(2.5f));
         XposedHelpers.callMethod(contactPhoto, "setCornerRadius", (float) Utils.dipToPixels(80f));
         XposedHelpers.setObjectField(contactPhoto, "A02", Color.GRAY);
         XposedHelpers.setObjectField(contactPhoto, "A03", DesignUtils.getUnSeenColor());
 
-        RelativeLayout addBtnRelativeLayout = new RelativeLayout(this.getContext());
+        RelativeLayout addBtnRelativeLayout = new RelativeLayout(this.context);
         addBtnRelativeLayout.setBackgroundColor(Color.TRANSPARENT);
         RelativeLayout.LayoutParams addBtnParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         addBtnParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
@@ -469,7 +485,7 @@ public class IGStatusAdapter extends ArrayAdapter {
         addBtnRelativeLayout.setLayoutParams(addBtnParams);
         addBtnRelativeLayout.setVisibility(View.GONE);
 
-        ImageView iconImageView = new ImageView(this.getContext());
+        ImageView iconImageView = new ImageView(this.context);
         RelativeLayout.LayoutParams iconParams = new RelativeLayout.LayoutParams(Utils.dipToPixels(24), Utils.dipToPixels(24));
         iconImageView.setLayoutParams(iconParams);
         var icon = DesignUtils.getDrawableByName("my_status_add_button_new");
@@ -477,13 +493,11 @@ public class IGStatusAdapter extends ArrayAdapter {
         iconImageView.setImageDrawable(coloredIcon != null ? coloredIcon : icon);
         iconImageView.setBackgroundColor(Color.TRANSPARENT);
         addBtnRelativeLayout.addView(iconImageView);
-        holder.addButton = addBtnRelativeLayout;
-
 
         internalRelativeLayout.addView(contactPhoto);
         internalRelativeLayout.addView(addBtnRelativeLayout);
 
-        TextView contactName = new TextView(this.getContext());
+        TextView contactName = new TextView(this.context);
         contactName.setEllipsize(TextUtils.TruncateAt.END);
         contactName.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -493,11 +507,44 @@ public class IGStatusAdapter extends ArrayAdapter {
         contactName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         contactName.setTypeface(Typeface.DEFAULT_BOLD);
         contactName.setMaxLines(1);
-        holder.igStatusContactName = contactName;
         linearLayout.addView(internalRelativeLayout);
         linearLayout.addView(contactName);
         frameLayout.addView(linearLayout);
         relativeLayout.addView(frameLayout);
-        return relativeLayout;
+        return new IGStatusViewHolder(relativeLayout, contactPhoto, addBtnRelativeLayout, contactName);
+    }
+
+    private static class StatusDiffCallback extends DiffUtil.Callback {
+        private final List<?> oldItems;
+        private final List<?> newItems;
+
+        StatusDiffCallback(List<?> oldItems, List<?> newItems) {
+            this.oldItems = oldItems;
+            this.newItems = newItems;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldItems.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newItems.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            var oldItem = oldItems.get(oldItemPosition);
+            var newItem = newItems.get(newItemPosition);
+            if (oldItem == null || newItem == null) return oldItem == null && newItem == null;
+            // WhatsApp creates new objects on every update, but toString() includes the JID
+            return oldItem.toString().equals(newItem.toString());
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            return oldItems.get(oldItemPosition) == newItems.get(newItemPosition);
+        }
     }
 }

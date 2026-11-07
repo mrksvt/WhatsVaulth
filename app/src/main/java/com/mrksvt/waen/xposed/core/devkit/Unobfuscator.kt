@@ -3675,7 +3675,11 @@ object Unobfuscator {
             )
             ReflectionUtils.findMethodUsingFilter(clazz) { method ->
                 method.parameterCount > 0 && fStatusKeyClass.isAssignableFrom(method.parameterTypes[0])
-            }!!
+            } ?: clazz!!.declaredMethods.firstOrNull { method ->
+                // WhatsApp 2.26.43+ takes the key as a non-first parameter and returns an enum
+                Enum::class.java.isAssignableFrom(method.returnType) &&
+                    method.parameterTypes.count { fStatusKeyClass.isAssignableFrom(it) } >= 2
+            } ?: throw Exception("Revoke FStatus method not found")
         }
     }
 
@@ -3700,7 +3704,14 @@ object Unobfuscator {
                 classLoader,
                 StringMatchType.Contains,
                 "mapFStatusToFMessageForForwarding"
-            )!!
+            ) ?: bridge.findMethod {
+                matcher {
+                    addUsingString("mapFStatusToFMessageForForwarding", StringMatchType.Contains)
+                }
+            }.filter { it.isMethod }
+                .map { it.getMethodInstance(classLoader) }
+                .firstOrNull { !it.isSynthetic }
+                ?: throw Exception("FStatusToFMessage method not found")
         }
     }
 

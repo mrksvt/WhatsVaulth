@@ -78,12 +78,16 @@ class Others(loader: ClassLoader, preferences:SharedPreferences) : Feature(loade
         val audioTranscription = prefs.getBoolean("audio_transcription", false)
         val oldStatus = prefs.getBoolean("oldstatus", false)
         val igstatus = prefs.getBoolean("igstatus", false)
+        val nativeIgStatus = prefs.getBoolean("native_igstatus", false)
         val animationEmojis = prefs.getBoolean("animation_emojis", false)
         val disableProfileStatus = prefs.getBoolean("disable_profile_status", false)
         val disableExpiration = prefs.getBoolean("disable_expiration", false)
         val disableAd = prefs.getBoolean("disable_ads", false)
 
         propsInteger[3877] = if (oldStatus) (if (igstatus) 2 else 0) else 2
+
+        // WhatsApp's own status bar in the chats tab
+        propsBoolean[25327] = igstatus && nativeIgStatus
 
         propsBoolean[18250] = false
         propsBoolean[11528] = false
