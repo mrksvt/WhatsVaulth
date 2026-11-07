@@ -15,7 +15,7 @@
 |--------|-------------------|----------|
 | Total .kt/.java source | 201 | 165 |
 | Registered features | 71 | 51 |
-| WA versions supported | 2.26.29–2.26.41 | 2.26.25–2.26.41 |
+| WA versions supported | 2.26.43–2.26.45 | 2.26.25–2.26.41 |
 | Business build variant | ya (restored) | ya |
 | Kotlin features | majority | majority |
 | Java rewrites (Kt→Java) | 7 files | original |
@@ -334,3 +334,46 @@ Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kec
 | ceca486e | Changelog upstream | adapted: changelog fork berbahasa Indonesia |
 
 **Catatan:** semua hook di range ini belum diuji runtime (tidak ada perangkat saat build).
+
+---
+
+## Trim dukungan versi ke 2.26.43.xx - 2.26.45.xx
+
+**Tanggal:** 2026-11-07
+**Keputusan:** hanya 3 versi didukung. `2.26.43.xx` dan `2.26.44.xx` (lama), `2.26.45.xx` (beta).
+**Dihapus dari dukungan:** `2.26.35.xx` sampai `2.26.41.xx`.
+
+### Yang berubah di kode
+
+| Perubahan | File | Bukti |
+|-----------|------|-------|
+| `supported_versions_wpp` dan `supported_versions_business` tinggal 3 item | `app/src/main/res/values/arrays.xml` | `grep -c "<item>2.26"` = 6 |
+| `generate_build_notes.sh` membaca seluruh array, bukan `grep -A2` dengan `- 2.26.30.xx` hardcoded | `generate_build_notes.sh` | output `2.26.43.xx - 2.26.44.xx - 2.26.45.xx` |
+| Anchor `VideoTranscoder/transcodeVideoNew/` dihapus dari `loadVideoTranscoderStartMethod`, fallback videolite jadi satu-satunya jalur | `core/devkit/Unobfuscator.kt` | absen di dex 2.26.43.76 dan 2.26.45.3 |
+
+Tidak ada hook fitur yang dihapus. Audit 181 anchor DexKit dan seluruh literal nama metode di `features/` tidak menemukan anchor lain yang terbukti mati sebelum `2.26.43` (lihat `.work/AUDIT-wa-version-support-trim.md`).
+
+### Hook redundan yang gagal (fitur tetap bekerja)
+
+Dua hook gagal di `2.26.43.11` (W4B) dan `2.26.45.3`, keduanya ditambahkan commit `09f533ec` sebagai jalur tambahan, bukan jalur utama. Nama kelas WhatsApp di-hardcode. HideSeen dan CallRecording tetap berfungsi lewat jalur yang sudah ada sebelum commit itu.
+
+| Hook | Error di log | Peran | Jalur yang dipakai fitur |
+|------|--------------|-------|--------------------------|
+| `HideSeen.hookEnforceHiding` | `Didn't find class "com.whatsapp.protocol.Message"` | Tambahan: blokir `isRead` di level model pesan | `hookSendReadReceiptJob`, `hookReceiptMethod`, `hookStanzaWriter`, `hookSenderPlayed` |
+| `CallRecording.hookPeerJidMethod` | `Didn't find class "com.whatsapp.voipcalling.VoipCall"` | Tambahan: hook `getPeerJid` di kelas VoIP | `extractUserJid` dari `soundPortCreated`: `getCallInfo()` lalu `getPeerJid()` lalu field `peerJid` lalu map `participants` |
+
+Bukti jalur utama ada di 2.26.43.76 dan 2.26.45.3: `SendReadReceiptJob` (4 dan 6), `getCallInfo` (15 dan 15), `getPeerJid` (8 dan 8), `soundPortCreated` (2 dan 2), `fieldstatsReady` (7 dan 7), `VoiceServiceEventCallback` (28 dan 29). `CallPrivacy` memakai `getPeerJid` yang sama dan tidak error di log.
+
+Tidak dihapus dan tidak diperbaiki dalam scope trim. Kalau nanti dibersihkan, ganti nama kelas hardcoded dengan anchor DexKit.
+
+### Status smoke test
+
+| Versi | Perangkat | Hasil |
+|-------|-----------|-------|
+| `2.26.45.3` (WA) | `ZP2222SQLL` | 76 plugin, `Loaded Hooks in 12446ms`, tidak ada `Unsupported version` |
+| `2.26.43.11` (W4B) | `ZP2222SQLL` | 76 plugin, `Loaded Hooks in 10702ms`, tidak ada `Unsupported version` |
+| `2.26.44.xx` | tidak ada | Belum diuji, tidak ada APK. Anchor default KEEP |
+
+### Catatan rilis
+
+HideSeen dan CallRecording tetap bekerja di 2.26.43/44/45. Yang perlu disebut di changelog hanya sebagai catatan teknis: hook tambahan `enforceHiding` (HideSeen) dan hook `VoipCall.getPeerJid` (Call Recording) tidak terpasang karena nama kelas WhatsApp berubah, tanpa memengaruhi fitur. 2.26.44.xx belum diuji runtime.
