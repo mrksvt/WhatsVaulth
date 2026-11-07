@@ -20,6 +20,15 @@ val donaturProps = Properties().apply {
 fun donaturToken() = donaturProps.getProperty("TELEGRAM_BOT_TOKEN", "")
 fun donaturChatId() = donaturProps.getProperty("TELEGRAM_CHAT_ID", "")
 
+// Kredensial keystore stable. File ini tidak di-commit (lihat .gitignore).
+// Dipakai hanya oleh buildType release. BuildType debug tetap memakai
+// debug keystore bawaan Android, yang dipakai untuk build beta/prerelease.
+val signingProps = Properties().apply {
+    val f = rootProject.file("signing.properties")
+    if (f.exists()) load(f.inputStream())
+}
+fun signingProp(key: String): String? = signingProps.getProperty(key)?.takeIf { it.isNotBlank() }
+
 fun getGitHashCommit(): String {
     return try {
         val processBuilder = ProcessBuilder("git", "rev-parse", "HEAD")
@@ -71,12 +80,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         signingConfigs.create("config") {
-            val androidStoreFile = project.findProperty("androidStoreFile") as String?
+            val androidStoreFile = signingProp("androidStoreFile")
             if (!androidStoreFile.isNullOrEmpty()) {
                 storeFile = rootProject.file(androidStoreFile)
-                storePassword = project.property("androidStorePassword") as String
-                keyAlias = project.property("androidKeyAlias") as String
-                keyPassword = project.property("androidKeyPassword") as String
+                storePassword = signingProp("androidStorePassword")
+                keyAlias = signingProp("androidKeyAlias")
+                keyPassword = signingProp("androidKeyPassword")
             }
         }
 
@@ -117,8 +126,8 @@ android {
         debug {
             isMinifyEnabled = true  // Minify debug untuk mengurangi ukuran
             isShrinkResources = true  // Shrink resources di debug
-            signingConfig =
-                if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
+            // Beta/prerelease: selalu debug keystore, walau signing.properties ada.
+            signingConfig = signingConfigs["debug"]
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -133,6 +142,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Stable: keystore dari signing.properties. Kalau file kredensial
+            // belum ada, jatuh ke debug keystore supaya build tidak gagal.
             signingConfig =
                 if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
             proguardFiles(
