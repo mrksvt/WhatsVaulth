@@ -3275,22 +3275,21 @@ object Unobfuscator {
 
     fun loadVideoTranscoderStartMethod(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
-            findFirstMethodUsingStrings(
-                classLoader,
-                StringMatchType.Contains,
-                "VideoTranscoder/transcodeVideoNew/"
-            ) ?: findVideoTranscoderStartMethod(classLoader)
+            // The classic "VideoTranscoder/transcodeVideoNew/" task was removed before
+            // 2.26.43 (absent from both 2.26.43.76 and 2.26.45.3), so the videolite
+            // spec-builder path below is the only one that can resolve.
+            findVideoTranscoderStartMethod(classLoader)
             ?: throw NoSuchMethodException("VideoTranscoder start method not found")
         }
     }
 
     /**
-     * Fallback for WhatsApp 2.26.40.xx+, which removed the classic VideoTranscoder
-     * task ("VideoTranscoder/transcodeVideoNew/") and moved transcoding onto the
-     * videolite-based BaseMediaProcessingEngine flow. The transcode entry point is
-     * the spec builder that takes the media processor as its first argument and a
-     * MediaDataVideoConfiguration holder (a class declaring a configuration field
-     * plus the transcode boolean flags) as its second.
+     * Resolves the transcode entry point. The classic VideoTranscoder task
+     * ("VideoTranscoder/transcodeVideoNew/") was removed before 2.26.43, so the
+     * only supported path is the videolite-based BaseMediaProcessingEngine flow.
+     * The transcode entry point is the spec builder that takes the media processor
+     * as its first argument and a MediaDataVideoConfiguration holder (a class
+     * declaring a configuration field plus the transcode boolean flags) as its second.
      */
     @Throws(Exception::class)
     @JvmStatic
