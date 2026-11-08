@@ -14,7 +14,8 @@ WhatsVault 1.6.4 2.26.45.xx
 * Hide Seen: kirim ulang media di chat tidak lagi memperlihatkan status "sudah dilihat". Sebelumnya hanya pesan pertama dalam satu kiriman yang ditangani, sisanya tetap terkirim tanda baca
 
 [NOTE]
-* Port dari WaEnhancer 1.6.4. Semua perubahan di atas belum diuji runtime karena tidak ada perangkat saat build
+* Port dari WaEnhancer 1.6.4. IG Status, Anti Revoke, dan Hide Seen sudah dicoba di WhatsApp 2.26.45.3 dan berjalan normal
+* versionCode naik ke 6
 
 WhatsVault 1.6.3 2.26.45.xx
 

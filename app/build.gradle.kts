@@ -72,8 +72,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.6.3$versionSuffix ($gitHash)_mrksvt"
+        versionCode = 6
+        versionName = "1.6.4$versionSuffix ($gitHash)_mrksvt"
         // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true
 
@@ -133,7 +133,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("Boolean", "DONATUR", "false")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.6.3${versionSuffix} ($gitHash)_mrksvt\"")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.6.4${versionSuffix} ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"\"")
             // buildConfigField("Boolean", "DISABLE_ANTI_UPDATER", "true")  // Nonaktifkan jika tidak diperlukan
@@ -151,7 +151,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("Boolean", "DONATUR", "true")
-            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.6.3${versionSuffix} ($gitHash)_mrksvt\"")
+            buildConfigField("String", "BUILD_VERSION_NAME", "\"1.6.4${versionSuffix} ($gitHash)_mrksvt\"")
             buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"${donaturToken()}\"")
             buildConfigField("String", "TELEGRAM_CHAT_ID", "\"${donaturChatId()}\"")
         }
@@ -184,7 +184,7 @@ android {
         resValue("string", "app_name", appName)
 
         val buildSuffix = getBuildTypeSuffix(buildType.name)
-        val baseVersion = "1.6.3$versionSuffix-beta$buildSuffix ($gitHash)_mrksvt"
+        val baseVersion = "1.6.4$versionSuffix-beta$buildSuffix ($gitHash)_mrksvt"
 
         outputs.all {
             val apkName = if (isBusiness) "WhatsVault-Business" else "WhatsVault"

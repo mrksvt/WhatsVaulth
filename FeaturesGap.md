@@ -343,7 +343,7 @@ Status: seluruh commit fitur/fix pada rentang tersebut sudah diport ke fork, kec
 **Upstream:** https://github.com/Dev4Mod/WaEnhancer.git (44050758)
 **Range:** 8 commit, 6 di antaranya portabel
 **Build:** `:app:assembleWhatsappDebug --offline` sukses, R8 minify jalan
-**Runtime:** belum diuji, tidak ada perangkat saat build
+**Runtime:** diuji di `2.26.45.3` (WhatsApp, device `ZP2222SQLL`): modul ter-inject, `Loaded Hooks in 8208ms`, `AntiRevoke` 2906ms, `HideSeen` 737ms, `IGStatus` 1ms. Fallback WP3 (`loadAntiRevokeFStatusMethod`, `loadFStatusToFMessage`) resolve tanpa error. IG Status, Anti Revoke, dan Hide Seen aman. `HideSeen enforceHiding` masih gagal memuat `com.whatsapp.protocol.Message` (path `hookEnforceHiding` hardcode kelas, sudah ada sebelum port ini)
 
 | Upstream commit | Topik | Status di fork |
 |-----------------|-------|----------------|
