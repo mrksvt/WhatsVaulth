@@ -4,21 +4,23 @@
     tools:ignore="MissingTranslation">
 
     <string name="main_sidebar_update">Pembaruan</string>
-    <string name="update_channel_title">Channel pembaruan</string>
+    <string name="update_channel_title">Channel yang diikuti</string>
     <string name="update_channel_release">Rilis</string>
-    <string name="update_channel_release_sum">Hanya build stabil dan terbaru. Build beta disembunyikan.</string>
     <string name="update_channel_prerelease">Pra-rilis</string>
-    <string name="update_channel_prerelease_sum">Menyertakan build beta di samping rilis stabil.</string>
+    <string name="update_channel_summary_release">Mengikuti Rilis: hanya build stabil. Build beta disembunyikan.</string>
+    <string name="update_channel_summary_prerelease">Mengikuti Pra-rilis: hanya build beta. Build stabil disembunyikan.</string>
+    <string name="update_channel_summary_both">Mengikuti Rilis dan Pra-rilis: notifikasi untuk kedua jalur.</string>
     <string name="update_in_app_notification">Notifikasi push dalam aplikasi</string>
-    <string name="update_in_app_notification_sum">Tampilkan notifikasi sistem saat ada pembaruan pada channel yang dipilih.</string>
+    <string name="update_in_app_notification_sum">Tampilkan notifikasi sistem untuk tiap channel yang diikuti saat ada build baru.</string>
     <string name="update_notification_channel">Notifikasi pembaruan</string>
     <string name="update_notification_channel_desc">Memberi tahu saat ada build baru pada channel pembaruan yang Anda ikuti</string>
     <string name="update_notification_title">Pembaruan baru tersedia</string>
     <string name="update_notification_permission_denied">Izin notifikasi belum diberikan. Izinkan notifikasi agar peringatan pembaruan bisa muncul.</string>
     <string name="update_notification_open_settings">Buka pengaturan notifikasi</string>
-    <string name="update_center_empty">Belum ada rilis pada channel ini. Tarik ke bawah untuk menyegarkan.</string>
+    <string name="update_center_empty">Belum ada rilis pada channel yang diikuti. Tarik ke bawah untuk menyegarkan.</string>
     <string name="update_center_load_failed">Tidak dapat menghubungi server pembaruan</string>
     <string name="update_center_release_installed">Terpasang</string>
     <string name="update_center_release_available">Pembaruan tersedia</string>
     <string name="update_center_release_new">Baru</string>
+    <string name="update_center_release_prerelease">Pra-rilis</string>
 </resources>

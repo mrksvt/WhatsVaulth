@@ -4,7 +4,9 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -79,8 +81,8 @@ public class UpdateChannelTest {
     }
 
     @Test
-    public void prereleaseChannelAcceptsBothTracks() {
-        assertTrue(UpdateChannel.PRERELEASE.accepts(stable("1.6.2-AAAABBBB")));
+    public void prereleaseChannelAcceptsOnlyPrereleases() {
+        assertFalse(UpdateChannel.PRERELEASE.accepts(stable("1.6.2-AAAABBBB")));
         assertTrue(UpdateChannel.PRERELEASE.accepts(beta("1.7.0-CCCCDDDD")));
         assertFalse(UpdateChannel.PRERELEASE.accepts(null));
     }
@@ -98,7 +100,7 @@ public class UpdateChannelTest {
         assertSame(olderStable, stableOnly.get(1));
 
         List<ReleaseInfo> everything = UpdateChannel.PRERELEASE.filter(cached);
-        assertEquals(3, everything.size());
+        assertEquals(1, everything.size());
         assertSame(newestBeta, everything.get(0));
     }
 
@@ -107,6 +109,52 @@ public class UpdateChannelTest {
         ReleaseInfo entry = beta("1.7.0-CCCCDDDD");
         assertTrue(UpdateChannel.RELEASE.filter(Collections.singletonList(entry)).isEmpty());
         assertEquals(1, UpdateChannel.PRERELEASE.filter(Collections.singletonList(entry)).size());
+    }
+
+    @Test
+    public void filterAnyUnionsBothTracksWithoutDuplicates() {
+        ReleaseInfo stable = stable("1.6.2-AAAABBBB");
+        ReleaseInfo beta = beta("1.7.0-CCCCDDDD");
+        List<ReleaseInfo> cached = Arrays.asList(beta, stable);
+
+        List<ReleaseInfo> both = UpdateChannel.filterAny(
+                EnumSet.of(UpdateChannel.RELEASE, UpdateChannel.PRERELEASE), cached);
+        assertEquals(2, both.size());
+        assertSame(beta, both.get(0));
+        assertSame(stable, both.get(1));
+
+        assertEquals(1, UpdateChannel.filterAny(
+                EnumSet.of(UpdateChannel.RELEASE), cached).size());
+        assertTrue(UpdateChannel.filterAny(
+                EnumSet.noneOf(UpdateChannel.class), cached).isEmpty());
+        assertTrue(UpdateChannel.filterAny(null, cached).isEmpty());
+    }
+
+    @Test
+    public void setKeysRoundTripBothTracks() {
+        Set<UpdateChannel> both = EnumSet.of(UpdateChannel.PRERELEASE, UpdateChannel.RELEASE);
+        assertEquals("release,prerelease", UpdateChannel.setToKeys(both));
+        assertEquals(both, UpdateChannel.setFromKeys("release,prerelease"));
+    }
+
+    @Test
+    public void setKeysTolerateSpacingOrderAndGarbage() {
+        assertEquals(EnumSet.of(UpdateChannel.PRERELEASE),
+                UpdateChannel.setFromKeys(" prerelease "));
+        assertEquals(EnumSet.of(UpdateChannel.RELEASE),
+                UpdateChannel.setFromKeys("release,release"));
+        // Unknown or blank tokens fall back to the default set, never to empty.
+        assertEquals(UpdateChannel.defaultSet(), UpdateChannel.setFromKeys(""));
+        assertEquals(UpdateChannel.defaultSet(), UpdateChannel.setFromKeys(null));
+        assertEquals(UpdateChannel.defaultSet(), UpdateChannel.setFromKeys("beta"));
+        assertEquals(EnumSet.of(UpdateChannel.RELEASE),
+                UpdateChannel.setFromKeys("release,nonsense"));
+    }
+
+    @Test
+    public void setToKeysIgnoresNullAndEmpty() {
+        assertEquals("", UpdateChannel.setToKeys(null));
+        assertEquals("", UpdateChannel.setToKeys(EnumSet.noneOf(UpdateChannel.class)));
     }
 
     @Test

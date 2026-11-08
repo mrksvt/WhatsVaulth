@@ -30,7 +30,9 @@ import com.mrksvt.waen.databinding.FragmentUpdateCenterBinding;
 import com.mrksvt.waen.update.UpdateNotifier;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -51,6 +53,9 @@ public class UpdateCenterFragment extends Fragment {
 
     /** Set while a permission result is being applied, to avoid re-asking on revert. */
     private boolean suppressSwitchCallback;
+
+    /** Set while channel buttons are mirrored from prefs, to ignore the echo. */
+    private boolean syncingChannelButtons;
 
     @Nullable
     @Override
@@ -100,16 +105,34 @@ public class UpdateCenterFragment extends Fragment {
         loadReleases();
     }
 
+    /**
+     * Both channel buttons are independent checkboxes: the user follows stable builds,
+     * prerelease builds, or both. The group keeps at least one checked, and a stale
+     * empty read falls back to re-syncing instead of storing an empty follow set.
+     */
     private void bindChannelToggle() {
         binding.toggleGroupChannel.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (!isChecked) return;
-            UpdateChannel channel = checkedId == R.id.btn_channel_prerelease
-                    ? UpdateChannel.PRERELEASE : UpdateChannel.RELEASE;
-            if (channel == UpdateInfoStore.getChannel(requireContext())) return;
-            UpdateInfoStore.setChannel(requireContext(), channel);
-            syncChannelControls();
+            if (syncingChannelButtons) return;
+            Set<UpdateChannel> next = readChannelButtons();
+            if (next.isEmpty()) {
+                syncChannelControls();
+                return;
+            }
+            if (next.equals(UpdateInfoStore.getFollowedChannels(requireContext()))) return;
+            UpdateInfoStore.setFollowedChannels(requireContext(), next);
+            syncChannelSummary();
             loadReleases();
+            // Following a track must announce what that track already offers, without
+            // waiting for the next network round.
+            UpdateNotifier.notifyFollowedChannels(requireContext(), next);
         });
+    }
+
+    private Set<UpdateChannel> readChannelButtons() {
+        Set<UpdateChannel> channels = EnumSet.noneOf(UpdateChannel.class);
+        if (binding.btnChannelRelease.isChecked()) channels.add(UpdateChannel.RELEASE);
+        if (binding.btnChannelPrerelease.isChecked()) channels.add(UpdateChannel.PRERELEASE);
+        return channels;
     }
 
     private void bindNotificationSwitch() {
@@ -190,23 +213,37 @@ public class UpdateCenterFragment extends Fragment {
     }
 
     private void syncChannelControls() {
-        UpdateChannel channel = UpdateInfoStore.getChannel(requireContext());
-        int id = channel == UpdateChannel.PRERELEASE
-                ? R.id.btn_channel_prerelease : R.id.btn_channel_release;
-        if (binding.toggleGroupChannel.getCheckedButtonId() != id) {
-            binding.toggleGroupChannel.check(id);
+        Set<UpdateChannel> followed = UpdateInfoStore.getFollowedChannels(requireContext());
+        syncingChannelButtons = true;
+        binding.btnChannelRelease.setChecked(followed.contains(UpdateChannel.RELEASE));
+        binding.btnChannelPrerelease.setChecked(followed.contains(UpdateChannel.PRERELEASE));
+        syncingChannelButtons = false;
+        syncChannelSummary();
+    }
+
+    /** Summary text describes the tracks the user follows right now. */
+    private void syncChannelSummary() {
+        Set<UpdateChannel> followed = UpdateInfoStore.getFollowedChannels(requireContext());
+        boolean release = followed.contains(UpdateChannel.RELEASE);
+        boolean prerelease = followed.contains(UpdateChannel.PRERELEASE);
+        int summary;
+        if (release && prerelease) {
+            summary = R.string.update_channel_summary_both;
+        } else if (prerelease) {
+            summary = R.string.update_channel_summary_prerelease;
+        } else {
+            summary = R.string.update_channel_summary_release;
         }
-        binding.tvChannelSummary.setText(channel == UpdateChannel.PRERELEASE
-                ? R.string.update_channel_prerelease_sum : R.string.update_channel_release_sum);
+        binding.tvChannelSummary.setText(summary);
     }
 
     private void loadReleases() {
         if (binding == null) return;
-        UpdateChannel channel = UpdateInfoStore.getChannel(requireContext());
+        Set<UpdateChannel> followed = UpdateInfoStore.getFollowedChannels(requireContext());
         items.clear();
-        items.addAll(UpdateInfoStore.getReleasesForChannel(requireContext(), channel));
+        items.addAll(UpdateInfoStore.getReleasesFor(requireContext(), followed));
 
-        ReleaseInfo newest = UpdateInfoStore.getNewest(requireContext(), channel);
+        ReleaseInfo newest = UpdateInfoStore.getNewestFor(requireContext(), followed);
         adapter = new ReleaseListAdapter(items, UpdateInfoStore.getReadTags(requireContext()),
                 installedHash(), newest == null ? "" : newest.hash, this::openChangelogFor);
         binding.updateReleaseList.setAdapter(adapter);
@@ -228,6 +265,9 @@ public class UpdateCenterFragment extends Fragment {
     private void onCheckFinished() {
         if (binding == null) return;
         loadReleases();
+        // A manual refresh must announce new builds the same way the launch check does.
+        UpdateNotifier.notifyFollowedChannels(requireContext(),
+                UpdateInfoStore.getFollowedChannels(requireContext()));
         if (items.isEmpty()) {
             Toast.makeText(requireContext(), R.string.update_center_load_failed,
                     Toast.LENGTH_SHORT).show();

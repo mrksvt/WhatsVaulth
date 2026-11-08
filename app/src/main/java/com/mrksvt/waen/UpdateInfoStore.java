@@ -8,14 +8,21 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Persists the GitHub release list fetched by {@link UpdateChecker} so the
  * header notification menu and the changelog screen can read it without a
  * network call. Releases are stored newest-first.
+ *
+ * <p>The user follows one or more {@link UpdateChannel} tracks. Everything the UI
+ * and the notifier show is the union of the followed tracks, and the update
+ * candidate is tracked per track so a release never hides a prerelease alert.
  */
 public final class UpdateInfoStore {
 
@@ -24,10 +31,14 @@ public final class UpdateInfoStore {
 
     private static final String PREFS = "update_info";
     private static final String KEY_RELEASES = "releases";
-    private static final String KEY_UPDATE_AVAILABLE = "update_available";
     private static final String KEY_IGNORED_HASH = "ignored_hash";
     private static final String KEY_READ_TAGS = "read_tags";
-    private static final String KEY_CHANNEL = "channel";
+    /** Followed channel set, comma-separated keys. */
+    private static final String KEY_FOLLOWED_CHANNELS = "followed_channels";
+    /** Update candidate hash per channel key. */
+    private static final String KEY_CHANNEL_UPDATES = "channel_updates";
+    /** Legacy single-channel key, read once for migration. */
+    private static final String KEY_LEGACY_CHANNEL = "channel";
 
     private UpdateInfoStore() {
     }
@@ -37,17 +48,15 @@ public final class UpdateInfoStore {
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static void saveReleases(Context context, List<ReleaseInfo> releases,
-                                    boolean updateAvailable) {
-        saveReleases(context, releases, updateAvailable, getChannel(context));
-    }
-
     /**
-     * Persists the release list and records [updateAvailable] for [channel] only, so a
-     * prerelease build never flips the flag for users following stable releases.
+     * Persists the release list plus the update candidate of every channel, so the
+     * badge and the notifier never have to re-derive it from the installed build.
+     *
+     * @param channelUpdates channel to candidate release; a channel without an update
+     *                       is simply absent
      */
     public static void saveReleases(Context context, List<ReleaseInfo> releases,
-                                    boolean updateAvailable, UpdateChannel channel) {
+                                    Map<UpdateChannel, ReleaseInfo> channelUpdates) {
         JSONArray array = new JSONArray();
         for (ReleaseInfo release : releases) {
             JSONObject object = new JSONObject();
@@ -66,12 +75,27 @@ public final class UpdateInfoStore {
                 // Every key is a plain string/boolean, so this cannot happen.
             }
         }
-        SharedPreferences.Editor editor = prefs(context).edit()
-                .putString(KEY_RELEASES, array.toString());
-        if (updateAvailable || resolve(channel) == getChannel(context)) {
-            editor.putBoolean(KEY_UPDATE_AVAILABLE, updateAvailable);
+
+        JSONObject updates = new JSONObject();
+        for (UpdateChannel channel : UpdateChannel.values()) {
+            ReleaseInfo candidate = channelUpdates == null ? null : channelUpdates.get(channel);
+            try {
+                updates.put(channel.key(), candidate == null ? "" : candidate.hash);
+            } catch (JSONException ignored) {
+                // Plain string value, cannot fail.
+            }
         }
-        editor.apply();
+
+        // commit() instead of apply(): a lost 28 KB cache write leaves the whole
+        // update centre empty until the next launch, so report the failure instead
+        // of swallowing it. This runs off the main thread (UpdateChecker).
+        boolean saved = prefs(context).edit()
+                .putString(KEY_RELEASES, array.toString())
+                .putString(KEY_CHANNEL_UPDATES, updates.toString())
+                .commit();
+        if (!saved) {
+            android.util.Log.w("UpdateInfoStore", "failed to persist release cache");
+        }
     }
 
     public static List<ReleaseInfo> getReleases(Context context) {
@@ -85,86 +109,86 @@ public final class UpdateInfoStore {
         }
     }
 
-    /** Channel the update centre, badge and notifications follow. */
-    public static UpdateChannel getChannel(Context context) {
-        return UpdateChannel.fromKey(prefs(context).getString(KEY_CHANNEL, ""));
+    /**
+     * Tracks the user follows. Defaults to stable releases only and migrates the
+     * legacy single-channel pref, where {@code prerelease} meant "stable + beta"
+     * and therefore maps to both tracks.
+     */
+    public static Set<UpdateChannel> getFollowedChannels(Context context) {
+        String raw = prefs(context).getString(KEY_FOLLOWED_CHANNELS, "");
+        if (raw != null && !raw.trim().isEmpty()) {
+            return UpdateChannel.setFromKeys(raw);
+        }
+        String legacy = value(prefs(context).getString(KEY_LEGACY_CHANNEL, ""));
+        if (UpdateChannel.PRERELEASE.key().equalsIgnoreCase(legacy)) {
+            return EnumSet.of(UpdateChannel.RELEASE, UpdateChannel.PRERELEASE);
+        }
+        return UpdateChannel.defaultSet();
     }
 
-    public static void setChannel(Context context, UpdateChannel channel) {
-        UpdateChannel next = channel == null ? UpdateChannel.defaultChannel() : channel;
+    /** Replaces the followed tracks. An empty set falls back to the default. */
+    public static void setFollowedChannels(Context context, Collection<UpdateChannel> channels) {
+        Set<UpdateChannel> next = channels == null || channels.isEmpty()
+                ? UpdateChannel.defaultSet() : EnumSet.copyOf(channels);
         prefs(context).edit()
-                .putString(KEY_CHANNEL, next.key())
+                .putString(KEY_FOLLOWED_CHANNELS, UpdateChannel.setToKeys(next))
+                .remove(KEY_LEGACY_CHANNEL)
                 .apply();
     }
 
-    /** Stored releases belonging to {@code channel}, newest-first. */
-    public static List<ReleaseInfo> getReleasesForChannel(Context context,
-                                                          UpdateChannel channel) {
-        return resolve(channel).filter(getReleases(context));
+    /** Stored releases accepted by the followed tracks, newest-first. */
+    public static List<ReleaseInfo> getFollowedReleases(Context context) {
+        return UpdateChannel.filterAny(getFollowedChannels(context), getReleases(context));
     }
 
-    /** {@link #getReleasesForChannel(Context, UpdateChannel)} on the stored channel. */
-    public static List<ReleaseInfo> getReleasesForChannel(Context context) {
-        return getReleasesForChannel(context, getChannel(context));
+    /** Stored releases accepted by {@code channels}, newest-first. */
+    public static List<ReleaseInfo> getReleasesFor(Context context,
+                                                   Collection<UpdateChannel> channels) {
+        return UpdateChannel.filterAny(channels, getReleases(context));
     }
 
-    /** Newest release with a hash on {@code channel}, or null when nothing matches. */
-    public static ReleaseInfo getNewest(Context context, UpdateChannel channel) {
-        for (ReleaseInfo release : getReleasesForChannel(context, channel)) {
+    /** Newest release with a hash among {@code channels}, or null when nothing matches. */
+    public static ReleaseInfo getNewestFor(Context context, Collection<UpdateChannel> channels) {
+        for (ReleaseInfo release : getReleasesFor(context, channels)) {
             if (!release.hash.isEmpty()) return release;
         }
         return null;
     }
 
     /**
-     * True when the newest release on {@code channel} differs from the installed build
-     * and the user has not ignored it.
+     * Release the last check found as an update on {@code channel}, or null when the
+     * installed build already is the channel head, the check has not run yet, or the
+     * user ignored exactly that build.
      */
-    public static boolean hasUpdate(Context context, UpdateChannel channel) {
-        ReleaseInfo newest = getNewest(context, channel);
-        if (newest == null) return false;
-        String ignored = value(prefs(context).getString(KEY_IGNORED_HASH, ""));
-        return !newest.hash.equalsIgnoreCase(ignored);
+    public static ReleaseInfo getChannelUpdate(Context context, UpdateChannel channel) {
+        String hash = value(channelUpdateHashes(context).optString(channel.key(), ""));
+        if (hash.isEmpty()) return null;
+        if (hash.equalsIgnoreCase(value(prefs(context).getString(KEY_IGNORED_HASH, "")))) {
+            return null;
+        }
+        for (ReleaseInfo release : getReleases(context)) {
+            if (release.hash.equalsIgnoreCase(hash)) return release;
+        }
+        return null;
     }
 
-    /** Unread count on {@code channel}, for the header bell badge. */
-    public static int unreadCount(Context context, UpdateChannel channel) {
+    /** Unread count across the followed tracks, for the header bell badge. */
+    public static int unreadCount(Context context, Collection<UpdateChannel> channels) {
         Set<String> read = getReadTags(context);
         int count = 0;
-        for (ReleaseInfo release : getReleasesForChannel(context, channel)) {
+        for (ReleaseInfo release : getReleasesFor(context, channels)) {
             if (!read.contains(release.tagName)) count++;
         }
         return count;
     }
 
-    public static String unreadLabel(Context context, UpdateChannel channel) {
-        int count = unreadCount(context, channel);
+    public static String unreadLabel(Context context, Collection<UpdateChannel> channels) {
+        int count = unreadCount(context, channels);
         return count > 9 ? "9+" : String.valueOf(count);
-    }
-
-    private static UpdateChannel resolve(UpdateChannel channel) {
-        return channel == null ? UpdateChannel.defaultChannel() : channel;
-    }
-
-    /** Newest release with a hash, or null when nothing was fetched yet. */
-    public static ReleaseInfo getNewest(Context context) {
-        for (ReleaseInfo release : getReleases(context)) {
-            if (!release.hash.isEmpty()) return release;
-        }
-        return null;
     }
 
     public static boolean hasData(Context context) {
         return !getReleases(context).isEmpty();
-    }
-
-    /** True when the newest release build differs from the installed build. */
-    public static boolean hasUpdate(Context context) {
-        if (!prefs(context).getBoolean(KEY_UPDATE_AVAILABLE, false)) return false;
-        ReleaseInfo newest = getNewest(context);
-        if (newest == null) return false;
-        String ignored = value(prefs(context).getString(KEY_IGNORED_HASH, ""));
-        return !newest.hash.equalsIgnoreCase(ignored);
     }
 
     public static void ignore(Context context, String hash) {
@@ -214,19 +238,14 @@ public final class UpdateInfoStore {
         }
     }
 
-    /** Unread release count shown on the header bell badge. */
-    public static int unreadCount(Context context) {
-        Set<String> read = getReadTags(context);
-        int count = 0;
-        for (ReleaseInfo release : getReleases(context)) {
-            if (!read.contains(release.tagName)) count++;
+    private static JSONObject channelUpdateHashes(Context context) {
+        String raw = prefs(context).getString(KEY_CHANNEL_UPDATES, "");
+        if (raw == null || raw.isEmpty()) return new JSONObject();
+        try {
+            return new JSONObject(raw);
+        } catch (JSONException corrupt) {
+            return new JSONObject();
         }
-        return count;
-    }
-
-    public static String unreadLabel(Context context) {
-        int count = unreadCount(context);
-        return count > 9 ? "9+" : String.valueOf(count);
     }
 
     private static void writeReadTags(Context context, Set<String> tags) {

@@ -44,6 +44,7 @@ import com.mrksvt.waen.utils.FilePicker;
 
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class MainActivity extends BaseActivity {
@@ -250,6 +251,14 @@ public class MainActivity extends BaseActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // The followed channels or their candidates may have changed while the update
+        // centre was open, so the bell must not keep showing a stale count.
+        refreshNotificationBadge();
+    }
+
+    @Override
     protected void onDestroy() {
         dismissReleasePopup();
         binding.viewPager.unregisterOnPageChangeCallback(pageChangeCallback);
@@ -394,7 +403,7 @@ public class MainActivity extends BaseActivity {
      * ponytail: no pagination - the list is capped by the API page (20 releases).
      */
     private void showReleaseMenu(View anchor) {
-        List<ReleaseInfo> releases = UpdateInfoStore.getReleasesForChannel(this);
+        List<ReleaseInfo> releases = UpdateInfoStore.getFollowedReleases(this);
         if (releases.isEmpty()) {
             openChangelog();
             return;
@@ -469,26 +478,22 @@ public class MainActivity extends BaseActivity {
     }
 
     /**
-     * Posts the update system notification when the toggle is on, the permission is
-     * granted and the active channel found a build the user does not run.
+     * Posts one system notification per followed channel that has a build the user
+     * does not run, so following both tracks announces both without either replacing
+     * the other.
      */
     private void notifyUpdateIfNeeded() {
-        UpdateChannel channel = UpdateInfoStore.getChannel(this);
-        ReleaseInfo newest = UpdateInfoStore.getNewest(this, channel);
-        if (newest == null) return;
-        boolean enabled = UpdateNotifier.getInAppNotificationEnabled(this);
-        UpdateNotifier.notifyIfNeeded(this, newest,
-                UpdateInfoStore.hasUpdate(this, channel), enabled);
+        UpdateNotifier.notifyFollowedChannels(this, UpdateInfoStore.getFollowedChannels(this));
     }
 
     private void refreshNotificationBadge() {
         if (notificationActionView == null) return;
         TextView badge = notificationActionView.findViewById(R.id.notification_badge);
         if (badge == null) return;
-        UpdateChannel channel = UpdateInfoStore.getChannel(this);
-        int count = UpdateInfoStore.unreadCount(this, channel);
+        Set<UpdateChannel> followed = UpdateInfoStore.getFollowedChannels(this);
+        int count = UpdateInfoStore.unreadCount(this, followed);
         if (count > 0) {
-            badge.setText(UpdateInfoStore.unreadLabel(this, channel));
+            badge.setText(UpdateInfoStore.unreadLabel(this, followed));
             badge.setContentDescription(getString(
                     R.string.notification_unread_content_description, count));
             badge.setVisibility(View.VISIBLE);

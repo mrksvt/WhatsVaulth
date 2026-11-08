@@ -1,3 +1,22 @@
+WhatsVault 1.6.4.1 2.26.45.xx
+
+[ADDED]
+* Update Center: sekarang bisa diikuti kanal Release dan Prerelease sekaligus, tiap kanal punya notifikasi sendiri
+* Baris rilis beta diberi penanda "Prerelease" di daftar changelog dan di popup lonceng header
+* Ringkasan kanal yang diikuti ditampilkan di Update Center, jadi jelas sedang mengikuti Release, Prerelease, atau keduanya
+
+[FIXED]
+* Rilis lama tidak lagi ditawarkan sebagai pembaruan ke build yang sudah lebih baru
+* Kandidat pembaruan untuk kanal yang belum diikuti tetap dihitung, jadi mengaktifkan kanal tidak perlu menunggu cek jaringan
+* Badge lonceng di header tidak lagi menampilkan jumlah basi setelah keluar dari Update Center
+* Changelog tidak lagi menampilkan rilis dari kanal yang tidak diikuti
+* Cache daftar rilis yang gagal disimpan tidak lagi ditelan diam-diam, sekarang ditulis ke log
+
+[NOTE]
+* Build BETA (prerelease), ditandatangani dengan debug key. Hanya varian debug
+* Diuji di WhatsApp 2.26.45.3: notifikasi per kanal, penanda Prerelease, dan penyaringan daftar berjalan normal
+* versionCode tetap 6
+
 WhatsVault 1.6.4 2.26.45.xx
 
 [ADDED]

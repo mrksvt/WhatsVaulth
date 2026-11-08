@@ -1,5 +1,6 @@
 package com.mrksvt.waen.adapter;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,12 +11,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.ReleaseInfo;
+import com.mrksvt.waen.ReleaseMetaFormatter;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -51,7 +49,7 @@ public class ReleasePopupAdapter extends RecyclerView.Adapter<ReleasePopupAdapte
     public void onBindViewHolder(@NonNull Holder holder, int position) {
         ReleaseInfo release = releases.get(position);
         holder.title.setText(release.displayName());
-        holder.meta.setText(buildMeta(release));
+        holder.meta.setText(buildMeta(holder.itemView.getContext(), release));
         holder.dot.setVisibility(readTags.contains(release.tagName)
                 ? View.INVISIBLE : View.VISIBLE);
         holder.itemView.setOnClickListener(v -> listener.onReleaseClick(release));
@@ -62,21 +60,14 @@ public class ReleasePopupAdapter extends RecyclerView.Adapter<ReleasePopupAdapte
         return releases.size();
     }
 
-    private String buildMeta(ReleaseInfo release) {
-        String date = formatDate(release.publishedAt);
-        return date.isEmpty() ? release.hash : release.hash + "  \u00B7  " + date;
-    }
-
-    private String formatDate(String isoDate) {
-        if (isoDate == null || isoDate.isEmpty()) return "";
-        try {
-            SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-            Date date = iso.parse(isoDate);
-            if (date == null) return "";
-            return new SimpleDateFormat("MMM dd, yyyy", Locale.US).format(date);
-        } catch (ParseException e) {
-            return "";
-        }
+    /**
+     * Same meta line as the changelog list, so a prerelease row is marked in the popup
+     * too instead of looking like a stable build.
+     */
+    private String buildMeta(Context context, ReleaseInfo release) {
+        return ReleaseMetaFormatter.format(release.hash, release.publishedAt,
+                release.prerelease,
+                context.getString(R.string.update_center_release_prerelease));
     }
 
     static class Holder extends RecyclerView.ViewHolder {

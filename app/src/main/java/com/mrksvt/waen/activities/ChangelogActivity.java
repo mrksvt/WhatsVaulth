@@ -73,7 +73,10 @@ public class ChangelogActivity extends BaseActivity {
         apkUrl = intent.getStringExtra(EXTRA_APK_URL);
 
         if (TextUtils.isEmpty(hash)) {
-            ReleaseInfo newest = UpdateInfoStore.getNewest(this);
+            // Channel-aware fallback: a user following only stable builds must not be
+            // shown a prerelease as "the newest release".
+            ReleaseInfo newest = UpdateInfoStore.getNewestFor(this,
+                    UpdateInfoStore.getFollowedChannels(this));
             if (newest != null) {
                 if (TextUtils.isEmpty(title)) title = newest.displayName();
                 hash = newest.hash;

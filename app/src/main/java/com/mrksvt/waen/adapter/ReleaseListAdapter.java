@@ -11,12 +11,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.ReleaseInfo;
+import com.mrksvt.waen.ReleaseMetaFormatter;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -62,7 +59,7 @@ public class ReleaseListAdapter extends RecyclerView.Adapter<ReleaseListAdapter.
         ReleaseInfo release = releases.get(position);
         Context context = holder.itemView.getContext();
         holder.title.setText(release.displayName());
-        holder.meta.setText(buildMeta(release));
+        holder.meta.setText(buildMeta(context, release));
 
         int badge = badgeFor(context, release);
         if (badge == 0) {
@@ -93,21 +90,15 @@ public class ReleaseListAdapter extends RecyclerView.Adapter<ReleaseListAdapter.
         return releases.size();
     }
 
-    private String buildMeta(ReleaseInfo release) {
-        String date = formatDate(release.publishedAt);
-        return date.isEmpty() ? release.hash : release.hash + "  \u00B7  " + date;
-    }
-
-    private String formatDate(String isoDate) {
-        if (isoDate == null || isoDate.isEmpty()) return "";
-        try {
-            SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-            Date date = iso.parse(isoDate);
-            if (date == null) return "";
-            return new SimpleDateFormat("MMM dd, yyyy", Locale.US).format(date);
-        } catch (ParseException e) {
-            return "";
-        }
+    /**
+     * Hash, date and the track name. The track marker matters once stable and beta
+     * releases are listed together, so the row is built by {@link ReleaseMetaFormatter}
+     * and looks the same here as in the header popup.
+     */
+    private String buildMeta(Context context, ReleaseInfo release) {
+        return ReleaseMetaFormatter.format(release.hash, release.publishedAt,
+                release.prerelease,
+                context.getString(R.string.update_center_release_prerelease));
     }
 
     static class Holder extends RecyclerView.ViewHolder {
