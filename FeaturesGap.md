@@ -402,7 +402,7 @@ Tidak dihapus dan tidak diperbaiki dalam scope trim. Kalau nanti dibersihkan, ga
 ## Dukungan 2.26.46.xx
 
 **Tanggal:** 2026-11-15
-**Keputusan:** `supported_versions_wpp` = `2.26.44.xx`, `2.26.45.xx`, `2.26.46.xx` (3 entri, kebijakan 3 versi). `supported_versions_business` tetap `2.26.43.xx` - `2.26.45.xx` karena belum ada APK business 2.26.46 untuk verifikasi anchor, dan W4B terpasang di perangkat uji masih `2.26.43.11`.
+**Keputusan:** `supported_versions_wpp` = `2.26.44.xx`, `2.26.45.xx`, `2.26.46.xx` (3 entri, kebijakan 3 versi). `supported_versions_business` juga `2.26.44.xx` - `2.26.46.xx` setelah APK W4B `2.26.46.2` diverifikasi (sebelumnya tertahan di `2.26.43.xx` karena belum ada APK business).
 
 ### Anchor yang berubah
 
@@ -414,6 +414,19 @@ Diff 458 literal `Unobfuscator.kt` vs pool `2.26.45.3`: 117 OK, 103 OK-CONTAINS,
 | `frame_visibility_serial_worker` | `loadVideoViewContainerClass` | Hilang dari dex 2.26.46.3. Kelas pemilik pindah obfuscation `X/Im5` (2.26.45) ke `X/L95` (`classes11.dex`), literal `thumb view type is not correct` masih ada dan unik ke kelas itu (1 kemunculan). | Fallback chain: anchor lama dipertahankan, ditambah `thumb view type is not correct` |
 
 Tidak ada anchor lama yang dihapus. `check_anchors.py` tetap melaporkan `frame_visibility_serial_worker` sebagai REGRESSION karena literal lama sengaja dipertahankan sebagai jalur pertama.
+
+### Verifikasi pool W4B 2.26.46.2
+
+Diff 458 literal `Unobfuscator.kt` vs pool W4B `2.26.46.2`: 119 OK, 103 OK-CONTAINS, 226 DEAD, 1 REGRESSION.
+
+| Literal | Status di W4B 2.26.46.2 | Aksi |
+|---------|-------------------------|------|
+| `contact.ui.picker.ContactPickerFragment` | False positive. Literal dotted tidak ada di pool, tetapi kelasnya ada (`classes4.dex`, `Lcom/whatsapp/contact/ui/picker/ContactPickerFragment;`). Jalur utama `ContactPickerFragment/onContactsLoaded/loaded all:` masih ada, jadi `loadLoadedContactsMethod` resolve di path kedua | Tidak diubah |
+| `frame_visibility_serial_worker` | Absen juga di W4B | Fallback `thumb view type is not correct` ada (1 kemunculan) |
+| `StatusPlaybackContactFragment` | Kelas ada (`classes11.dex`) | Anchor `findFirstClassUsingName` berlaku untuk WPP dan W4B |
+| `playbackFragment/refreshCurrentPageSubTitle message is empty` | Ada | - |
+
+Tidak ada perubahan kode untuk W4B. Cukup entri array.
 
 ### Status smoke test
 
