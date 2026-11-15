@@ -419,7 +419,7 @@ Tidak ada anchor lama yang dihapus. `check_anchors.py` tetap melaporkan `frame_v
 
 | Versi | Perangkat | Hasil |
 |-------|-----------|-------|
-| `2.26.46.3` (WA) | `ZP2222SQLL` | belum diuji runtime saat commit |
+| `2.26.46.3` (WA) | `ZP2222SQLL` | 76 plugin, `Loaded Hooks in 17073ms`, tidak ada `Unsupported version` |
 
 ### Catatan rilis
 
