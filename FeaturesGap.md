@@ -433,6 +433,9 @@ Tidak ada perubahan kode untuk W4B. Cukup entri array.
 | Versi | Perangkat | Hasil |
 |-------|-----------|-------|
 | `2.26.46.3` (WA) | `ZP2222SQLL` | 76 plugin, `Loaded Hooks in 17073ms`, tidak ada `Unsupported version` |
+| `2.26.46.2` (W4B) | `ZP2222SQLL` | 48 plugin tercatat, `Loaded Hooks in 24075ms`, tidak ada `Unsupported version`, tidak ada `MainFeatures[Critical]` |
+
+Jumlah baris `Loaded Plugin` pada W4B lebih sedikit karena `plugins()` menunggu maksimum 15 detik (`executorService.awaitTermination(15, TimeUnit.SECONDS)`) sebelum mencetak daftar durasi, sementara total load W4B 24075ms. Tidak ada `ErrorItem` yang tercatat, jadi bukan plugin yang gagal.
 
 ### Catatan rilis
 
