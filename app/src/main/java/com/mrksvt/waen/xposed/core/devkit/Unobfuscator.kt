@@ -973,9 +973,10 @@ object Unobfuscator {
     @JvmStatic
     fun loadUnknownStatusPlaybackMethod(loader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(loader) {
-            val statusPlaybackClass = XposedHelpers.findClass(
-                "com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment",
-                loader
+            val statusPlaybackClass = findFirstClassUsingName(
+                loader,
+                StringMatchType.EndsWith,
+                "StatusPlaybackContactFragment"
             )
             val refreshCurrentPage = bridge.findMethod {
                 matcher {
@@ -1971,6 +1972,11 @@ object Unobfuscator {
                 loader,
                 StringMatchType.Contains,
                 "frame_visibility_serial_worker"
+            ) ?: findFirstClassUsingStrings(
+                // 2.26.46 dropped frame_visibility_serial_worker; same class still owns this log line
+                loader,
+                StringMatchType.Contains,
+                "thumb view type is not correct"
             )
                 ?: throw RuntimeException("VideoViewContainer class not found")
         }

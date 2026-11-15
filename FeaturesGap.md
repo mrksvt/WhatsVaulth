@@ -397,6 +397,30 @@ Tidak dihapus dan tidak diperbaiki dalam scope trim. Kalau nanti dibersihkan, ga
 | `2.26.43.11` (W4B) | `ZP2222SQLL` | 76 plugin, `Loaded Hooks in 10702ms`, tidak ada `Unsupported version` |
 | `2.26.44.xx` | tidak ada | Belum diuji, tidak ada APK. Anchor default KEEP |
 
+---
+
+## Dukungan 2.26.46.xx
+
+**Tanggal:** 2026-11-15
+**Keputusan:** `supported_versions_wpp` = `2.26.44.xx`, `2.26.45.xx`, `2.26.46.xx` (3 entri, kebijakan 3 versi). `supported_versions_business` tetap `2.26.43.xx` - `2.26.45.xx` karena belum ada APK business 2.26.46 untuk verifikasi anchor, dan W4B terpasang di perangkat uji masih `2.26.43.11`.
+
+### Anchor yang berubah
+
+Diff 458 literal `Unobfuscator.kt` vs pool `2.26.45.3`: 117 OK, 103 OK-CONTAINS, 228 DEAD (stale pre-existing), 2 REGRESSION.
+
+| Literal | Lokasi | Status di 2.26.46.3 | Aksi |
+|---------|--------|---------------------|------|
+| `com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment` | `loadUnknownStatusPlaybackMethod` | Kelas masih ada (`classes7.dex`, `Lcom/whatsapp/status/playback/fragment/StatusPlaybackContactFragment;`); literal dotted hilang dari pool karena inner class `$maybeSetupHeaderCTA$1` dihapus. `XposedHelpers.findClass` dengan nama dotted tetap resolve. | Diganti `findFirstClassUsingName(loader, EndsWith, "StatusPlaybackContactFragment")` - pola yang sudah dipakai `Others.autoNextStatus()` dan `MenuStatusListener`, sekaligus menghapus hardcoded class name |
+| `frame_visibility_serial_worker` | `loadVideoViewContainerClass` | Hilang dari dex 2.26.46.3. Kelas pemilik pindah obfuscation `X/Im5` (2.26.45) ke `X/L95` (`classes11.dex`), literal `thumb view type is not correct` masih ada dan unik ke kelas itu (1 kemunculan). | Fallback chain: anchor lama dipertahankan, ditambah `thumb view type is not correct` |
+
+Tidak ada anchor lama yang dihapus. `check_anchors.py` tetap melaporkan `frame_visibility_serial_worker` sebagai REGRESSION karena literal lama sengaja dipertahankan sebagai jalur pertama.
+
+### Status smoke test
+
+| Versi | Perangkat | Hasil |
+|-------|-----------|-------|
+| `2.26.46.3` (WA) | `ZP2222SQLL` | belum diuji runtime saat commit |
+
 ### Catatan rilis
 
 HideSeen dan CallRecording tetap bekerja di 2.26.43/44/45. Yang perlu disebut di changelog hanya sebagai catatan teknis: hook tambahan `enforceHiding` (HideSeen) dan hook `VoipCall.getPeerJid` (Call Recording) tidak terpasang karena nama kelas WhatsApp berubah, tanpa memengaruhi fitur. 2.26.44.xx belum diuji runtime.
