@@ -1,3 +1,22 @@
+WhatsVault 1.6.4.2 2.26.46.xx
+
+[ADDED]
+* Dukungan WhatsApp 2.26.46.xx (diuji di 2.26.46.3)
+* Dukungan WhatsApp Business 2.26.46.xx (diuji di 2.26.46.2)
+
+[FIXED]
+* Status playback: kelas StatusPlaybackContactFragment dicari lewat pencocokan akhiran nama, jadi hook status tidak gagal saat WhatsApp mengganti nama kelasnya di 2.26.46
+* Video view container: jalur cadangan baru lewat log "thumb view type is not correct" karena anchor frame_visibility_serial_worker hilang di 2.26.46
+
+[UPDATED]
+* WhatsApp Business: dukungan 2.26.43.xx dilepas, daftar sekarang 2.26.44.xx sampai 2.26.46.xx (kebijakan 3 versi)
+
+[NOTE]
+* Build BETA (prerelease), ditandatangani dengan debug key
+* Smoke test: 76 plugin di WA 2.26.46.3, 48 baris plugin tercatat di W4B 2.26.46.2, tanpa Unsupported version
+* Fitur status playback dan video view belum diuji runtime per fitur, hanya lolos pemuatan hook
+* versionCode tetap 6
+
 WhatsVault 1.6.4.1 2.26.45.xx
 
 [ADDED]
