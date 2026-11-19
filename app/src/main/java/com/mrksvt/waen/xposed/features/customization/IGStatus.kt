@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.AbsListView
 import android.widget.LinearLayout
 import android.widget.ListView
+import androidx.recyclerview.widget.RecyclerView
 import com.mrksvt.waen.adapter.IGStatusAdapter
 import com.mrksvt.waen.views.IGStatusView
 import com.mrksvt.waen.xposed.core.Feature
@@ -74,54 +75,19 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
         val getViewConversationMethod = Unobfuscator.loadGetViewConversationMethod(classLoader)
         val statusInfoClass = Unobfuscator.loadStatusInfoClass(classLoader)
+        logDebug("IGStatus hook", Unobfuscator.getMethodDescriptor(getViewConversationMethod))
         XposedBridge.hookMethod(getViewConversationMethod, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
-                if (archivedFragmentClass.isInstance(param.thisObject)) return
-                if (folderFragmentClass.isInstance(param.thisObject)) return
-                val view = param.result as? ViewGroup ?: return
-                val list = view.findViewById<ViewGroup>(android.R.id.list)
-                val mStatusContainer = IGStatusView(WppCore.getCurrentActivity()!!)
-                if (list is ListView) {
-                    list.isNestedScrollingEnabled = true
-                    val layoutParams = AbsListView.LayoutParams(
-                        AbsListView.LayoutParams.MATCH_PARENT, Utils.dipToPixels(88)
+                // Jangan biarkan satu kegagalan layout mematikan seluruh baris status.
+                runCatching {
+                    attachStatusRow(
+                        param,
+                        archivedFragmentClass,
+                        folderFragmentClass,
+                        fabintMethod,
+                        statusInfoClass
                     )
-                    mStatusContainer.layoutParams = layoutParams
-                    list.addHeaderView(mStatusContainer)
-                } else {
-                    val paddingTop = list.paddingTop
-                    val parentView = list.parent as ViewGroup
-                    val background = list.background
-                    mStatusContainer.background = background
-                    list.setPadding(0, 0, 0, 0)
-                    val layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, Utils.dipToPixels(88)
-                    )
-                    layoutParams.topMargin = paddingTop
-                    mStatusContainer.layoutParams = layoutParams
-                    parentView.addView(mStatusContainer, 0)
-                }
-                val id = fabintMethod.invoke(param.thisObject) as Int
-                val igStatus = mListStatusContainer.find { it.fragmentId == id }
-                if (igStatus != null) {
-                    mStatusContainer.adapter = igStatus.adapter
-                    igStatus.adapter = null
-                    mListStatusContainer.remove(igStatus)
-                } else {
-                    // Adapter harus terpasang sejak container dibuat. `updateList()` no-op selama
-                    // adapter null, jadi kalau container lahir sebelum daftar status terisi
-                    // (cold start), baris tidak akan pernah muncul sampai view dibuat ulang.
-                    mStatusContainer.adapter =
-                        IGStatusAdapter(WppCore.getCurrentActivity()!!, statusInfoClass)
-                    // `itens` bisa sudah terisi sebelum view lahir (cold start:
-                    // konstruktor list status jalan sebelum FragmentView dibuat).
-                    // Adapter baru belum pernah dapat notify, jadi panggil sekali
-                    // di sini supaya baris langsung tampil tanpa harus pindah menu.
-                    mStatusContainer.updateList(itens)
-                }
-                mStatusContainer.fragmentId = id
-                mListStatusContainer.add(mStatusContainer)
-                scheduleColdStartRefresh(mStatusContainer)
+                }.onFailure { logDebug("IGStatus: gagal memasang baris status", it) }
             }
         })
 
@@ -179,6 +145,102 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 }
             }
         })
+    }
+
+    /**
+     * Memasang baris IG Status di atas daftar chat.
+     *
+     * Sampai 2.26.45 daftar chat masih `ListView`, jadi `addHeaderView()` cukup. Di
+     * 2.26.46 daftar chat adalah `RecyclerView` dan kode lama menambahkan container ke
+     * `parent` pada index 0. Pada parent bertipe FrameLayout, child index 0 digambar
+     * paling bawah, jadi baris status tertutup RecyclerView dan fitur tampak mati tanpa
+     * error apa pun.
+     */
+    private fun attachStatusRow(
+        param: XC_MethodHook.MethodHookParam,
+        archivedFragmentClass: Class<*>?,
+        folderFragmentClass: Class<*>?,
+        fabintMethod: Method,
+        statusInfoClass: Class<*>
+    ) {
+        if (archivedFragmentClass?.isInstance(param.thisObject) == true) return
+        if (folderFragmentClass?.isInstance(param.thisObject) == true) return
+        val view = param.result as? ViewGroup ?: return
+        val list = view.findViewById<View>(android.R.id.list) as? ViewGroup
+        val activity = WppCore.getCurrentActivity() ?: return
+        if (list == null) {
+            logDebug("IGStatus: daftar chat tidak ditemukan", view.javaClass.name)
+            return
+        }
+        val parent = list.parent as? ViewGroup ?: return
+        // Hook bisa jalan lebih dari sekali untuk fragment yang sama (view recreate).
+        if ((0 until parent.childCount).any { parent.getChildAt(it) is IGStatusView }) return
+
+        val statusHeight = Utils.dipToPixels(88)
+        val mStatusContainer = IGStatusView(activity)
+        val background = list.background
+        mStatusContainer.background = background
+
+        if (list is ListView) {
+            list.isNestedScrollingEnabled = true
+            mStatusContainer.layoutParams = AbsListView.LayoutParams(
+                AbsListView.LayoutParams.MATCH_PARENT, statusHeight
+            )
+            list.addHeaderView(mStatusContainer)
+            logDebug("IGStatus: baris status dipasang sebagai header ListView")
+        } else if (parent is LinearLayout && parent.orientation == LinearLayout.VERTICAL) {
+            // Parent vertikal: sisipkan tepat sebelum daftar, tidak perlu padding.
+            parent.addView(
+                mStatusContainer,
+                parent.indexOfChild(list),
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, statusHeight
+                )
+            )
+            logDebug("IGStatus: baris status disisipkan di LinearLayout")
+        } else {
+            // Parent FrameLayout dan sejenisnya: geser isi daftar dengan padding atas,
+            // lalu tambahkan container sebagai child terakhir supaya digambar di atas.
+            val originalTop = list.paddingTop
+            list.setPadding(
+                list.paddingLeft,
+                originalTop + statusHeight,
+                list.paddingRight,
+                list.paddingBottom
+            )
+            if (list is RecyclerView) {
+                list.clipToPadding = true
+                list.isNestedScrollingEnabled = true
+            }
+            parent.addView(mStatusContainer)
+            mStatusContainer.layoutParams.apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                height = statusHeight
+            }
+            mStatusContainer.translationY = originalTop.toFloat()
+            logDebug("IGStatus: baris status overlay di atas daftar", parent.javaClass.name)
+        }
+
+        val id = fabintMethod.invoke(param.thisObject) as Int
+        val igStatus = mListStatusContainer.find { it.fragmentId == id }
+        if (igStatus != null) {
+            mStatusContainer.adapter = igStatus.adapter
+            igStatus.adapter = null
+            mListStatusContainer.remove(igStatus)
+        } else {
+            // Adapter harus terpasang sejak container dibuat. `updateList()` no-op selama
+            // adapter null, jadi kalau container lahir sebelum daftar status terisi
+            // (cold start), baris tidak akan pernah muncul sampai view dibuat ulang.
+            mStatusContainer.adapter = IGStatusAdapter(activity, statusInfoClass)
+            // `itens` bisa sudah terisi sebelum view lahir (cold start:
+            // konstruktor list status jalan sebelum FragmentView dibuat).
+            // Adapter baru belum pernah dapat notify, jadi panggil sekali
+            // di sini supaya baris langsung tampil tanpa harus pindah menu.
+            mStatusContainer.updateList(itens)
+        }
+        mStatusContainer.fragmentId = id
+        mListStatusContainer.add(mStatusContainer)
+        scheduleColdStartRefresh(mStatusContainer)
     }
 
     /**

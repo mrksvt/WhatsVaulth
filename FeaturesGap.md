@@ -525,3 +525,77 @@ Method yang cocok di hierarki `ConversationsFragment` hanya satu: `A2P(Bundle, L
 
 - Belum diuji runtime. Yang bisa dipastikan: pencarian tidak lagi bergantung pada `declaredMethods` kelas turunan.
 - Kalau setelah perbaikan ini masih ada error IG Status lain, penyebabnya anchor berikutnya di `IGStatus.doHook` (`loadStatusInfoClass`, `loadOnUpdateStatusChanged`, `loadStatusListUpdatesClass`), bukan method ini lagi.
+
+---
+
+## Fix IG Status 2.26.46 (baris status tidak muncul)
+
+**Tanggal:** 2026-11-19
+**Gejala:** hook tidak lagi error setelah perbaikan `loadGetViewConversationMethod`, tetapi baris IG Status tidak muncul di tab chat.
+
+### Akar masalah
+
+`ConversationsFragmentKt.A2P` (onCreateView) di 2.26.46 menginflate layout lalu mengambil `android.R.id.list` dan memberi assertion:
+
+```
+instance-of v8, v5, Landroidx/recyclerview/widget/RecyclerView;
+const-string v6, "Only RecyclerView is supported"
+```
+
+Jadi daftar chat sekarang `RecyclerView`, bukan `ListView` lagi.
+
+Kode IG Status punya dua jalur:
+
+| Kondisi | Perilaku lama |
+|---------|---------------|
+| `list is ListView` | `addHeaderView()` - benar |
+| lainnya | `parent.addView(container, 0)` - container jadi child index 0 |
+
+Pada parent bertipe `FrameLayout`, child index 0 digambar paling bawah. RecyclerView (MATCH_PARENT) menutupinya, sehingga baris status ada di hierarki view tetapi tidak terlihat. Tidak ada exception, jadi tidak ada error di log. Itu sebabnya fitur tampak mati tanpa pesan.
+
+### Perbaikan
+
+| Perubahan | Keterangan |
+|-----------|------------|
+| `attachStatusRow()` | Logika pemasangan dipindah ke method sendiri dan dibungkus `runCatching` di hook, supaya kegagalan layout tercatat di log |
+| Parent `LinearLayout` vertikal | Container disisipkan tepat sebelum daftar, tanpa padding |
+| Parent lain (FrameLayout) | Padding atas daftar ditambah setinggi baris status, `clipToPadding` diaktifkan, container ditambahkan sebagai child terakhir (digambar di atas) dan digeser `translationY` sebesar padding asli |
+| Dedupe | Kalau parent sudah punya child `IGStatusView`, hook tidak menambah container baru (view recreate) |
+
+Tidak ada anchor lama yang dihapus.
+
+### Batas verifikasi
+
+- Belum diuji runtime. Yang bisa dipastikan dari kode: container tidak lagi ditempatkan di belakang RecyclerView, dan kegagalan layout sekarang muncul di log.
+- Kalau baris masih tidak muncul, log `IGStatus: ...` akan menunjukkan apakah hook jalan, daftar chat ditemukan, dan parent-nya bertipe apa.
+
+---
+
+## Signature APK tidak stabil
+
+**Tanggal:** 2026-11-19
+**Gejala:** setiap APK hasil build harus di-uninstall dulu sebelum bisa dipasang, dan data aplikasi hilang.
+
+### Akar masalah
+
+| Temuan | Bukti |
+|--------|-------|
+| Build debug selalu memakai `signingConfigs["debug"]` | `app/build.gradle.kts` buildType `debug` sebelumnya hardcoded `signingConfig = signingConfigs["debug"]` |
+| Di GitHub Actions, keystore debug dibuat baru tiap run | Runner adalah mesin bersih, `~/.android/debug.keystore` dibuat AGP dengan kunci acak setiap build |
+| Secret signing kosong | Log run `44548337952`, step `Write key` mengekspansi `androidStorePassword=''`, `androidKeyAlias=''`, `androidKeyPassword=''`. Blok `if [ ! -z "$KEY_STORE" ]` tidak pernah jalan |
+| Workflow menulis ke file yang salah | Step menulis `gradle.properties`, sedangkan `app/build.gradle.kts` membaca `signing.properties` |
+
+Kesimpulan: setiap build punya sertifikat berbeda, dan tidak ada kunci yang disimpan, sehingga signature build lama tidak bisa dipakai ulang.
+
+### Perbaikan
+
+| Perubahan | Keterangan |
+|-----------|------------|
+| Keystore tetap | `key.jks` (PKCS12, RSA 2048, 10950 hari, alias `whatsvaulth`) dibuat dan disimpan sebagai secret repo: `KEY_STORE`, `KEY_STORE_PASSWORD`, `ALIAS`, `KEY_PASSWORD` |
+| Workflow | Menulis `signing.properties` (file yang benar-benar dibaca Gradle) dan berhenti dengan error kalau `KEY_STORE` kosong, supaya tidak diam-diam menghasilkan APK dengan signature acak |
+| `app/build.gradle.kts` | BuildType `debug` memakai `signingConfigs["config"]` kalau keystore tersedia, fallback ke debug keystore hanya untuk build lokal tanpa `signing.properties` |
+| `versionCode` | 8 |
+
+### Catatan
+
+Satu kali install ulang masih diperlukan untuk build ini. APK yang terpasang sekarang ditandatangani debug keystore acak milik runner yang sudah dihapus, dan kunci privatnya tidak pernah disimpan, jadi secara kriptografis tidak mungkin dipakai lagi. Setelah build dengan keystore tetap ini terpasang, build berikutnya bisa dipasang sebagai pembaruan biasa.

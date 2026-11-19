@@ -6,11 +6,15 @@ WhatsVault 1.6.4.3 2.26.46.xx
 * Judul tab: method judul tab dicari lewat teks error-nya lebih dulu, jadi hook tidak salah sasaran saat nama resource "updates" muncul lagi di 2.26.46
 * Tab: pengaman tambahan supaya id tab yang tidak dikenal WhatsApp tidak melempar exception di HomeActivity, cukup dicatat ke log dan memakai nilai cadangan
 * IG Status: "GetViewConversation method not found" di 2.26.46.8 dan 2.26.46.11. Method itu pindah ke base class ConversationsFragmentKt, jadi pencarian sekarang menelusuri hierarki kelas ConversationsFragment
+* IG Status: baris status tidak muncul di 2.26.46 karena daftar chat sekarang RecyclerView. Container dulu ditambahkan ke parent pada index 0 sehingga tertutup daftar chat. Sekarang isi daftar digeser dengan padding atas dan baris status digambar di atasnya, dengan jalur khusus untuk parent LinearLayout
+* IG Status: kegagalan memasang baris status dicatat ke log, tidak lagi hilang tanpa jejak
+* Tanda tangan APK: build debug sekarang memakai keystore tetap dari signing.properties. Sebelumnya setiap build GitHub Actions memakai debug keystore acak, jadi tiap APK punya signature berbeda dan harus uninstall dulu. Workflow juga berhenti kalau secret KEY_STORE kosong
 
 [NOTE]
-* Build BETA (prerelease), ditandatangani dengan debug key
+* Build BETA (prerelease)
+* Satu kali install ulang masih diperlukan untuk build ini karena APK yang terpasang sekarang ditandatangani debug keystore acak milik runner, yang kunci privatnya tidak disimpan di mana pun. Setelah build ini, semua build berikutnya memakai keystore yang sama
 * Belum diuji runtime di perangkat. Verifikasi hanya sebatas build GH Actions
-* versionCode 7 (naik dari 6) supaya build debug bisa dipasang sebagai pembaruan tanpa menghapus versi lama
+* versionCode 8
 
 WhatsVault 1.6.4.2 2.26.46.xx
 

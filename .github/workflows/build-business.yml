@@ -33,13 +33,17 @@ jobs:
         env:
           KEY_STORE: ${{ secrets.KEY_STORE }}
         run: |
-          if [ ! -z "$KEY_STORE" ]; then
-          echo androidStorePassword='${{ secrets.KEY_STORE_PASSWORD }}' >> gradle.properties
-          echo androidKeyAlias='${{ secrets.ALIAS }}' >> gradle.properties
-          echo androidKeyPassword='${{ secrets.KEY_PASSWORD }}' >> gradle.properties
-          echo androidStoreFile='key.jks' >> gradle.properties
-          echo "$KEY_STORE" | base64 --decode > key.jks
+          # Tanpa keystore tetap, setiap runner membuat debug keystore acak sendiri
+          # sehingga APK hasil build tidak bisa dipasang sebagai pembaruan.
+          if [ -z "$KEY_STORE" ]; then
+            echo "::error::Secret KEY_STORE kosong. Build dihentikan supaya tidak menghasilkan APK dengan signature acak."
+            exit 1
           fi
+          echo androidStoreFile=key.jks > signing.properties
+          echo androidStorePassword='${{ secrets.KEY_STORE_PASSWORD }}' >> signing.properties
+          echo androidKeyAlias='${{ secrets.ALIAS }}' >> signing.properties
+          echo androidKeyPassword='${{ secrets.KEY_PASSWORD }}' >> signing.properties
+          echo "$KEY_STORE" | base64 --decode > key.jks
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

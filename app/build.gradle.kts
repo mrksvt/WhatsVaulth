@@ -72,9 +72,9 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34
-        // Dinaikkan dari 6 ke 7 supaya build debug bisa dipasang sebagai pembaruan
-        // (bukan install ulang) di perangkat yang sudah memakai versionCode 6.
-        versionCode = 7
+        // Dinaikkan bertahap supaya build debug bisa dipasang sebagai pembaruan
+        // (bukan install ulang) di perangkat yang sudah memakai versi sebelumnya.
+        versionCode = 8
         versionName = "1.6.4$versionSuffix ($gitHash)_mrksvt"
         // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true
@@ -128,8 +128,13 @@ android {
         debug {
             isMinifyEnabled = true  // Minify debug untuk mengurangi ukuran
             isShrinkResources = true  // Shrink resources di debug
-            // Beta/prerelease: selalu debug keystore, walau signing.properties ada.
-            signingConfig = signingConfigs["debug"]
+            // Beta/prerelease memakai keystore stabil dari signing.properties kalau ada.
+            // Sebelumnya selalu signingConfigs["debug"], dan di GitHub Actions keystore
+            // debug dibuat acak per runner, jadi tiap build punya signature berbeda dan
+            // harus uninstall dulu. Fallback ke debug keystore hanya untuk build lokal
+            // yang memang tidak punya signing.properties.
+            signingConfig =
+                if (signingConfigs["config"].storeFile != null) signingConfigs["config"] else signingConfigs["debug"]
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
