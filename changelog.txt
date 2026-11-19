@@ -1,3 +1,16 @@
+WhatsVault 1.6.4.3 2.26.46.xx
+
+[FIXED]
+* WhatsApp 2.26.46: HomeActivity tidak lagi crash dengan "The item position should be less or equal to: 5" saat Separate Group aktif. Tab grup baru ditambahkan setelah hook judul dan fragment-nya terpasang, jadi id tab tambahan tidak pernah jatuh ke validator tab WhatsApp
+* Separate Group: anchor daftar chat yang hilang di 2.26.46 (method pindah ke ConversationsFragmentKt) tidak lagi membatalkan seluruh fitur, hanya hook filter daftar chat yang dilewati
+* Judul tab: method judul tab dicari lewat teks error-nya lebih dulu, jadi hook tidak salah sasaran saat nama resource "updates" muncul lagi di 2.26.46
+* Tab: pengaman tambahan supaya id tab yang tidak dikenal WhatsApp tidak melempar exception di HomeActivity, cukup dicatat ke log dan memakai nilai cadangan
+
+[NOTE]
+* Build BETA (prerelease), ditandatangani dengan debug key
+* Belum diuji runtime di perangkat. Verifikasi hanya sebatas build GH Actions
+* versionCode tetap 6
+
 WhatsVault 1.6.4.2 2.26.46.xx
 
 [ADDED]

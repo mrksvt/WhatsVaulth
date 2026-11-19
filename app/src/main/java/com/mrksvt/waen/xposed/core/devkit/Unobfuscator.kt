@@ -470,7 +470,56 @@ object Unobfuscator {
                 StringMatchType.Contains,
                 "No HomeFragment mapping for community tab id:"
             )
+                ?: findFirstMethodUsingStringsFilter(
+                    classLoader,
+                    "X.",
+                    StringMatchType.Contains,
+                    "No HomeFragment mapping for tab id:"
+                )
                 ?: throw Exception("GetTab method not found")
+        }
+    }
+
+    /**
+     * Kelas fragment yang dipakai tab chat. 2.26.46 memindahkan isi
+     * `ConversationsFragment` ke `ConversationsFragmentKt` (pola yang sama dengan
+     * HomeActivityKt): `ConversationsFragment` hanya menyisakan konstruktor, sedangkan
+     * `ConversationsFragmentKt` memegang implementasinya. Yang diinstansiasi WhatsApp untuk
+     * tab chat tetap `ConversationsFragment`, jadi kelas itu yang diutamakan. Kalau di versi
+     * lain kelas itu hilang, `ConversationsFragmentKt` dipakai sebagai cadangan.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadConversationsFragmentClass(classLoader: ClassLoader): Class<*> {
+        return UnobfuscatorCache.getInstance().getClass(classLoader, "ConversationsFragment") {
+            val exact = runCatching {
+                findFirstClassUsingName(
+                    classLoader,
+                    StringMatchType.EndsWith,
+                    ".ConversationsFragment"
+                )
+            }.getOrNull()
+            if (exact != null) return@getClass exact
+
+            findFirstClassUsingName(classLoader, StringMatchType.EndsWith, ".ConversationsFragmentKt")
+        }
+    }
+
+    /**
+     * Kelas validator tab WhatsApp: switch atas id tab yang melempar
+     * `IllegalArgumentException("The item position should be less or equal to: " + jumlah tab)`
+     * untuk id yang tidak dikenal. Dipakai sebagai jaring pengaman supaya id tab tambahan
+     * (Separate Group) tidak pernah membuat HomeActivity crash.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadTabValidatorClass(classLoader: ClassLoader): Class<*> {
+        return UnobfuscatorCache.getInstance().getClass(classLoader, "TabValidator") {
+            findFirstClassUsingStrings(
+                classLoader,
+                StringMatchType.Contains,
+                "The item position should be less or equal to:"
+            ) ?: throw ClassNotFoundException("Tab validator class not found")
         }
     }
 
@@ -493,6 +542,39 @@ object Unobfuscator {
     @JvmStatic
     fun loadTabNameMethod(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            // Anchor utama: method judul tab adalah switch atas id tab (200/300/400) yang
+            // melempar "No tab title override for tab id: " untuk id tak dikenal.
+            // Dicoba lebih dulu karena lookup berbasis nama resource "updates" bisa
+            // menunjuk method lain (nama resource itu muncul lagi di 2.26.46). Kalau hook
+            // judul salah sasaran, id tab tambahan (500) jatuh ke default switch WhatsApp
+            // dan HomeActivity melempar IllegalArgumentException.
+            val byOverrideString = bridge.findMethod {
+                matcher {
+                    returnType(String::class.java)
+                    paramCount(1)
+                    addParamType(Int::class.javaPrimitiveType!!)
+                    addUsingString("No tab title override for tab id: ", StringMatchType.Contains)
+                    usingNumbers(200, 300, 400)
+                }
+            }
+            if (byOverrideString.isNotEmpty()) {
+                return@getMethod byOverrideString[0].getMethodInstance(classLoader)
+            }
+
+            val byOverrideStringOnly = bridge.findMethod {
+                matcher {
+                    returnType(String::class.java)
+                    paramCount(1)
+                    addParamType(Int::class.javaPrimitiveType!!)
+                    addUsingString("No tab title override for tab id: ", StringMatchType.Contains)
+                }
+            }
+            if (byOverrideStringOnly.isNotEmpty()) {
+                return@getMethod byOverrideStringOnly[0].getMethodInstance(classLoader)
+            }
+
+            // Jalur lama dipertahankan sebagai fallback (versi WhatsApp yang masih memakai
+            // nama resource "updates" untuk judul tab).
             val id = UnobfuscatorCache.getInstance().getOfuscateIDString("updates")
             if (id > 0) {
                 val result = bridge.findMethod {
@@ -503,18 +585,7 @@ object Unobfuscator {
                 }
                 if (result.isNotEmpty()) return@getMethod result[0].getMethodInstance(classLoader)
             }
-            // WhatsApp 2.26.43+ menghapus nama resource "updates" (arsc name removed), jadi anchor
-            // ID string tidak lagi ketemu. Method judul tab tetap ada dan punya literal unik ini.
-            val fallback = bridge.findMethod {
-                matcher {
-                    returnType(String::class.java)
-                    paramCount(1)
-                    addParamType(Int::class.javaPrimitiveType!!)
-                    addUsingString("No tab title override for tab id: ", StringMatchType.Contains)
-                }
-            }
-            if (fallback.isEmpty()) throw Exception("TabName method not found")
-            fallback[0].getMethodInstance(classLoader)
+            throw Exception("TabName method not found")
         }
     }
 

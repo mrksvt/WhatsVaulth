@@ -440,3 +440,50 @@ Jumlah baris `Loaded Plugin` pada W4B lebih sedikit karena `plugins()` menunggu 
 ### Catatan rilis
 
 HideSeen dan CallRecording tetap bekerja di 2.26.43/44/45. Yang perlu disebut di changelog hanya sebagai catatan teknis: hook tambahan `enforceHiding` (HideSeen) dan hook `VoipCall.getPeerJid` (Call Recording) tidak terpasang karena nama kelas WhatsApp berubah, tanpa memengaruhi fitur. 2.26.44.xx belum diuji runtime.
+
+---
+
+## Fix crash HomeActivity 2.26.46 (`The item position should be less or equal to`)
+
+**Tanggal:** 2026-11-19
+**Laporan:** WA 2.26.46.11, WAE 1.6.4 (6B18B423), Android 16 (API 36), motorola moto g57 power
+**Gejala:** HomeActivity gagal dibuat setiap kali WhatsApp dibuka.
+
+```
+java.lang.IllegalArgumentException: The item position should be less or equal to:5
+  at X.17w.A0N(:101)
+  at X.0xO.A08(:46)
+  at X.0sW.A5n(:274)
+  at com.whatsapp.home.ui.HomeActivity.onCreate(:1236)
+```
+
+### Akar masalah (dibuktikan dari dex 2.26.46.70)
+
+| Temuan | Bukti |
+|--------|-------|
+| Method daftar chat pindah dari `ConversationsFragment` ke `ConversationsFragmentKt` | `com.whatsapp.conversationslist.ConversationsFragment` di 2.26.46 hanya punya `<init>()`. Tidak ada lagi method tanpa argumen yang mengembalikan `List`, jadi `Unobfuscator.loadTabFragmentMethod()` melempar `TabFragment method not found` |
+| `SeparateGroup.doHook()` dulu menjalankan `hookTabList()` (menyuntikkan id tab 500) sebelum `hookTabInstance()` dan `hookTabName()` | Urutan lama: `hookTabList` -> `hookTabIcon` -> `hookTabInstance` -> `hookTabName` -> `hookTabCount` |
+| Kegagalan di `hookTabInstance()` membatalkan sisa `doHook()` | Exception keluar dari `doHook()`, ditangkap `FeatureLoader.plugins()`, sehingga `hookTabName()` tidak pernah terpasang |
+| Validator tab WhatsApp tidak mengenal id 500 | `LX/17f;->A0K(I)` dan `A0M(I)` hanya punya cabang untuk 200, 300, 400, 600, 700, 800, 900, 1300, 1400. Cabang default melempar `IllegalArgumentException("The item position should be less or equal to: " + A05)`, dengan `A05` = jumlah tab bawaan (5) |
+| `A5u(posisi)` bukan penyebab | `HomeActivityKt.A5u(I)` memanggil `LX/0vs;->A07(I)`: posisi di luar rentang di-clamp ke id 200, tidak melempar |
+
+Jadi urutannya: tab 500 sudah masuk daftar tab, tetapi hook judul/fragment untuk 500 belum terpasang, lalu validator tab WhatsApp melempar exception saat `HomeActivity.onCreate`.
+
+### Perbaikan
+
+| File | Perubahan |
+|------|-----------|
+| `SeparateGroup.kt` | Anchor wajib (judul tab, get tab, kelas ConversationsFragment) di-resolve lebih dulu. Kalau salah satu hilang, tab GROUPS tidak disuntikkan. `hookTabName()` dan `hookTabInstance()` dipasang sebelum `hookTabList()`. Hook opsional (ikon, badge, daftar chat, fab, publishResults) dibungkus `runCatching` supaya satu anchor hilang tidak membatalkan seluruh fitur |
+| `SeparateGroup.kt` | `guardTabValidators()`: hook pada kelas validator tab (anchor `The item position should be less or equal to:`). Guard hanya aktif untuk id tab GROUPS (500). Kalau id itu ditolak WhatsApp, judul diisi string kosong dan fragment memakai instance `ConversationsFragment`, lalu kejadiannya dicatat ke log. Id tab bawaan WhatsApp tidak disentuh supaya tidak ada instance fragment ganda |
+| `SeparateGroup.kt` | `resolveTabId()`: accessor tab tidak lagi diindeks dengan id tab (`tabs[id]` bisa IndexOutOfBounds). Id dipakai apa adanya kalau ada di daftar, kalau tidak diperlakukan sebagai posisi |
+| `Unobfuscator.kt` | `loadTabNameMethod`: anchor teks `No tab title override for tab id: ` + `usingNumbers(200, 300, 400)` dicoba lebih dulu, jalur lama berbasis nama resource `updates` dipertahankan sebagai fallback |
+| `Unobfuscator.kt` | `loadGetTabMethod`: tambah fallback teks `No HomeFragment mapping for tab id: ` |
+| `Unobfuscator.kt` | Loader baru `loadConversationsFragmentClass()` (utamakan `.ConversationsFragment`, cadangan `.ConversationsFragmentKt`) dan `loadTabValidatorClass()` |
+
+Tidak ada anchor lama yang dihapus.
+
+### Batas verifikasi
+
+- Analisis memakai dex 2.26.46.70 (APK resmi WhatsApp). Dex 2.26.46.11 tidak tersedia di mesin ini, jadi nama kelas obfuscated di log laporan (`X.17w`, `X.0xO`, `X.0sW`) tidak dicocokkan satu per satu.
+- Belum diuji runtime. Yang bisa dipastikan dari kode: tab 500 tidak lagi disuntikkan tanpa hook judul/fragment, dan validator tab punya jaring pengaman.
+- Filter daftar chat untuk tab grup masih bergantung pada `loadTabFragmentMethod()`, yang di 2.26.46 gagal karena method daftar chat pindah ke `ConversationsFragmentKt`. Di versi itu tab grup tetap tampil dan tidak crash, tetapi isinya belum tentu terpisah dari tab chat. Ini batas yang disengaja: menebak method pengganti tanpa uji runtime lebih berisiko daripada membiarkan filter nonaktif.

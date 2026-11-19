@@ -88,26 +88,44 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
 
         if (!prefs.getBoolean("separategroups", false)) return
 
-        // Tanpa anchor judul tab, GROUPS di tabs akan memicu IllegalArgumentException di X.1Fe.A0N
-        // (WhatsApp 2.26.43+). Lebih aman nonaktifkan fitur daripada crash HomeActivity.
+        // Anchor wajib harus resolve SEBELUM tab GROUPS disuntikkan ke daftar tab.
+        // Di 2.26.46 method daftar chat pindah dari ConversationsFragment ke
+        // ConversationsFragmentKt sehingga loadTabFragmentMethod gagal. Dulu kegagalan itu
+        // terjadi setelah hookTabList() menyuntikkan id 500 dan sebelum hookTabName()
+        // terpasang: id 500 jadi tidak punya judul/fragment dan WhatsApp melempar
+        // IllegalArgumentException di HomeActivity.onCreate.
         val tabNameMethod = runCatching { Unobfuscator.loadTabNameMethod(classLoader) }
             .onFailure { logDebug("SeparateGroup: tab name anchor missing, feature disabled: ${it.message}") }
             .getOrNull() ?: return
-
-        // Modifying tab list order
-        hookTabList()
-
-        // Setting group icon
-        hookTabIcon()
-
-        // Setting up fragments
-        hookTabInstance()
+        val getTabMethod = runCatching { Unobfuscator.loadGetTabMethod(classLoader) }
+            .onFailure { logDebug("SeparateGroup: get tab anchor missing, feature disabled: ${it.message}") }
+            .getOrNull() ?: return
+        val conversationsFragmentClass = runCatching {
+            Unobfuscator.loadConversationsFragmentClass(classLoader)
+        }
+            .onFailure { logDebug("SeparateGroup: ConversationsFragment class missing, feature disabled: ${it.message}") }
+            .getOrNull() ?: return
 
         // Setting group tab name
         hookTabName(tabNameMethod)
 
+        // Setting up fragments (judul + fragment harus ada sebelum tab ditambah)
+        hookTabInstance(getTabMethod, conversationsFragmentClass)
+
+        // Jaring pengaman terakhir sebelum id tab GROUPS masuk ke daftar tab.
+        guardTabValidators(conversationsFragmentClass)
+
+        // Modifying tab list order
+        runCatching { hookTabList() }
+            .onFailure { logDebug("SeparateGroup: tab list hook failed: ${it.message}") }
+
+        // Setting group icon
+        runCatching { hookTabIcon() }
+            .onFailure { logDebug("SeparateGroup: tab icon hook failed: ${it.message}") }
+
         // Setting tab count
-        hookTabCount()
+        runCatching { hookTabCount() }
+            .onFailure { logDebug("SeparateGroup: tab count hook failed: ${it.message}") }
     }
 
     override fun getPluginName(): String {
@@ -144,6 +162,78 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
                 XC_MethodReplacement.returnConstant(99)
             )
         }.onFailure { logDebug("SeparateGroup: getMaxItemCount hook failed: ${it.message}") }
+    }
+
+    /**
+     * Jaring pengaman untuk validator tab WhatsApp. Method validator melempar
+     * `IllegalArgumentException("The item position should be less or equal to: " + jumlah tab)`
+     * untuk id tab yang tidak dikenal. Kalau ada anchor yang bergeser dan id tab tambahan
+     * (500) tidak ter-map, lemparan itu terjadi di HomeActivity.onCreate dan aplikasi tidak
+     * bisa dibuka. Guard ini hanya mengganti hasil pada kasus yang memang akan melempar.
+     */
+    private fun guardTabValidators(chatFragmentClass: Class<*>?) {
+        val validatorClass = runCatching { Unobfuscator.loadTabValidatorClass(classLoader) }
+            .onFailure { logDebug("SeparateGroup: tab validator anchor missing: ${it.message}") }
+            .getOrNull() ?: return
+
+        val fragmentType = runCatching {
+            classLoader.loadClass("androidx.fragment.app.Fragment")
+        }.getOrNull()
+
+        var hooked = 0
+        for (method in validatorClass.declaredMethods) {
+            if (method.parameterCount != 1) continue
+            if (method.parameterTypes[0] != Int::class.javaPrimitiveType) continue
+            val returnsTitle = method.returnType == String::class.java
+            val returnsFragment =
+                fragmentType != null && fragmentType.isAssignableFrom(method.returnType)
+            if (!returnsTitle && !returnsFragment) continue
+
+            runCatching {
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        // Hook lain (mis. hookTabName/hookTabInstance untuk id 500) sudah
+                        // mengisi hasil. Jangan sentuh id bawaan WhatsApp supaya tidak ada
+                        // instance fragment ganda pada tab normal.
+                        if (param.result != null) return
+                        val arg = param.args[0] as? Int ?: return
+                        val tabId = if (arg == GROUPS) GROUPS else resolveTabId(arg)
+                        if (tabId != GROUPS) return
+                        try {
+                            param.result = XposedBridge.invokeOriginalMethod(
+                                param.method,
+                                param.thisObject,
+                                param.args
+                            )
+                        } catch (t: Throwable) {
+                            logDebug(
+                                "SeparateGroup: id tab $tabId ditolak validator WhatsApp " +
+                                        "(${t.message}), nilai cadangan dipakai"
+                            )
+                            param.result = if (returnsTitle) "" else newChatFragment(chatFragmentClass)
+                        }
+                    }
+                })
+                hooked++
+            }.onFailure { logDebug("SeparateGroup: validator hook failed: ${it.message}") }
+        }
+        logDebug("SeparateGroup: tab validator guard ${validatorClass.name} ($hooked method)")
+    }
+
+    private fun newChatFragment(chatFragmentClass: Class<*>?): Any? {
+        val cls = chatFragmentClass ?: return null
+        return runCatching {
+            cls.declaredConstructors.firstOrNull { it.parameterCount == 0 }?.newInstance()
+        }.getOrNull()
+    }
+
+    /**
+     * Sebagian versi memanggil accessor tab dengan posisi, versi lain dengan id tab.
+     * Jangan pernah mengindeks daftar tab dengan id tab (IndexOutOfBounds di callback hook).
+     */
+    private fun resolveTabId(arg: Int): Int {
+        if (tabs.contains(arg)) return arg
+        return tabs.getOrNull(arg) ?: arg
     }
 
     private fun hookTabCount() {
@@ -267,118 +357,131 @@ class SeparateGroup(loader: ClassLoader, preferences:SharedPreferences) :
     private fun hookTabName(tabNameMethod: java.lang.reflect.Method) {
         XposedBridge.hookMethod(tabNameMethod, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val tab = param.args[0] as Int
-                if (tab == GROUPS) {
+                val arg = param.args[0] as? Int ?: return
+                if (resolveTabId(arg) == GROUPS) {
                     param.result = UnobfuscatorCache.getInstance().getString("groups")
                 }
             }
         })
     }
 
-    private fun hookTabInstance() {
-        val cFragClass = Unobfuscator.findFirstClassUsingName(
-            classLoader,
-            StringMatchType.EndsWith,
-            ".ConversationsFragment"
-        )
-
-        val getTabMethod = Unobfuscator.loadGetTabMethod(classLoader)
+    private fun hookTabInstance(getTabMethod: java.lang.reflect.Method, cFragClass: Class<*>) {
         logDebug(Unobfuscator.getMethodDescriptor(getTabMethod))
 
-        val methodTabInstance = Unobfuscator.loadTabFragmentMethod(classLoader)
+        // Bagian berikut opsional: kalau anchor-nya hilang (mis. 2.26.46 memindahkan method
+        // daftar chat ke ConversationsFragmentKt), hook dilewati saja. Jangan sampai
+        // kegagalan di sini membatalkan sisa doHook() setelah tab GROUPS disuntikkan.
+        val methodTabInstance = runCatching { Unobfuscator.loadTabFragmentMethod(classLoader) }
+            .onFailure { logDebug("SeparateGroup: chat list anchor missing, skip list filter: ${it.message}") }
+            .getOrNull()
         logDebug(Unobfuscator.getMethodDescriptor(methodTabInstance))
 
-        val recreateFragmentMethod = Unobfuscator.loadRecreateFragmentConstructor(classLoader)
+        val recreateFragmentMethod = runCatching { Unobfuscator.loadRecreateFragmentConstructor(classLoader) }
+            .onFailure { logDebug("SeparateGroup: recreate fragment anchor missing: ${it.message}") }
+            .getOrNull()
 
-        val pattern = Pattern.compile("android:switcher:\\d+:(\\d+)")
+        val fragmentClass = runCatching { Unobfuscator.loadFragmentClass(classLoader) }
+            .onFailure { logDebug("SeparateGroup: fragment class anchor missing: ${it.message}") }
+            .getOrNull()
 
-        val fragmentClass = Unobfuscator.loadFragmentClass(classLoader)
+        if (recreateFragmentMethod != null && fragmentClass != null) {
+            val pattern = Pattern.compile("android:switcher:\\d+:(\\d+)")
 
-        XposedBridge.hookMethod(recreateFragmentMethod, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val string: String
-                val arg0 = param.args[0]
-                if (arg0 is Bundle) {
-                    @Suppress("DEPRECATION")
-                    val state = arg0.getParcelable<android.os.Parcelable>("state") ?: return
-                    string = state.toString()
-                } else {
-                    string = param.args[2].toString()
-                }
-                val matcher = pattern.matcher(string)
-                if (matcher.find()) {
-                    val tabId = matcher.group(1)?.toIntOrNull() ?: return
-                    if (tabId == GROUPS || tabId == CHATS) {
-                        val fragmentField = ReflectionUtils.getFieldByType(
-                            param.thisObject.javaClass,
-                            fragmentClass
-                        )
-                        val convFragment =
-                            ReflectionUtils.getObjectField(fragmentField, param.thisObject)
-                        tabInstances.remove(tabId)
-                        if (convFragment != null) {
-                            tabInstances[tabId] = convFragment
+            XposedBridge.hookMethod(recreateFragmentMethod, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val string: String
+                    val arg0 = param.args[0]
+                    if (arg0 is Bundle) {
+                        @Suppress("DEPRECATION")
+                        val state = arg0.getParcelable<android.os.Parcelable>("state") ?: return
+                        string = state.toString()
+                    } else {
+                        string = param.args[2].toString()
+                    }
+                    val matcher = pattern.matcher(string)
+                    if (matcher.find()) {
+                        val tabId = matcher.group(1)?.toIntOrNull() ?: return
+                        if (tabId == GROUPS || tabId == CHATS) {
+                            val fragmentField = ReflectionUtils.getFieldByType(
+                                param.thisObject.javaClass,
+                                fragmentClass
+                            )
+                            val convFragment =
+                                ReflectionUtils.getObjectField(fragmentField, param.thisObject)
+                            tabInstances.remove(tabId)
+                            if (convFragment != null) {
+                                tabInstances[tabId] = convFragment
+                            }
                         }
                     }
                 }
-            }
-        })
+            })
+        }
 
         XposedBridge.hookMethod(getTabMethod, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
-                val tabId = tabs[param.args[0] as Int]
+                val tabId = resolveTabId(param.args[0] as Int)
                 if (tabId == GROUPS || tabId == CHATS) {
-                    val convFragment = cFragClass.declaredConstructors.first {
+                    val convFragment = cFragClass.declaredConstructors.firstOrNull {
                         it.parameterCount == 0
-                    }.newInstance()
-                    param.result = convFragment
+                    }?.newInstance()
+                    if (convFragment != null) param.result = convFragment
                 }
             }
 
             override fun afterHookedMethod(param: MethodHookParam) {
-                val tabId = tabs[param.args[0] as Int]
+                val tabId = resolveTabId(param.args[0] as Int)
                 tabInstances.remove(tabId)
                 param.result?.let { tabInstances[tabId] = it }
             }
         })
 
-        XposedBridge.hookMethod(methodTabInstance, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val chatsList = param.result as List<*>
-                val resultList = filterChat(param.thisObject, chatsList)
-                param.result = resultList
-            }
-        })
+        if (methodTabInstance != null) {
+            XposedBridge.hookMethod(methodTabInstance, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val chatsList = param.result as? List<*> ?: return
+                    param.result = filterChat(param.thisObject, chatsList)
+                }
+            })
+        }
 
-        val fabintMethod = Unobfuscator.loadFabMethod(classLoader)
+        val fabintMethod = runCatching { Unobfuscator.loadFabMethod(classLoader) }
+            .onFailure { logDebug("SeparateGroup: fab anchor missing: ${it.message}") }
+            .getOrNull()
         logDebug(Unobfuscator.getMethodDescriptor(fabintMethod))
 
-        XposedBridge.hookMethod(fabintMethod, object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                if (tabInstances[GROUPS] == param.thisObject) {
-                    param.result = GROUPS
+        if (fabintMethod != null) {
+            XposedBridge.hookMethod(fabintMethod, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    if (tabInstances[GROUPS] == param.thisObject) {
+                        param.result = GROUPS
+                    }
                 }
-            }
-        })
+            })
+        }
 
-        val publishResultsMethod = Unobfuscator.loadGetFiltersMethod(classLoader)
+        val publishResultsMethod = runCatching { Unobfuscator.loadGetFiltersMethod(classLoader) }
+            .onFailure { logDebug("SeparateGroup: publishResults anchor missing: ${it.message}") }
+            .getOrNull()
         logDebug(Unobfuscator.getMethodDescriptor(publishResultsMethod))
 
-        XposedBridge.hookMethod(publishResultsMethod, object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val filters = param.args[1]
-                val chatsList = XposedHelpers.getObjectField(filters, "values") as List<*>
-                val baseField = ReflectionUtils.getFieldByExtendType(
-                    publishResultsMethod.declaringClass,
-                    BaseAdapter::class.java
-                ) ?: return
-                val convField = ReflectionUtils.getFieldByType(baseField.type, cFragClass)
-                val thiz = convField!!.get(baseField.get(param.thisObject)) ?: return
-                val resultList = filterChat(thiz, chatsList)
-                XposedHelpers.setObjectField(filters, "values", resultList)
-                XposedHelpers.setIntField(filters, "count", resultList.size)
-            }
-        })
+        if (publishResultsMethod != null) {
+            XposedBridge.hookMethod(publishResultsMethod, object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val filters = param.args[1]
+                    val chatsList = XposedHelpers.getObjectField(filters, "values") as? List<*> ?: return
+                    val baseField = ReflectionUtils.getFieldByExtendType(
+                        publishResultsMethod.declaringClass,
+                        BaseAdapter::class.java
+                    ) ?: return
+                    val convField = ReflectionUtils.getFieldByType(baseField.type, cFragClass) ?: return
+                    val thiz = convField.get(baseField.get(param.thisObject)) ?: return
+                    val resultList = filterChat(thiz, chatsList)
+                    XposedHelpers.setObjectField(filters, "values", resultList)
+                    XposedHelpers.setIntField(filters, "count", resultList.size)
+                }
+            })
+        }
     }
 
     private fun filterChat(thiz: Any, chatsList: List<*>): List<*> {
