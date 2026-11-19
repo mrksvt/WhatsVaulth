@@ -605,6 +605,19 @@ Path yang benar-benar dipakai ditulis di baris pertama file log (`sink=`), jadi 
 
 - Belum diuji runtime. Yang bisa dipastikan dari kode: tidak ada jalur yang melempar exception ke hook, dan setiap kegagalan tulis hanya menurunkan tujuan log.
 
+### Hasil build
+
+| Item | Nilai |
+|------|-------|
+| Run | `44564305523` (sukses) |
+| Commit | `56099e4` |
+| versionCode | 9 |
+| versionName | `1.6.4 (56099E4E)_mrksvt` |
+| Penanda tangan | SHA-256 `3347ed18ee7b28350e21c4cdc7f07077a65f076dcbb55e5a6625cb9be798d99f` (sama dengan build 8, jadi bisa dipasang sebagai pembaruan) |
+| Isi dex | `RuntimeLog`, `HookProvider`, `IGStatus` ada, dan `Feature.log` serta `FeatureLoader` memanggil `RuntimeLog` |
+
+File APK ada di `/storage/emulated/0/Download/WhatsVault-v9-56099E4E.apk`.
+
 ---
 
 ## Signature APK tidak stabil
