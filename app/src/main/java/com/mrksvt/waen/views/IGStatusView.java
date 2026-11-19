@@ -98,11 +98,6 @@ public class IGStatusView extends FrameLayout {
         }
 
         @Override
-        public boolean isEmpty() {
-            return true;
-        }
-
-        @Override
         public String getAttributeNamespace(int index) {
             return null;
         }
