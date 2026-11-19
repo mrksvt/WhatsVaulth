@@ -487,3 +487,41 @@ Tidak ada anchor lama yang dihapus.
 - Analisis memakai dex 2.26.46.70 (APK resmi WhatsApp). Dex 2.26.46.11 tidak tersedia di mesin ini, jadi nama kelas obfuscated di log laporan (`X.17w`, `X.0xO`, `X.0sW`) tidak dicocokkan satu per satu.
 - Belum diuji runtime. Yang bisa dipastikan dari kode: tab 500 tidak lagi disuntikkan tanpa hook judul/fragment, dan validator tab punya jaring pengaman.
 - Filter daftar chat untuk tab grup masih bergantung pada `loadTabFragmentMethod()`, yang di 2.26.46 gagal karena method daftar chat pindah ke `ConversationsFragmentKt`. Di versi itu tab grup tetap tampil dan tidak crash, tetapi isinya belum tentu terpisah dari tab chat. Ini batas yang disengaja: menebak method pengganti tanpa uji runtime lebih berisiko daripada membiarkan filter nonaktif.
+
+---
+
+## Fix IG Status 2.26.46 (`GetViewConversation method not found`)
+
+**Tanggal:** 2026-11-19
+**Laporan:** WA 2.26.46.8 dan 2.26.46.11, WAE 1.6.4 (EF32DBBF)
+**Pesan:** `Error getting method loadGetViewConversationMethod: GetViewConversation method not found` dari `IGStatus.doHook` baris 75.
+
+### Akar masalah
+
+`Unobfuscator.loadGetViewConversationMethod()` mencari method dengan 3 parameter yang mengembalikan `View` dan menerima `LayoutInflater` di dalam `declaredMethods` kelas `com.whatsapp.conversationslist.ConversationsFragment`.
+
+Di 2.26.46 kelas itu hanya menyisakan konstruktor. Implementasinya pindah ke base class `ConversationsFragmentKt`:
+
+```
+ConversationsFragment      -> hanya <init>()
+  extends ConversationsFragmentKt  -> A2P(Bundle, LayoutInflater, ViewGroup) : View
+    extends WaFragment
+      extends androidx.fragment.app.Fragment
+```
+
+Karena `declaredMethods` tidak mewarisi method, pencarian gagal walau method-nya tetap ada di kelas turunan saat runtime.
+
+### Perbaikan
+
+`Unobfuscator.loadGetViewConversationMethod()` sekarang menelusuri hierarki kelas mulai dari `ConversationsFragment` sampai `Any`. Urutan pencarian tetap: kelas asli dulu, baru superclass. Kalau method ditemukan di superclass, nama kelasnya dicatat ke log Xposed dengan tag `[Unobfuscator] GetViewConversation ditemukan di superclass`.
+
+Tidak ada anchor lama yang dihapus.
+
+### Verifikasi dari dex 2.26.46.70
+
+Method yang cocok di hierarki `ConversationsFragment` hanya satu: `A2P(Bundle, LayoutInflater, ViewGroup) -> View` di `ConversationsFragmentKt`. Kelas lain yang punya signature sama (`ConversationFragment`, `UpdatesFragment`) tidak berada di hierarki ini, jadi tidak ikut terpilih.
+
+### Catatan
+
+- Belum diuji runtime. Yang bisa dipastikan: pencarian tidak lagi bergantung pada `declaredMethods` kelas turunan.
+- Kalau setelah perbaikan ini masih ada error IG Status lain, penyebabnya anchor berikutnya di `IGStatus.doHook` (`loadStatusInfoClass`, `loadOnUpdateStatusChanged`, `loadStatusListUpdatesClass`), bukan method ini lagi.

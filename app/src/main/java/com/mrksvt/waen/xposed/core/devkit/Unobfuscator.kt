@@ -1676,10 +1676,33 @@ object Unobfuscator {
                 "com.whatsapp.conversationslist.ConversationsFragment",
                 loader
             )
-            Arrays.stream(clazz.declaredMethods).filter { m ->
-                m.parameterCount == 3 && m.returnType == View::class.java && LayoutInflater::class.java in m.parameterTypes
-            }.findFirst().orElse(null)
-                ?: throw RuntimeException("GetViewConversation method not found")
+            // 2.26.46 memindahkan implementasi ConversationsFragment ke
+            // ConversationsFragmentKt sebagai base class, jadi declaredMethods kelas
+            // turunan tidak lagi memuat method ini. Telusuri hierarki kelas: jalur lama
+            // tetap ditemukan lebih dulu kalau method masih dideklarasikan di kelas itu.
+            val hierarchy = ArrayList<Class<*>>()
+            var current: Class<*>? = clazz
+            while (current != null && current != Any::class.java) {
+                hierarchy.add(current)
+                current = current.superclass
+            }
+            for (declaring in hierarchy) {
+                val found = Arrays.stream(declaring.declaredMethods).filter { m ->
+                    m.parameterCount == 3 &&
+                            m.returnType == View::class.java &&
+                            LayoutInflater::class.java in m.parameterTypes
+                }.findFirst().orElse(null)
+                if (found != null) {
+                    if (declaring != clazz) {
+                        XposedBridge.log(
+                            "[Unobfuscator] GetViewConversation ditemukan di superclass " +
+                                    declaring.name
+                        )
+                    }
+                    return@getMethod found
+                }
+            }
+            throw RuntimeException("GetViewConversation method not found")
         }
     }
 

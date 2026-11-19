@@ -72,7 +72,9 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 34
-        versionCode = 6
+        // Dinaikkan dari 6 ke 7 supaya build debug bisa dipasang sebagai pembaruan
+        // (bukan install ulang) di perangkat yang sudah memakai versionCode 6.
+        versionCode = 7
         versionName = "1.6.4$versionSuffix ($gitHash)_mrksvt"
         // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true

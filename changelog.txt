@@ -5,11 +5,12 @@ WhatsVault 1.6.4.3 2.26.46.xx
 * Separate Group: anchor daftar chat yang hilang di 2.26.46 (method pindah ke ConversationsFragmentKt) tidak lagi membatalkan seluruh fitur, hanya hook filter daftar chat yang dilewati
 * Judul tab: method judul tab dicari lewat teks error-nya lebih dulu, jadi hook tidak salah sasaran saat nama resource "updates" muncul lagi di 2.26.46
 * Tab: pengaman tambahan supaya id tab yang tidak dikenal WhatsApp tidak melempar exception di HomeActivity, cukup dicatat ke log dan memakai nilai cadangan
+* IG Status: "GetViewConversation method not found" di 2.26.46.8 dan 2.26.46.11. Method itu pindah ke base class ConversationsFragmentKt, jadi pencarian sekarang menelusuri hierarki kelas ConversationsFragment
 
 [NOTE]
 * Build BETA (prerelease), ditandatangani dengan debug key
 * Belum diuji runtime di perangkat. Verifikasi hanya sebatas build GH Actions
-* versionCode tetap 6
+* versionCode 7 (naik dari 6) supaya build debug bisa dipasang sebagai pembaruan tanpa menghapus versi lama
 
 WhatsVault 1.6.4.2 2.26.46.xx
 
