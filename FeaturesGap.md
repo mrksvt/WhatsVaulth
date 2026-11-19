@@ -559,7 +559,7 @@ Pada parent bertipe `FrameLayout`, child index 0 digambar paling bawah. Recycler
 |-----------|------------|
 | `attachStatusRow()` | Logika pemasangan dipindah ke method sendiri dan dibungkus `runCatching` di hook, supaya kegagalan layout tercatat di log |
 | Parent `LinearLayout` vertikal | Container disisipkan tepat sebelum daftar, tanpa padding |
-| Parent lain (FrameLayout) | Padding atas daftar ditambah setinggi baris status, `clipToPadding` diaktifkan, container ditambahkan sebagai child terakhir (digambar di atas) dan digeser `translationY` sebesar padding asli |
+| Parent lain (FrameLayout) | Padding atas daftar ditambah setinggi baris status, `clipToPadding` diaktifkan, container ditambahkan sebagai child terakhir (digambar di atas) dan digeser lewat margin atas layout params sebesar padding asli. `translationY` tidak dipakai karena override di `IGStatusView` mengabaikan nilai selama tinggi view masih 0 |
 | Dedupe | Kalau parent sudah punya child `IGStatusView`, hook tidak menambah container baru (view recreate) |
 
 Tidak ada anchor lama yang dihapus.
@@ -568,6 +568,42 @@ Tidak ada anchor lama yang dihapus.
 
 - Belum diuji runtime. Yang bisa dipastikan dari kode: container tidak lagi ditempatkan di belakang RecyclerView, dan kegagalan layout sekarang muncul di log.
 - Kalau baris masih tidak muncul, log `IGStatus: ...` akan menunjukkan apakah hook jalan, daftar chat ditemukan, dan parent-nya bertipe apa.
+
+---
+
+## Log runtime di perangkat (tanpa adb)
+
+**Tanggal:** 2026-11-19
+**Gejala:** masalah IG Status tidak bisa didiagnosis karena perangkat hanya HP tanpa adb, dan `XposedBridge.log` tidak terbaca tanpa membuka log LSPosed di perangkat.
+
+### Perancangan
+
+Hook berjalan di proses WhatsApp, dan proses itu tidak punya izin menulis ke `/storage/emulated/0` secara umum. `RuntimeLog` (`xposed/core/RuntimeLog.kt`) karena itu memilih tujuan secara berurutan:
+
+| Urutan | Tujuan | Syarat |
+|--------|--------|--------|
+| 1 | `/storage/emulated/0/WhatsVault/logs` langsung dari proses WhatsApp | WhatsApp punya akses penyimpanan luas |
+| 2 | `/storage/emulated/0/WhatsVault/logs` lewat `HookProvider` | Aplikasi modul sudah diberi MANAGE_EXTERNAL_STORAGE |
+| 3 | `Android/media/com.whatsapp/WhatsVault/logs` | Selalu bisa, tanpa izin |
+| 4 | `filesDir/logs` | Cadangan terakhir, hanya terbaca lewat root |
+
+Path yang benar-benar dipakai ditulis di baris pertama file log (`sink=`), jadi tidak perlu menebak.
+
+### Detail teknis
+
+| Hal | Keterangan |
+|-----|------------|
+| Aktif hanya di debug | Semua entry point diawali `if (!BuildConfig.DEBUG) return` |
+| Titik start | `FeatureLoader` memanggil `RuntimeLog.start(application)` di `callApplicationOnCreate` sebelum plugin dimuat |
+| Sumber log | `Feature.log()` (semua plugin), error plugin di `FeatureLoader` beserta stack trace, dan log khusus IG Status |
+| Thread | Penulisan di thread daemon terpisah, buffer 5000 baris, flush tiap 1.5 detik, supaya hook di main thread tidak menunggu I/O |
+| Rotasi | File dihapus kalau melewati 8 MB, lalu mulai lagi |
+| Kegagalan tulis | Tidak pernah dilempar ke WhatsApp. Kalau jalur provider gagal 3 kali berturut-turut, log pindah ke folder media |
+| Keamanan provider | `HookProvider` exported, jadi nama file dari bundle disanitasi dan hanya boleh berisi huruf, angka, titik, garis bawah, dan strip |
+
+### Batas verifikasi
+
+- Belum diuji runtime. Yang bisa dipastikan dari kode: tidak ada jalur yang melempar exception ke hook, dan setiap kegagalan tulis hanya menurunkan tujuan log.
 
 ---
 

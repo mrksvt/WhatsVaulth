@@ -62,9 +62,12 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         if (!prefs.getBoolean("igstatus", false)) return
         if (prefs.getBoolean("native_igstatus", false)) return
 
+        logDebug("IGStatus doHook", "start")
+
         forceStatusLoad()
 
         val fabintMethod = Unobfuscator.loadFabMethod(classLoader)
+        logDebug("IGStatus fab", Unobfuscator.getMethodDescriptor(fabintMethod))
 
         val archivedFragmentClass = Unobfuscator.findFirstClassUsingName(
             classLoader, StringMatchType.EndsWith, ".ArchivedConversationsFragment"
@@ -72,10 +75,15 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         val folderFragmentClass = Unobfuscator.findFirstClassUsingName(
             classLoader, StringMatchType.EndsWith, ".FolderConversationsFragment"
         )
+        logDebug(
+            "IGStatus skip classes",
+            "archived=${archivedFragmentClass.name} folder=${folderFragmentClass.name}"
+        )
 
         val getViewConversationMethod = Unobfuscator.loadGetViewConversationMethod(classLoader)
         val statusInfoClass = Unobfuscator.loadStatusInfoClass(classLoader)
         logDebug("IGStatus hook", Unobfuscator.getMethodDescriptor(getViewConversationMethod))
+        logDebug("IGStatus statusInfo", statusInfoClass.name)
         XposedBridge.hookMethod(getViewConversationMethod, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 // Jangan biarkan satu kegagalan layout mematikan seluruh baris status.
@@ -92,29 +100,45 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         })
 
         val onUpdateStatusChanged = Unobfuscator.loadOnUpdateStatusChanged(classLoader)
+        logDebug("IGStatus onUpdateStatusChanged", Unobfuscator.getMethodDescriptor(onUpdateStatusChanged))
 
         val updateModel = onUpdateStatusChanged.declaringClass
+        logDebug("IGStatus updateModel", updateModel.name)
 
         XposedBridge.hookAllConstructors(updateModel, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
-                val newList = ArrayList(itens)
-                newList.add(0, null)
+                // Normalisasi: placeholder "Status saya" hanya boleh satu di index 0.
+                // Versi lama menambah null baru setiap konstruktor jalan sehingga daftar
+                // bisa berisi beberapa placeholder.
+                val newList = ArrayList<Any?>()
+                newList.add(null)
+                newList.addAll(itens.filterNotNull())
                 itens = newList
+                logDebug("IGStatus constructor updateModel", "itens=${itens.size}")
                 for (mStatusContainer in mListStatusContainer) {
-                    val activity = WppCore.getCurrentActivity()!!
-                    if (mStatusContainer.adapter?.context !== activity) {
-                        mStatusContainer.adapter = IGStatusAdapter(activity, statusInfoClass)
-                    }
-                    mStatusContainer.updateList(itens)
+                    runCatching {
+                        val activity = WppCore.getCurrentActivity() ?: return@runCatching
+                        if (mStatusContainer.adapter?.context !== activity) {
+                            mStatusContainer.adapter = IGStatusAdapter(activity, statusInfoClass)
+                        }
+                        mStatusContainer.updateList(itens)
+                    }.onFailure { logDebug("IGStatus constructor updateModel gagal", it) }
                 }
             }
         })
 
         val onStatusListUpdatesClass = Unobfuscator.loadStatusListUpdatesClass(classLoader)
+        logDebug("IGStatus statusListUpdates", onStatusListUpdatesClass.name)
 
         XposedBridge.hookAllConstructors(onStatusListUpdatesClass, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val lists = param.args.filterIsInstance<List<*>>()
+                logDebug(
+                    "IGStatus StatusListUpdates",
+                    "args=${param.args.size} lists=${lists.size} " +
+                            "size0=${lists.getOrNull(0)?.size} size1=${lists.getOrNull(1)?.size}"
+                )
+                if (lists.size < 2) return
                 // Snapshot awal bisa kosong (data belum masuk). Kalau daftar yang sudah
                 // terisi ditimpa snapshot kosong, baris IG Status jadi kosong sampai
                 // pengguna pindah tab. Lihat applyStatusLists().
@@ -127,6 +151,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 newList.addAll(lists[0])
                 newList.addAll(lists[1])
                 itens = newList
+                logDebug("IGStatus StatusListUpdates", "itens=${itens.size}")
                 for (mStatusContainer in mListStatusContainer) {
                     mStatusContainer.updateList(itens)
                 }
@@ -134,10 +159,12 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         })
 
         val onGetInvokeField = Unobfuscator.loadGetInvokeField(classLoader)
+        logDebug("IGStatus invokeField", Unobfuscator.getFieldDescriptor(onGetInvokeField))
         XposedBridge.hookMethod(onUpdateStatusChanged, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val holder = onGetInvokeField.get(param.args[0])
                 val lists = extractStatusLists(holder)
+                logDebug("IGStatus onUpdateStatusChanged", "holder=${holder != null} lists=${lists != null}")
                 if (lists != null) {
                     applyStatusLists(lists.first, lists.second)
                 } else {
@@ -163,18 +190,44 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         fabintMethod: Method,
         statusInfoClass: Class<*>
     ) {
-        if (archivedFragmentClass?.isInstance(param.thisObject) == true) return
-        if (folderFragmentClass?.isInstance(param.thisObject) == true) return
-        val view = param.result as? ViewGroup ?: return
+        if (archivedFragmentClass?.isInstance(param.thisObject) == true) {
+            logDebug("IGStatus skip", "archived fragment")
+            return
+        }
+        if (folderFragmentClass?.isInstance(param.thisObject) == true) {
+            logDebug("IGStatus skip", "folder fragment")
+            return
+        }
+        val view = param.result as? ViewGroup
+        if (view == null) {
+            logDebug("IGStatus skip", "result bukan ViewGroup: ${param.result?.javaClass?.name}")
+            return
+        }
         val list = view.findViewById<View>(android.R.id.list) as? ViewGroup
-        val activity = WppCore.getCurrentActivity() ?: return
+        val activity = WppCore.getCurrentActivity()
+        if (activity == null) {
+            logDebug("IGStatus skip", "current activity null")
+            return
+        }
         if (list == null) {
             logDebug("IGStatus: daftar chat tidak ditemukan", view.javaClass.name)
             return
         }
-        val parent = list.parent as? ViewGroup ?: return
+        val parent = list.parent as? ViewGroup
+        if (parent == null) {
+            logDebug("IGStatus skip", "parent daftar chat null")
+            return
+        }
+        logDebug(
+            "IGStatus view",
+            "fragment=${param.thisObject.javaClass.name} list=${list.javaClass.name} " +
+                    "parent=${parent.javaClass.name} parentChildren=${parent.childCount}"
+        )
         // Hook bisa jalan lebih dari sekali untuk fragment yang sama (view recreate).
-        if ((0 until parent.childCount).any { parent.getChildAt(it) is IGStatusView }) return
+        if ((0 until parent.childCount).any { parent.getChildAt(it) is IGStatusView }) {
+            logDebug("IGStatus skip", "baris status sudah terpasang di parent")
+            return
+        }
 
         val statusHeight = Utils.dipToPixels(88)
         val mStatusContainer = IGStatusView(activity)
@@ -217,7 +270,15 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
                 width = ViewGroup.LayoutParams.MATCH_PARENT
                 height = statusHeight
             }
-            mStatusContainer.translationY = originalTop.toFloat()
+            // IGStatusView.setTranslationY mengabaikan nilai selama tinggi view masih 0,
+            // jadi posisi diatur lewat margin atas pada layout params, bukan translation.
+            val params = mStatusContainer.layoutParams
+            if (params is ViewGroup.MarginLayoutParams) {
+                params.topMargin = originalTop
+                mStatusContainer.layoutParams = params
+            } else {
+                mStatusContainer.translationY = originalTop.toFloat()
+            }
             logDebug("IGStatus: baris status overlay di atas daftar", parent.javaClass.name)
         }
 
@@ -227,6 +288,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
             mStatusContainer.adapter = igStatus.adapter
             igStatus.adapter = null
             mListStatusContainer.remove(igStatus)
+            logDebug("IGStatus adapter", "pakai ulang adapter lama untuk tab $id")
         } else {
             // Adapter harus terpasang sejak container dibuat. `updateList()` no-op selama
             // adapter null, jadi kalau container lahir sebelum daftar status terisi
@@ -237,10 +299,24 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
             // Adapter baru belum pernah dapat notify, jadi panggil sekali
             // di sini supaya baris langsung tampil tanpa harus pindah menu.
             mStatusContainer.updateList(itens)
+            logDebug("IGStatus adapter", "adapter baru untuk tab $id, itens=${itens.size}")
         }
         mStatusContainer.fragmentId = id
         mListStatusContainer.add(mStatusContainer)
         scheduleColdStartRefresh(mStatusContainer)
+
+        // Konfirmasi setelah layout: kalau tinggi 0 atau tidak terlihat, penyebabnya
+        // bukan hook yang tidak jalan.
+        mStatusContainer.post {
+            logDebug(
+                "IGStatus layout",
+                "w=${mStatusContainer.width} h=${mStatusContainer.height} " +
+                        "visible=${mStatusContainer.visibility == View.VISIBLE} " +
+                        "shown=${mStatusContainer.isShown} " +
+                        "parent=${parent.javaClass.simpleName} " +
+                        "items=${mStatusContainer.adapter?.itemCount}"
+            )
+        }
     }
 
     /**
@@ -290,6 +366,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         newList.addAll(list1)
         newList.addAll(list2)
         itens = newList
+        logDebug("IGStatus applyStatusLists", "size0=${list1.size} size1=${list2.size} itens=${itens.size}")
         for (mStatusContainer in mListStatusContainer) {
             mStatusContainer.updateList(itens)
         }
@@ -310,9 +387,14 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
     private fun forceStatusLoad() {
         val onStart = runCatching { Unobfuscator.loadUpdatesFragmentOnStartMethod(classLoader) }
-            .onFailure { logDebug(it) }.getOrNull() ?: return
+            .onFailure { logDebug("IGStatus forceStatusLoad onStart", it) }.getOrNull() ?: return
         val asyncInit = runCatching { Unobfuscator.loadUpdatesFragmentAsyncInitMethod(classLoader) }
-            .onFailure { logDebug(it) }.getOrNull() ?: return
+            .onFailure { logDebug("IGStatus forceStatusLoad asyncInit", it) }.getOrNull() ?: return
+        logDebug(
+            "IGStatus forceStatusLoad",
+            "onStart=${Unobfuscator.getMethodDescriptor(onStart)} " +
+                    "asyncInit=${Unobfuscator.getMethodDescriptor(asyncInit)}"
+        )
 
         XposedBridge.hookMethod(asyncInit, object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {

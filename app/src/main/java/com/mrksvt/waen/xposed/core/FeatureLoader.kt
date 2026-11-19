@@ -161,6 +161,9 @@ class FeatureLoader {
                         val pref = getPreferences(application)
                         Feature.DEBUG = pref.getBoolean("enablelogs", true)
                         Utils.xprefs = pref
+                        // Log ke file supaya masalah di perangkat tanpa adb masih bisa
+                        // diperiksa. Hanya aktif di build debug.
+                        RuntimeLog.start(application)
 
                         if (pref.getBoolean("bootloader_spoofer_custom", false)) {
                             HookBL.hook(loader, pref)
@@ -594,6 +597,8 @@ class FeatureLoader {
                         plugin.doHook()
                     } catch (e: Throwable) {
                         XposedBridge.log(e)
+                        RuntimeLog.log(clazz.simpleName, "PLUGIN ERROR: ${e.message}")
+                        RuntimeLog.log(clazz.simpleName, e)
                         val error = ErrorItem().apply {
                             pluginName = clazz.simpleName
                             whatsAppVersion = versionWpp
@@ -611,6 +616,7 @@ class FeatureLoader {
                     }
                     val duration = System.currentTimeMillis() - startTime
                     times.add("* Loaded Plugin ${clazz.simpleName} in ${duration}ms")
+                    RuntimeLog.log("FeatureLoader", "loaded ${clazz.simpleName} in ${duration}ms")
                 }, executorService)
             }
 
@@ -620,6 +626,10 @@ class FeatureLoader {
             if (Feature.DEBUG) {
                 times.forEach { XposedBridge.log(it) }
             }
+            RuntimeLog.log(
+                "FeatureLoader",
+                "done: ${times.size}/${classes.size} plugin, log=${RuntimeLog.path ?: "tidak tersedia"}"
+            )
         }
     }
 

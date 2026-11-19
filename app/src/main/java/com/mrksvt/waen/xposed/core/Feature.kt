@@ -76,11 +76,13 @@ abstract class Feature(
     }
 
     fun log(obj: Any?) {
+        val sanitized = sanitizeLog(formatObject(obj))
+        RuntimeLog.log(getPluginName(), sanitized)
         if (obj is Throwable) {
             XposedBridge.log(String.format("[%s] Error:", getPluginName()))
             XposedBridge.log(obj)
         } else {
-            XposedBridge.log(String.format("[%s] %s", getPluginName(), sanitizeLog(formatObject(obj))))
+            XposedBridge.log(String.format("[%s] %s", getPluginName(), sanitized))
         }
     }
 }
