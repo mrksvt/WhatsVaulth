@@ -1,3 +1,12 @@
+WhatsVault 1.6.4.5 2.26.46.xx
+
+[FIXED]
+* IG Status Android 16: AttributeSet kosong buatan tangan di v10 ditolak oleh Resources.Theme dengan ClassCastException karena Android mengharuskan XmlBlock.Parser. RecyclerView sekarang menerima AttributeSet dari XmlResourceParser resource XML modul yang asli, dengan defStyleAttr 0 agar LayoutManager dari theme WhatsApp tidak dibaca. Parser ditutup segera setelah konstruktor selesai
+
+[NOTE]
+* Pemisahan chat pribadi, komunitas, dan grup sudah dikonfirmasi fixed oleh pengguna pada v10
+* versionCode 11
+
 WhatsVault 1.6.4.4 2.26.46.xx
 
 [FIXED]
