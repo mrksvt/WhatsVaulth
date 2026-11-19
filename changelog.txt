@@ -3,6 +3,8 @@ WhatsVault 1.6.4.3 2.26.46.xx
 [ADDED]
 * Log runtime ke file untuk build debug: /storage/emulated/0/WhatsVault/logs. Kalau folder itu tidak bisa ditulis dari proses WhatsApp, log dialihkan ke ContentProvider modul (aplikasi modul memegang MANAGE_EXTERNAL_STORAGE) dan kalau itu juga gagal, ke Android/media/com.whatsapp/WhatsVault/logs. Path yang benar-benar dipakai dicatat di baris pertama file log
 * Log runtime mencatat plugin yang berhasil/gagal dimuat, error plugin beserta stack trace, dan seluruh pesan Feature.log. Tidak pernah melempar exception ke hook WhatsApp
+* IG Status: setiap anchor (update model, StatusListUpdates, onUpdateStatusChanged, kelas arsip/folder) dipasang sendiri-sendiri. Kalau satu anchor hilang di versi WhatsApp baru, hook lain tetap jalan dan penyebabnya tercatat di log, bukan membatalkan seluruh fitur
+* IG Status: placeholder "Status saya" selalu ada di index 0, jadi baris yang terpasang tidak pernah kosong total saat anchor data belum siap
 * IG Status: log rinci untuk setiap tahap (hook terpasang, tipe view dan parent, jumlah item, tinggi dan visibilitas baris setelah layout)
 
 [FIXED]
