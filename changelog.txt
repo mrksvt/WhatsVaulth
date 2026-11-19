@@ -1,3 +1,11 @@
+WhatsVault 1.6.4.6 2.26.46.xx
+
+[FIXED]
+* IG Status v11: parser XML modul sudah diterima Android 16, tetapi RecyclerView masih dibuat dengan context WhatsApp. ID atribut XML modul ditafsirkan lewat tabel resource WhatsApp sehingga layout_width terbaca sebagai layoutManager "#ffebedf0". RecyclerView sekarang dibuat dengan moduleContext yang memakai tabel resource yang sama dengan parser; LayoutManager dan adapter tetap memakai activity WhatsApp
+
+[NOTE]
+* versionCode 12
+
 WhatsVault 1.6.4.5 2.26.46.xx
 
 [FIXED]

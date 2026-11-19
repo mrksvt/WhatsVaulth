@@ -57,7 +57,11 @@ public class IGStatusView extends FrameLayout {
                 throw new IllegalStateException("IG Status RecyclerView attrs has no start tag");
             }
             AttributeSet attrs = Xml.asAttributeSet(parser);
-            return new RecyclerView(context, attrs, 0);
+            // Context konstruktor harus berasal dari modul, sama dengan tabel resource
+            // parser. Kalau memakai context WhatsApp, id atribut XML modul ditafsirkan
+            // lewat tabel resource WhatsApp dan layout_width bisa terbaca sebagai
+            // layoutManager="#ffebedf0".
+            return new RecyclerView(moduleContext, attrs, 0);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create IG Status RecyclerView", e);
         }
