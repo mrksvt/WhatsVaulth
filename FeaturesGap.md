@@ -620,6 +620,42 @@ File APK ada di `/storage/emulated/0/Download/WhatsVault-v9-56099E4E.apk`.
 
 ---
 
+## Fix IG Status NPE RecyclerView + filter daftar chat 2.26.46 (v10)
+
+**Tanggal:** 2026-11-19
+**Bukti runtime:** log `whatsvault-2026-11-19-233237.log` dari `/storage/emulated/0/Android/media/com.whatsapp/WhatsVault/logs` (WA 2.26.46.11, API 36, moto g57 power).
+
+### Temuan dari log
+
+1. IG Status: data hook terpasang (`itens=3` dari StatusListUpdates), tetapi baris gagal dipasang dua kali dengan NPE `AttributeSet.getPositionDescription()` dari `RecyclerView.createLayoutManager` (RecyclerView.java:909) saat `IGStatusView.<init>` baru dibuat.
+2. SeparateGroup: `chat list anchor missing, skip list filter: TabFragment method not found`. Tab grup tampil tanpa crash, tetapi filter pribadi/grup tidak jalan.
+
+### Akar masalah
+
+- `new RecyclerView(context)` meneruskan attrs null. Di RecyclerView versi WhatsApp, theme menyuplai nama LayoutManager lewat defStyleAttr, pembuatan LayoutManager itu gagal, lalu pesan error dibangun dari `attrs.getPositionDescription()` tanpa cek null.
+- `loadTabFragmentMethod` hanya melihat `ConversationsFragment.declaredMethods`. Di 2.26.46.11 method daftar chat (`A2o`, 453 unit, 82 invoke) pindah ke `ConversationsFragmentKt`, dan di 2.26.46.70 namanya `A2y` (429 unit, 79 invoke). Getter pendek penerus `BG3`/`BGB` (16 unit, 2 invoke) bukan penyusun daftar.
+
+### Perbaikan
+
+- `IGStatusView`: RecyclerView dibuat dengan `EmptyAttributeSet` (attrs kosong non-null, `getPositionDescription()` aman) dan `defStyleAttr 0`, sehingga jalur baca LayoutManager dari theme tidak pernah dieksekusi. LayoutManager horizontal tetap dipasang lewat kode di `init()`.
+- `Unobfuscator.loadTabFragmentMethod`: anchor lama dicoba lebih dulu, lalu fallback mencari method 0 arg, return `List`, lebih dari 10 invoke di `ConversationsFragmentKt`. Terverifikasi di kedua dex: .11 memilih `A2o` (82 invoke) dan menyingkirkan `BG3` (2 invoke), .70 memilih `A2y` (79 invoke) dan menyingkirkan `BGB` (2 invoke).
+- Riwayat percobaan build: versi inflate XML modul dibatalkan karena resource modul tidak bisa di-resolve dari context WhatsApp, dan `AttributeSet.isEmpty()` bukan method SDK (compile error di runner, dihapus di commit `16e1bca`).
+
+### Hasil build
+
+| Item | Nilai |
+|------|-------|
+| Run | `44628761349` (sukses, setelah satu kali rework compile error) |
+| Commit | `16e1bca` |
+| versionCode | 10 |
+| versionName | `1.6.4 (16E1BCAA)_mrksvt` |
+| Penanda tangan | SHA-256 `3347ed18ee7b28350e21c4cdc7f07077a65f076dcbb55e5a6625cb9be798d99f` (sama dengan v9, bisa dipasang sebagai pembaruan) |
+| Isi dex | `IGStatusView$EmptyAttributeSet` ada, marker inflate XML tidak ada (sesuai desain), `ConversationsFragmentKt` direferensikan di `loadTabFragmentMethod` |
+
+File APK ada di `/storage/emulated/0/Download/WhatsVault-v10-16E1BCAA.apk`.
+
+---
+
 ## Signature APK tidak stabil
 
 **Tanggal:** 2026-11-19
