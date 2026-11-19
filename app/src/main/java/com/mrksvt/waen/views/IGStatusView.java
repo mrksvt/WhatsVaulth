@@ -1,6 +1,7 @@
 package com.mrksvt.waen.views;
 
 import android.content.Context;
+import android.util.AttributeSet;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
@@ -20,7 +21,17 @@ public class IGStatusView extends FrameLayout {
 
     public IGStatusView(@NonNull Context context) {
         super(context);
-        mStatusListView = new RecyclerView(context);
+        // RecyclerView TIDAK dibuat dengan `new RecyclerView(context)`.
+        // Konstruktor itu meneruskan attrs null ke createLayoutManager. Di 2.26.46
+        // theme WhatsApp menyuplai nama LayoutManager lewat defStyleAttr, pembuatan
+        // LayoutManager itu gagal, lalu pesan errornya dibangun dari
+        // attrs.getPositionDescription() sehingga WhatsApp crash dengan
+        // NullPointerException.
+        //
+        // Solusinya: AttributeSet non-null yang kosong plus defStyleAttr 0. Dengan
+        // begitu tidak ada LayoutManager dari theme yang dicoba dibuat, lalu
+        // LayoutManager horizontal dipasang sendiri di init().
+        mStatusListView = new RecyclerView(context, EmptyAttributeSet.INSTANCE, 0);
         init(context);
     }
 
@@ -42,7 +53,6 @@ public class IGStatusView extends FrameLayout {
         animator.setMoveDuration(250);
         mStatusListView.setItemAnimator(animator);
         var layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-//        layoutParams.setMargins(Utils.dipToPixels(4), Utils.dipToPixels(10), 0, 0);
         mStatusListView.setLayoutParams(layoutParams);
         addView(mStatusListView);
     }
@@ -72,5 +82,140 @@ public class IGStatusView extends FrameLayout {
 
     public IGStatusAdapter getAdapter() {
         return mStatusAdapter;
+    }
+
+    /**
+     * AttributeSet kosong. Dipakai supaya RecyclerView tidak membaca LayoutManager dari
+     * theme WhatsApp, sekaligus tidak pernah memanggil getPositionDescription() pada
+     * attrs null.
+     */
+    private static final class EmptyAttributeSet implements AttributeSet {
+        static final EmptyAttributeSet INSTANCE = new EmptyAttributeSet();
+
+        @Override
+        public int getAttributeCount() {
+            return 0;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return true;
+        }
+
+        @Override
+        public String getAttributeNamespace(int index) {
+            return null;
+        }
+
+        @Override
+        public String getAttributeName(int index) {
+            return null;
+        }
+
+        @Override
+        public String getAttributeValue(int index) {
+            return null;
+        }
+
+        @Override
+        public String getAttributeValue(String namespace, String name) {
+            return null;
+        }
+
+        @Override
+        public String getPositionDescription() {
+            return "IGStatusView";
+        }
+
+        @Override
+        public int getAttributeNameResource(int index) {
+            return 0;
+        }
+
+        @Override
+        public int getAttributeListValue(String namespace, String attribute,
+                                         String[] options, int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public boolean getAttributeBooleanValue(String namespace, String attribute,
+                                                boolean defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeResourceValue(String namespace, String attribute,
+                                             int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeIntValue(String namespace, String attribute,
+                                        int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeUnsignedIntValue(String namespace, String attribute,
+                                                int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public float getAttributeFloatValue(String namespace, String attribute,
+                                            float defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeListValue(int index, String[] options, int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public boolean getAttributeBooleanValue(int index, boolean defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeResourceValue(int index, int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeIntValue(int index, int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getAttributeUnsignedIntValue(int index, int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public float getAttributeFloatValue(int index, float defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public String getIdAttribute() {
+            return null;
+        }
+
+        @Override
+        public String getClassAttribute() {
+            return null;
+        }
+
+        @Override
+        public int getIdAttributeResourceValue(int defaultValue) {
+            return defaultValue;
+        }
+
+        @Override
+        public int getStyleAttribute() {
+            return 0;
+        }
     }
 }

@@ -1,3 +1,14 @@
+WhatsVault 1.6.4.4 2.26.46.xx
+
+[FIXED]
+* IG Status: baris status gagal dipasang di 2.26.46 dengan NPE "AttributeSet.getPositionDescription()" saat konstruksi RecyclerView. Theme WhatsApp menyuplai nama LayoutManager lewat defStyleAttr, pembuatan LayoutManager itu gagal dengan attrs null, lalu pesan errornya dibangun dari attrs null. IGStatusView sekarang membuat RecyclerView dengan AttributeSet kosong non-null dan defStyleAttr 0, sehingga jalur baca LayoutManager dari theme tidak pernah dieksekusi dan LayoutManager horizontal dipasang lewat kode
+* Separate Group: filter daftar chat (pemisahan pribadi/grup/komunitas) aktif lagi di 2.26.46.11 dan 2.26.46.70. Method daftar chat pindah ke ConversationsFragmentKt dan namanya berubah antar build (A2o di .11, A2y di .70), jadi anchor lama dilewatkan dulu, lalu fallback mencari method 0-arg ber-List dengan jumlah invoke lebih dari 10 di ConversationsFragmentKt. Getter pendek penerus (BG3/BGB, 2 invoke) otomatis tersaring
+
+[NOTE]
+* Build BETA (prerelease)
+* Hasil analisis runtime dari log file: data status sudah masuk (itens=3) dan hook data terpasang, tinggal barisnya yang gagal dirender karena NPE di atas
+* versionCode 10
+
 WhatsVault 1.6.4.3 2.26.46.xx
 
 [ADDED]

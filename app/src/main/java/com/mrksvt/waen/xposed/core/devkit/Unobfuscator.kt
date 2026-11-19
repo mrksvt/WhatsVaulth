@@ -527,14 +527,47 @@ object Unobfuscator {
     @JvmStatic
     fun loadTabFragmentMethod(classLoader: ClassLoader): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            // Anchor utama lama: method 0-arg ber-List yang dideklarasikan langsung di
+            // ConversationsFragment. Hilang mulai 2.26.46 karena method pindah ke
+            // ConversationsFragmentKt.
             val clsFrag = XposedHelpers.findClass(
                 "com.whatsapp.conversationslist.ConversationsFragment",
                 classLoader
             )
-            Arrays.stream(clsFrag.declaredMethods).parallel()
+            val legacy = Arrays.stream(clsFrag.declaredMethods).parallel()
                 .filter { m -> m.parameterTypes.isEmpty() && m.returnType == MutableList::class.java }
                 .findFirst()
-                .orElse(null) ?: throw Exception("TabFragment method not found")
+                .orElse(null)
+            if (legacy != null) return@getMethod legacy
+
+            // Fallback 2.26.46 (.11 dan .70): method daftar chat pindah ke
+            // ConversationsFragmentKt dan namanya berubah antar build (A2o di .11,
+            // A2y di .70). Dicari lewat bentuk: method 0-arg ber-List dengan banyak
+            // invoke. Method pendek penerus (BG3 di .11, BGB di .70, 16 unit) bukan
+            // penyusun daftar, hanya meneruskan hasil interface, dan punya dua invoke.
+            val ktClass = runCatching {
+                XposedHelpers.findClass(
+                    "com.whatsapp.conversationslist.ConversationsFragmentKt",
+                    classLoader
+                )
+            }.getOrNull() ?: throw Exception("TabFragment method not found")
+
+            val ktData = bridge.getClassData(ktClass.name)
+            if (ktData != null) {
+                val matched = ktData.methods
+                    .filter { it.isMethod && it.paramCount == 0 }
+                    .filter { it.returnType?.name == List::class.java.name }
+                    // .11: A2o punya ratusan instruksi/invoke, BG3 hanya satu invoke.
+                    // .70: A2y punya ratusan instruksi/invoke, BGB hanya satu invoke.
+                    // Jadi jumlah invoke memisahkan penyusun daftar dari getter pendek
+                    // tanpa bergantung pada nama kelas/interface yang ikut ter-obfuscate.
+                    .filter { it.invokes.size > 10 }
+                val chosen = matched.singleOrNull()
+                if (chosen != null) {
+                    return@getMethod chosen.getMethodInstance(classLoader)
+                }
+            }
+            throw Exception("TabFragment method not found")
         }
     }
 

@@ -484,9 +484,9 @@ Tidak ada anchor lama yang dihapus.
 
 ### Batas verifikasi
 
-- Analisis memakai dex 2.26.46.70 (APK resmi WhatsApp). Dex 2.26.46.11 tidak tersedia di mesin ini, jadi nama kelas obfuscated di log laporan (`X.17w`, `X.0xO`, `X.0sW`) tidak dicocokkan satu per satu.
-- Belum diuji runtime. Yang bisa dipastikan dari kode: tab 500 tidak lagi disuntikkan tanpa hook judul/fragment, dan validator tab punya jaring pengaman.
-- Filter daftar chat untuk tab grup masih bergantung pada `loadTabFragmentMethod()`, yang di 2.26.46 gagal karena method daftar chat pindah ke `ConversationsFragmentKt`. Di versi itu tab grup tetap tampil dan tidak crash, tetapi isinya belum tentu terpisah dari tab chat. Ini batas yang disengaja: menebak method pengganti tanpa uji runtime lebih berisiko daripada membiarkan filter nonaktif.
+- Analisis sekarang mencakup dex 2.26.46.11 dari `/storage/emulated/0/ApkExtractor/WhatsApp.apks` dan dex 2.26.46.70 yang sudah tersedia. Keduanya dipakai agar fallback tidak terikat pada satu ekor versi.
+- Belum diuji runtime untuk build perbaikan terbaru. Yang bisa dipastikan dari kode: tab 500 tidak lagi disuntikkan tanpa hook judul/fragment, validator tab punya jaring pengaman, dan fallback daftar chat memilih method utama pada kedua dex.
+- Filter daftar chat sekarang punya fallback tanpa mengganti anchor lama. Di 2.26.46.11 kandidatnya `A2o` (453 unit, 82 invoke) dibanding `BG3` (16 unit, 2 invoke). Di 2.26.46.70 kandidatnya `A2y` (429 unit, 79 invoke) dibanding `BGB` (16 unit, 2 invoke). Syarat 0 argumen, return `List`, dan lebih dari 10 invoke memilih method utama pada kedua ekor.
 
 ---
 
