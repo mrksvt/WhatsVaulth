@@ -1,3 +1,17 @@
+WhatsVault 1.6.4.7 2.26.46.xx
+
+[ADDED]
+* Build debug: toggle "Record runtime log to file" di General Settings. Toggle terpisah dari log verbose Xposed, default aktif, hanya terlihat pada build debug, dan berlaku setelah WhatsApp dimulai ulang
+* Saat toggle log runtime diaktifkan, aplikasi modul meminta izin akses semua file jika belum diberikan
+
+[FIXED]
+* Runtime log tidak lagi turun ke Android/media/com.whatsapp/WhatsVault/logs. Proses WhatsApp menulis lewat HookProvider aplikasi modul ke /storage/emulated/0/WhatsVault/logs; jika provider/izin belum siap, buffer dipertahankan dan dicoba lagi, bukan dialihkan ke Android/media
+* HookProvider menerapkan rotasi ukuran 8 MB dan tetap membatasi 10 file terbaru pada folder publik
+
+[NOTE]
+* IG Status dan pemisahan chat pribadi/komunitas/grup sudah dikonfirmasi fixed oleh pengguna pada v12
+* versionCode 13
+
 WhatsVault 1.6.4.6 2.26.46.xx
 
 [FIXED]

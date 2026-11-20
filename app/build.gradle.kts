@@ -74,7 +74,7 @@ android {
         targetSdk = 34
         // Dinaikkan bertahap supaya build debug bisa dipasang sebagai pembaruan
         // (bukan install ulang) di perangkat yang sudah memakai versi sebelumnya.
-        versionCode = 12
+        versionCode = 13
         versionName = "1.6.4$versionSuffix ($gitHash)_mrksvt"
         // versionName final ditentukan per buildType di applicationVariants.all
         multiDexEnabled = true

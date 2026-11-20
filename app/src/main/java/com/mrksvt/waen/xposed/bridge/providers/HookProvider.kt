@@ -15,6 +15,7 @@ class HookProvider : ContentProvider() {
     companion object {
         private const val LOG_DIR = "WhatsVault/logs"
         private const val MAX_LOG_FILES = 10
+        private const val MAX_FILE_BYTES = 8L * 1024 * 1024
     }
 
     override fun onCreate(): Boolean {
@@ -44,6 +45,7 @@ class HookProvider : ContentProvider() {
                 return runCatching {
                     dir.mkdirs()
                     val file = File(dir, name)
+                    if (file.length() > MAX_FILE_BYTES) file.delete()
                     FileOutputStream(file, true).use { it.write(text.toByteArray()) }
                     Bundle().apply {
                         putBoolean("ok", true)

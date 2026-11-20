@@ -161,9 +161,12 @@ class FeatureLoader {
                         val pref = getPreferences(application)
                         Feature.DEBUG = pref.getBoolean("enablelogs", true)
                         Utils.xprefs = pref
-                        // Log ke file supaya masalah di perangkat tanpa adb masih bisa
-                        // diperiksa. Hanya aktif di build debug.
-                        RuntimeLog.start(application)
+                        // Log file runtime punya toggle terpisah dari log verbose Xposed.
+                        // Hanya tersedia dan aktif di build debug.
+                        RuntimeLog.start(
+                            application,
+                            pref.getBoolean(RuntimeLogPolicy.PREF_KEY, true)
+                        )
 
                         if (pref.getBoolean("bootloader_spoofer_custom", false)) {
                             HookBL.hook(loader, pref)

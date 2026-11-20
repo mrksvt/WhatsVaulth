@@ -119,6 +119,18 @@ public class GeneralFragment extends BaseFragment {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             super.onCreatePreferences(savedInstanceState, rootKey);
             setPreferencesFromResource(R.xml.preference_general_home, rootKey);
+            Preference runtimeFileLogs = findPreference("runtime_file_logs");
+            if (runtimeFileLogs != null) {
+                runtimeFileLogs.setVisible(BuildConfig.DEBUG);
+                runtimeFileLogs.setOnPreferenceChangeListener((preference, newValue) -> {
+                    if (Boolean.TRUE.equals(newValue)
+                            && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
+                            && !android.os.Environment.isExternalStorageManager()) {
+                        com.mrksvt.waen.App.showRequestStoragePermission(requireActivity());
+                    }
+                    return true;
+                });
+            }
             setDisplayHomeAsUpEnabled(true);
         }
     }

@@ -62,6 +62,12 @@
             app:title="@string/verbose_logs" />
 
         <rikka.material.preference.MaterialSwitchPreference
+            app:defaultValue="true"
+            app:key="runtime_file_logs"
+            app:summary="@string/runtime_file_logs_summary"
+            app:title="@string/runtime_file_logs" />
+
+        <rikka.material.preference.MaterialSwitchPreference
             app:defaultValue="false"
             app:key="bypass_version_check"
             app:summary="@string/disable_version_check_sum"

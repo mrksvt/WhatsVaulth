@@ -165,6 +165,8 @@
     <string name="seentick_menu">Show Button in 3 dot Menu</string>
     <string name="seentick_screen">Show Button in Screen</string>
     <string name="verbose_logs">Enable Verbose Logs for Debugger</string>
+    <string name="runtime_file_logs">Record runtime log to file</string>
+    <string name="runtime_file_logs_summary">Debug build only. Saves hook logs to /storage/emulated/0/WhatsVault/logs after WhatsApp restarts.</string>
     <string name="phone_call">Phone Call</string>
     <string name="whatsapp_call">Whatsapp Call</string>
     <string name="home_screen">Home Screen</string>
