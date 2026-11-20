@@ -4,22 +4,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
-    permissions: write-all
+  build:
+    permissions: contents-read
     runs-on: ubuntu-latest
-    env:
-      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-      CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: set up JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
           cache: gradle
           cache-dependency-path: |
             **/*.gradle*
@@ -27,65 +24,63 @@ jobs:
             gradle/libs.versions.toml
             **/gradle.properties
 
-      - name: Install NDK + CMake
+      - name: Install NDK and CMake
         uses: android-actions/setup-android@v4
         with:
           packages: 'ndk;28.2.13676358 cmake;3.22.1'
 
-      - name: Get version and SHA
-        id: vars
-        run: |
-          VERSION=$(grep 'versionName' app/build.gradle.kts | sed -n 's/.*versionName = "\([^ ]*\).*/\1/p')
-          SHA8=$(git rev-parse --short=8 HEAD)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$VERSION-$SHA8" >> $GITHUB_OUTPUT
-
-      - name: Write key
+      - name: Write signing key
         env:
           KEY_STORE: ${{ secrets.KEY_STORE }}
         run: |
-          if [ ! -z "$KEY_STORE" ]; then
-          echo androidStorePassword='${{ secrets.KEY_STORE_PASSWORD }}' >> gradle.properties
-          echo androidKeyAlias='${{ secrets.ALIAS }}' >> gradle.properties
-          echo androidKeyPassword='${{ secrets.KEY_PASSWORD }}' >> gradle.properties
-          echo androidStoreFile='key.jks' >> gradle.properties
-          echo "$KEY_STORE" | base64 --decode > key.jks
+          if [ -z "$KEY_STORE" ]; then
+            echo "::error::Secret KEY_STORE kosong. Release dibatalkan."
+            exit 1
           fi
+          echo androidStoreFile=key.jks > signing.properties
+          echo androidStorePassword='${{ secrets.KEY_STORE_PASSWORD }}' >> signing.properties
+          echo androidKeyAlias='${{ secrets.ALIAS }}' >> signing.properties
+          echo androidKeyPassword='${{ secrets.KEY_PASSWORD }}' >> signing.properties
+          echo "$KEY_STORE" | base64 --decode > key.jks
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build WhatsApp Debug
-        run: ./gradlew assembleWhatsappDebug
+      - name: Build four variants
+        run: |
+          ./gradlew \
+            assembleWhatsappDebug \
+            assembleWhatsappRelease \
+            assembleBusinessDebug \
+            assembleBusinessRelease \
+            --console=plain
 
-      - name: Upload to GitHub release
-        uses: softprops/action-gh-release@v3
+      - name: Stage and verify APKs
+        run: |
+          mkdir -p release-assets
+          find app/build/outputs/apk -type f -name 'WhatsVault*.apk' -print0 | while IFS= read -r -d '' apk; do
+            name=$(basename "$apk" | sed 's/ (/./g; s/)/./g')
+            cp "$apk" "release-assets/$name"
+          done
+          count=$(find release-assets -maxdepth 1 -type f -name '*.apk' | wc -l)
+          if [ "$count" -ne 4 ]; then
+            echo "::error::Harus ada 4 APK, ditemukan $count"
+            find release-assets -maxdepth 1 -type f -print
+            exit 1
+          fi
+          sha256sum release-assets/*.apk | tee release-assets/SHA256SUMS.txt
+          for apk in release-assets/*.apk; do
+            echo "Verifying $apk"
+            unzip -l "$apk" | grep -E '\.so|lib/' >/dev/null || {
+              echo "::error::Native library tidak ditemukan di $apk"
+              exit 1
+            }
+          done
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: WaEnhancer ${{ steps.vars.outputs.version }}
-          body_path: changelog.txt
-          files: |
-            app/build/outputs/apk/whatsapp/debug/WhatsVault*.apk
-          tag_name: ${{ steps.vars.outputs.tag }}
-
-      - name: Read changelog
-        id: changelog
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('fs');
-            const changelog = fs.readFileSync('changelog.txt', 'utf8').trim();
-            core.setOutput('content', changelog);
-
-      - name: Post to Telegram channel
-        if: ${{ env.BOT_TOKEN != '' }}
-        uses: Dev4Mod/telegram-github-action@master
-        with:
-          to: ${{ env.CHANNEL_ID }}
-          token: ${{ env.BOT_TOKEN }}
-          format: markdown
-          disable_web_page_preview: true
-          message: |
-            ${{ steps.changelog.outputs.content }}
-
-            Release: https://github.com/${{ github.repository }}/releases/tag/${{ steps.vars.outputs.tag }}
+          name: WhatsVault-release-${{ github.sha }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
