@@ -4186,6 +4186,76 @@ object Unobfuscator {
         }
     }
 
+    /**
+     * Getter status "sudah dibaca" pada kelas pesan.
+     *
+     * WhatsApp meng-obfuscate nama method (mis. `A0X`), jadi pencarian berdasarkan nama
+     * seperti `isRead` selalu gagal. Di sini getter dicari dari bytecode: method yang
+     * hanya membaca satu field boolean milik kelas pesan lalu me-return-nya.
+     *
+     * @param readFlagFieldName nama field penanda baca bila sudah diketahui dari versi
+     *   yang sedang didukung (mis. `A17` pada 2.26.45.xx). Boleh null.
+     */
+    @Throws(Exception::class)
+    @JvmStatic
+    fun loadMessageReadGetter(classLoader: ClassLoader, readFlagFieldName: String?): Method {
+        return UnobfuscatorCache.getInstance().getMethod(classLoader) {
+            val fMessage = loadFMessageClass(classLoader)
+
+            // Cari method penerima read receipt yang pasti menyentuh flag baca.
+            val receiptMethods = bridge.findMethod {
+                matcher {
+                    addUsingString("ReadReceiptUtils/buildReadReceiptHandler malformed")
+                }
+            }
+
+            for (receipt in receiptMethods) {
+                for (usage in receipt.invokes) {
+                    if (usage.declaredClass != fMessage.name) continue
+                    if (usage.isConstructor) continue
+                    val params = usage.paramTypeNames
+                    if (params.isNotEmpty()) continue
+                    if (usage.returnTypeName != Boolean::class.javaPrimitiveType?.name) continue
+                    val method = usage.getMethodInstance(classLoader)
+                    if (method.parameterCount == 0 &&
+                        method.returnType == Boolean::class.javaPrimitiveType
+                    ) {
+                        return@getMethod method
+                    }
+                }
+            }
+
+            // Cadangan: getter yang hanya memakai satu field boolean kelas pesan.
+            val classData = bridge.getClassData(fMessage)
+            val boolFields = classData.fields.filter {
+                it.type.name == Boolean::class.javaPrimitiveType?.name &&
+                    it.field.declaredClass == fMessage.name
+            }
+            val targetField = if (readFlagFieldName != null) {
+                boolFields.firstOrNull { it.field.name == readFlagFieldName } ?: boolFields.firstOrNull()
+            } else {
+                boolFields.firstOrNull()
+            }
+            if (targetField != null) {
+                for (methodData in classData.methods) {
+                    if (methodData.paramTypeNames.isNotEmpty()) continue
+                    if (methodData.returnTypeName != Boolean::class.javaPrimitiveType?.name) continue
+                    if (!methodData.isMethod) continue
+                    val usesField = methodData.usingFields.any {
+                        it.field.name == targetField.field.name &&
+                            it.field.declaredClass == fMessage.name
+                    }
+                    if (usesField) {
+                        val method = methodData.getMethodInstance(classLoader)
+                        if (!Modifier.isStatic(method.modifiers)) return@getMethod method
+                    }
+                }
+            }
+
+            throw Exception("Message read getter not found")
+        }
+    }
+
     @Throws(Exception::class)
     @JvmStatic
     fun loadPopupWindowMessageClass(classLoader: ClassLoader): Class<*> {

@@ -42,7 +42,7 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
         private const val MAX_RETRY = 40
         private val RETRY_HANDLER = Handler(Looper.getMainLooper())
 
-        private const val COLD_START_REFRESH_ATTEMPTS = 6
+        private const val COLD_START_REFRESH_ATTEMPTS = 10
         private const val COLD_START_REFRESH_STEP_MS = 500L
 
         private const val FORCE_LOAD_DELAY_MS = 1500L
@@ -408,15 +408,29 @@ class IGStatus(loader: ClassLoader, preferences:SharedPreferences) : Feature(loa
 
     /**
      * Cold start: daftar status sering tiba sesudah view lahir dan notify dari hook data
-     * bisa terlewat (hook jalan di thread lain). Beberapa refresh murah memastikan baris
-     * terisi tanpa perlu pindah tab.
+     * bisa terlewat (hook jalan di thread lain). Refresh diulang sampai daftar benar-benar
+     * terisi, bukan berhenti di jumlah percobaan tetap — pada 2.26.45.xx data kadang baru
+     * masuk sesudah jendela refresh lama habis, sehingga baris tetap kosong sampai pindah tab.
      */
     private fun scheduleColdStartRefresh(container: IGStatusView) {
-        for (attempt in 1..COLD_START_REFRESH_ATTEMPTS) {
-            RETRY_HANDLER.postDelayed({
-                if (itens.size > 1) container.updateList(itens)
-            }, COLD_START_REFRESH_STEP_MS * attempt)
+        scheduleColdStartRefresh(container, 0)
+    }
+
+    private fun scheduleColdStartRefresh(container: IGStatusView, attempt: Int) {
+        if (attempt >= COLD_START_REFRESH_ATTEMPTS) {
+            if (itens.size <= 1) logDebug("IGStatus cold start exhausted, itens=${itens.size}")
+            return
         }
+        val delay = COLD_START_REFRESH_STEP_MS * (attempt + 1).toLong()
+        RETRY_HANDLER.postDelayed({
+            if (itens.size > 1) {
+                container.updateList(itens)
+                // Sudah terisi: satu refresh penutup supaya view yang baru lahir ikut sinkron.
+                if (attempt == 0) scheduleColdStartRefresh(container, COLD_START_REFRESH_ATTEMPTS - 1)
+            } else {
+                scheduleColdStartRefresh(container, attempt + 1)
+            }
+        }, delay)
     }
 
     private fun forceStatusLoad() {

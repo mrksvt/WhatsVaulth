@@ -23,6 +23,13 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
     companion object {
         private const val MEDIA_TYPE_VOICE_NOTE = 2
 
+        /**
+         * Field boolean penanda "sudah dibaca" pada kelas pesan WhatsApp 2.26.45.xx
+         * (`X.1FD.A17`, dibaca oleh getter `A0X()Z`). Dipakai sebagai petunjuk urutan
+         * saat memilih getter; bukan satu-satunya jalan karena nama bisa berubah.
+         */
+        private const val READ_FLAG_FIELD = "A17"
+
         // Children that mark a receipt as a call signalling stanza instead of a delivery
         // receipt. Dropping those would break call setup.
         private val CALL_RECEIPT_TAGS = setOf("offer", "accept", "reject", "enc_rekey")
@@ -415,23 +422,16 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
 
     private fun hookEnforceHiding() {
         try {
-            val messageClass = FMessageWpp.TYPE
-            val isReadMethod = messageClass.declaredMethods.firstOrNull { method ->
-                method.declaringClass == messageClass &&
-                    method.returnType == Boolean::class.javaPrimitiveType &&
-                    method.parameterCount == 0 &&
-                    method.name.contains("isRead", ignoreCase = true)
-            } ?: run {
-                logDebug("HideSeen enforceHiding failed: isRead method not found on ${messageClass.name}")
-                return
-            }
+            val isReadMethod = Unobfuscator.loadMessageReadGetter(classLoader, READ_FLAG_FIELD)
 
             XposedBridge.hookMethod(isReadMethod, object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     if (hideRead || ghostMode) {
                         param.result = null
                         val message = param.thisObject
-                        val msgId = XposedHelpers.getObjectField(message, "id")?.toString()
+                        val msgId = runCatching {
+                            XposedHelpers.getObjectField(message, "id")?.toString()
+                        }.getOrNull()
                         logDebug("Enforce hiding read receipt for message: $msgId")
                     }
                 }

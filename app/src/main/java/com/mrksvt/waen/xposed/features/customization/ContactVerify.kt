@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.text.TextUtils
 import android.view.ViewGroup
 import android.widget.TextView
@@ -27,6 +29,11 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
     companion object {
         private const val TAG_CONTACT_CHECKER = "contact_checker"
         private const val STATUS_NOT_ADDED = 401
+
+        /** Helper protokol bisa telat dibuat WhatsApp; 4 percobaan ~7 detik. */
+        private const val PROTOCOL_RETRY_MAX = 4
+        private const val PROTOCOL_RETRY_DELAY_MS = 700L
+        private val RETRY_HANDLER = Handler(Looper.getMainLooper())
     }
 
     private val state = ContactCheckState()
@@ -54,9 +61,18 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
         val constructor = sendGetProfilePhoto.constructors.firstOrNull { it.parameterCount > 3 }
             ?: throw IllegalStateException("GetProfilePhoto constructor with required parameters not found")
         state.sendGetProfilePhotoConstructor = constructor
-        val profilePhotoProtocolType = constructor.parameterTypes[2]
+        state.protocolParamIndex = resolveProtocolParamIndex(constructor)
+        if (state.protocolParamIndex < 0) {
+            throw IllegalStateException(
+                "ProfilePhotoProtocol helper parameter not found in ${sendGetProfilePhoto.name}"
+            )
+        }
+        val profilePhotoProtocolType = constructor.parameterTypes[state.protocolParamIndex]
         state.profilePhotoProtocolType = profilePhotoProtocolType
-        logDebug("ContactVerify protocol helper type: ${profilePhotoProtocolType.name}")
+        logDebug(
+            "ContactVerify protocol helper type: ${profilePhotoProtocolType.name} " +
+                "(ctor params=${constructor.parameterTypes.joinToString { it.name }})"
+        )
         initProfilePhotoProtocolHooks(profilePhotoProtocolType)
         val dialerProfilePictureLoader = Unobfuscator.loadDialerProfilePictureLoader(classLoader)
         initProfilePhotoCallbacks(dialerProfilePictureLoader)
@@ -93,6 +109,32 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
                 }
             }
         })
+    }
+
+    /**
+     * Helper protokol adalah parameter konstruktor SendGetProfilePhoto yang bertipe
+     * interface callback (punya method menerima int status, mis. 401 = not added).
+     * Sebelumnya di-hardcode ke indeks 2, padahal indeks 2 adalah JID sehingga hook
+     * tidak pernah menangkap helper dan verifikasi selalu "not available".
+     * Indeks dicari dari bentuk tipe, bukan dari nama obfuscated.
+     */
+    private fun resolveProtocolParamIndex(constructor: Constructor<*>): Int {
+        val types = constructor.parameterTypes
+        val byShape = types.indexOfFirst { type ->
+            type.isInterface && type.declaredMethods.any { method ->
+                method.parameterCount == 1 && method.parameterTypes[0] == Int::class.javaPrimitiveType
+            }
+        }
+        if (byShape >= 0) return byShape
+
+        val byUnobfuscator = runCatching {
+            val helper = Unobfuscator.loadProfilePhotoProtocolHelperClass(classLoader)
+            types.indexOfFirst { it == helper }
+        }.getOrDefault(-1)
+        if (byUnobfuscator >= 0) return byUnobfuscator
+
+        logDebug("ContactVerify protocol helper not found, ctor params=${types.joinToString { it.name }}")
+        return -1
     }
 
     private fun initProfilePhotoCallbacks(dialerProfilePictureLoader: Class<*>) {
@@ -176,17 +218,45 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
     }
 
     private fun checkContactPhotoProfile(userJid: FMessageWpp.UserJid) {
+        checkContactPhotoProfile(userJid, 0)
+    }
+
+    /**
+     * Helper protokol baru ada setelah WhatsApp membuat satu instance SendGetProfilePhoto
+     * (mis. saat membuka profil kontak). Percobaan pertama sering terjadi sebelum itu,
+     * jadi diulang beberapa kali alih-alih langsung menyerah dan menandai "not available".
+     */
+    private fun checkContactPhotoProfile(userJid: FMessageWpp.UserJid, attempt: Int) {
         try {
             val constructor = state.sendGetProfilePhotoConstructor ?: return
             val protocolType = state.profilePhotoProtocolType ?: return
             val protocol = state.profilePhotoProtocol
             if (protocol == null || !protocolType.isInstance(protocol)) {
-                logDebug("ContactVerify protocol helper not ready, expected: ${protocolType.name}")
+                if (attempt < PROTOCOL_RETRY_MAX) {
+                    RETRY_HANDLER.postDelayed({
+                        // Lanjutkan hanya kalau view pemeriksa masih terpasang (user belum
+                        // pindah chat). Kalau view hilang, percobaan dihentikan.
+                        val stillValid = state.checkerView.get()?.isAttachedToWindow == true
+                        if (stillValid) {
+                            checkContactPhotoProfile(userJid, attempt + 1)
+                        } else {
+                            logDebug("ContactVerify retry stopped: checker view detached")
+                        }
+                    }, PROTOCOL_RETRY_DELAY_MS * (attempt + 1).toLong())
+                    if (attempt == 0) {
+                        logDebug(
+                            "ContactVerify protocol helper not ready, retry up to " +
+                                "$PROTOCOL_RETRY_MAX x, expected: ${protocolType.name}"
+                        )
+                    }
+                } else {
+                    logDebug("ContactVerify protocol helper unavailable after retries: ${protocolType.name}")
+                }
                 return
             }
             val params = ReflectionUtils.initArray(constructor.parameterTypes)
-            params[2] = protocol
-            params[3] = userJid.userJid
+            params[state.protocolParamIndex] = protocol
+            params[state.protocolParamIndex + 1] = userJid.userJid
             val runnable = constructor.newInstance(*params) as Runnable
             state.pendingUserJid.set(userJid.userRawString)
             CompletableFuture.runAsync(runnable)
@@ -204,6 +274,10 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
         var profilePhotoProtocol: Any? = null
         var profilePhotoProtocolType: Class<*>? = null
         var sendGetProfilePhotoConstructor: Constructor<*>? = null
+
+        /** Indeks parameter helper protokol pada konstruktor SendGetProfilePhoto. */
+        @Volatile
+        var protocolParamIndex: Int = -1
         val checkerView = AtomicReference<TextView>()
         val pendingUserJid = AtomicReference<String>()
     }
