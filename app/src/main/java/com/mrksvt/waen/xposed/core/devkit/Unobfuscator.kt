@@ -4201,58 +4201,43 @@ object Unobfuscator {
     fun loadMessageReadGetter(classLoader: ClassLoader, readFlagFieldName: String?): Method {
         return UnobfuscatorCache.getInstance().getMethod(classLoader) {
             val fMessage = loadFMessageClass(classLoader)
+            val boolTypeName = Boolean::class.javaPrimitiveType?.name
 
-            // Cari method penerima read receipt yang pasti menyentuh flag baca.
-            val receiptMethods = bridge.findMethod {
-                matcher {
-                    addUsingString("ReadReceiptUtils/buildReadReceiptHandler malformed")
-                }
-            }
-
-            for (receipt in receiptMethods) {
-                for (usage in receipt.invokes) {
-                    if (usage.declaredClass != fMessage.name) continue
-                    if (usage.isConstructor) continue
-                    val params = usage.paramTypeNames
-                    if (params.isNotEmpty()) continue
-                    if (usage.returnTypeName != Boolean::class.javaPrimitiveType?.name) continue
-                    val method = usage.getMethodInstance(classLoader)
-                    if (method.parameterCount == 0 &&
-                        method.returnType == Boolean::class.javaPrimitiveType
-                    ) {
-                        return@getMethod method
-                    }
-                }
-            }
-
-            // Cadangan: getter yang hanya memakai satu field boolean kelas pesan.
             val classData = bridge.getClassData(fMessage)
+                ?: throw Exception("Message class data not found: ${fMessage.name}")
+
+            // Nama asli masih dipakai bila WhatsApp tidak meng-obfuscate getter ini.
+            for (methodData in classData.methods) {
+                if (!methodData.isMethod) continue
+                if (methodData.paramTypeNames.isNotEmpty()) continue
+                if (methodData.returnTypeName != boolTypeName) continue
+                if (!methodData.name.contains("isRead", ignoreCase = true)) continue
+                val method = methodData.getMethodInstance(classLoader)
+                if (!Modifier.isStatic(method.modifiers)) return@getMethod method
+            }
+
+            // Field boolean penanda baca: yang namanya sudah diketahui lebih dulu,
+            // kalau tidak ada ambil field boolean mana pun lalu periksa pembacanya.
             val boolFields = classData.fields.filter {
-                it.type.name == Boolean::class.javaPrimitiveType?.name &&
-                    it.field.declaredClass == fMessage.name
+                it.typeName == boolTypeName && it.declaredClassName == fMessage.name
             }
-            val targetField = if (readFlagFieldName != null) {
-                boolFields.firstOrNull { it.field.name == readFlagFieldName } ?: boolFields.firstOrNull()
-            } else {
-                boolFields.firstOrNull()
+            val orderedFields = boolFields.sortedByDescending {
+                if (readFlagFieldName != null && it.fieldName == readFlagFieldName) 1 else 0
             }
-            if (targetField != null) {
-                for (methodData in classData.methods) {
-                    if (methodData.paramTypeNames.isNotEmpty()) continue
-                    if (methodData.returnTypeName != Boolean::class.javaPrimitiveType?.name) continue
-                    if (!methodData.isMethod) continue
-                    val usesField = methodData.usingFields.any {
-                        it.field.name == targetField.field.name &&
-                            it.field.declaredClass == fMessage.name
-                    }
-                    if (usesField) {
-                        val method = methodData.getMethodInstance(classLoader)
-                        if (!Modifier.isStatic(method.modifiers)) return@getMethod method
-                    }
+
+            for (fieldData in orderedFields) {
+                // `readers` berisi method yang membaca field ini — persis yang dicari.
+                for (reader in fieldData.readers) {
+                    if (!reader.isMethod) continue
+                    if (reader.declaredClassName != fMessage.name) continue
+                    if (reader.paramTypeNames.isNotEmpty()) continue
+                    if (reader.returnTypeName != boolTypeName) continue
+                    val method = reader.getMethodInstance(classLoader)
+                    if (!Modifier.isStatic(method.modifiers)) return@getMethod method
                 }
             }
 
-            throw Exception("Message read getter not found")
+            throw Exception("Message read getter not found on ${fMessage.name}")
         }
     }
 
