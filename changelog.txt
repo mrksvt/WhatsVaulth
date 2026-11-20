@@ -1,3 +1,14 @@
+WhatsVault 1.6.4.8 2.26.46.xx
+
+[UPDATED]
+* General Settings > DevEngineering > Log WhatsVault sekarang menjadi pengelola runtime log publik. Fungsi lama yang hanya membaca satu file internal wae_dev_log.txt beserta filter Clear/Copy telah diganti
+* Halaman Log WhatsVault berisi toggle aktif/nonaktif rekam runtime, tombol izin akses semua file yang hanya muncul bila izin belum diberikan, daftar file log, pilihan multiple dengan checkbox, hapus multiple, dan share satu atau beberapa log melalui FileProvider
+* Toggle runtime log di General Settings biasa dihapus agar hanya ada satu lokasi pengaturan di DevEngineering > Log WhatsVault
+
+[NOTE]
+* Perubahan toggle berlaku setelah WhatsApp dimulai ulang
+* versionCode 14
+
 WhatsVault 1.6.4.7 2.26.46.xx
 
 [ADDED]

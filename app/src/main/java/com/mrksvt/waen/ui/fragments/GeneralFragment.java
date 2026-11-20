@@ -119,18 +119,6 @@ public class GeneralFragment extends BaseFragment {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             super.onCreatePreferences(savedInstanceState, rootKey);
             setPreferencesFromResource(R.xml.preference_general_home, rootKey);
-            Preference runtimeFileLogs = findPreference("runtime_file_logs");
-            if (runtimeFileLogs != null) {
-                runtimeFileLogs.setVisible(BuildConfig.DEBUG);
-                runtimeFileLogs.setOnPreferenceChangeListener((preference, newValue) -> {
-                    if (Boolean.TRUE.equals(newValue)
-                            && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
-                            && !android.os.Environment.isExternalStorageManager()) {
-                        com.mrksvt.waen.App.showRequestStoragePermission(requireActivity());
-                    }
-                    return true;
-                });
-            }
             setDisplayHomeAsUpEnabled(true);
         }
     }
@@ -415,10 +403,10 @@ public class GeneralFragment extends BaseFragment {
 
             root.addView(makeMenuItem(ctx,
                     "Log WhatsVault",
-                    "Lihat log klik & aktivitas modul",
+                    "Aktifkan, kelola, hapus, dan bagikan log runtime",
                     () -> requireParentFragment().getChildFragmentManager()
                             .beginTransaction()
-                            .replace(R.id.frag_container, new DevLogFragment())
+                            .replace(R.id.frag_container, new RuntimeLogManagerFragment())
                             .addToBackStack(null)
                             .commit()));
 
@@ -578,195 +566,6 @@ public class GeneralFragment extends BaseFragment {
                         .invoke(instance, hookKey, resourceName, waVersion, errorLog, successFn, errorFn);
             } catch (Throwable t) {
                 onError.accept("Fitur donatur tidak tersedia");
-            }
-        }
-
-        private SharedPreferences getWaePrefs() {
-            return PreferenceManager.getDefaultSharedPreferences(requireContext());
-        }
-
-        private java.io.File logFile() {
-            return new java.io.File(LOG_PATH);
-        }
-    }
-
-    public static class DevLogFragment extends Fragment {
-
-        private static final String LOG_PATH = "/data/data/com.mrksvt.waen/files/wae_dev_log.txt";
-
-        private TextView logTextView;
-        private final Handler handler = new Handler(Looper.getMainLooper());
-        private final Runnable pollRunnable = this::pollLogs;
-        private String rawLogContent = "";
-        private int selectedFilterIndex = 0;
-        private String customFilter = "";
-        private android.widget.EditText customFilterEdit;
-        private final Runnable debounceRunnable = this::applyFilter;
-
-        @Nullable
-        @Override
-        public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                @Nullable Bundle savedInstanceState) {
-            Context ctx = requireContext();
-            android.content.res.Resources res = ctx.getResources();
-            float density = res.getDisplayMetrics().density;
-            int dp8  = (int) (8  * density + 0.5f);
-            int dp16 = (int) (16 * density + 0.5f);
-
-            LinearLayout root = new LinearLayout(ctx);
-            root.setOrientation(LinearLayout.VERTICAL);
-            root.setPadding(dp16, dp16, dp16, dp16);
-
-            SwitchMaterial devEngSwitch = new SwitchMaterial(ctx);
-            devEngSwitch.setText("DevEngineering");
-            devEngSwitch.setChecked(getWaePrefs().getBoolean("dev_engineering", false));
-            devEngSwitch.setOnCheckedChangeListener((btn, checked) ->
-                    getWaePrefs().edit().putBoolean("dev_engineering", checked).apply());
-            devEngSwitch.setPadding(0, 0, 0, dp8);
-            root.addView(devEngSwitch);
-
-            Button clearBtn = new Button(ctx);
-            clearBtn.setText("Clear Log");
-            clearBtn.setOnClickListener(v -> {
-                logFile().delete();
-                logTextView.setText("(belum ada log)");
-            });
-
-            Button copyBtn = new Button(ctx);
-            copyBtn.setText("Copy Log");
-            copyBtn.setOnClickListener(v -> {
-                CharSequence text = logTextView.getText();
-                if (text == null || text.toString().equals("(belum ada log)")) return;
-                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                        ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("wae_dev_log", text));
-                android.widget.Toast.makeText(ctx, "Log disalin", android.widget.Toast.LENGTH_SHORT).show();
-            });
-
-            LinearLayout btnRow = new LinearLayout(ctx);
-            btnRow.setOrientation(LinearLayout.HORIZONTAL);
-            LinearLayout.LayoutParams btnParam = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            btnRow.addView(clearBtn, btnParam);
-            btnRow.addView(copyBtn, btnParam);
-            root.addView(btnRow);
-
-            android.widget.Spinner filterSpinner = new android.widget.Spinner(ctx);
-            String[] filterOptions = {"Semua", "Klik View", "Error", "Send Button", "Custom..."};
-            android.widget.ArrayAdapter<String> spinnerAdapter = new android.widget.ArrayAdapter<>(
-                    ctx, android.R.layout.simple_spinner_item, filterOptions);
-            spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            filterSpinner.setAdapter(spinnerAdapter);
-            LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            spinnerParams.topMargin = dp8;
-            root.addView(filterSpinner, spinnerParams);
-
-            customFilterEdit = new android.widget.EditText(ctx);
-            customFilterEdit.setHint("Kata kunci filter...");
-            customFilterEdit.setSingleLine(true);
-            customFilterEdit.setVisibility(android.view.View.GONE);
-            LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            editParams.topMargin = dp8;
-            root.addView(customFilterEdit, editParams);
-
-            filterSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
-                    selectedFilterIndex = position;
-                    customFilterEdit.setVisibility(position == 4 ? android.view.View.VISIBLE : android.view.View.GONE);
-                    applyFilter();
-                }
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-
-            customFilterEdit.addTextChangedListener(new android.text.TextWatcher() {
-                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    customFilter = s.toString();
-                    handler.removeCallbacks(debounceRunnable);
-                    handler.postDelayed(debounceRunnable, 300);
-                }
-                @Override public void afterTextChanged(android.text.Editable s) {}
-            });
-
-            ScrollView scrollView = new ScrollView(ctx);
-            logTextView = new TextView(ctx);
-            logTextView.setTextSize(10f);
-            logTextView.setTypeface(android.graphics.Typeface.MONOSPACE);
-            logTextView.setText("(belum ada log)");
-            logTextView.setPadding(dp8, dp8, dp8, dp8);
-            scrollView.addView(logTextView);
-            root.addView(scrollView, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-
-            BackNavHelper.install(this);
-
-            return root;
-        }
-
-        @Override
-        public void onResume() {
-            super.onResume();
-            handler.postDelayed(pollRunnable, 500);
-        }
-
-        @Override
-        public void onPause() {
-            super.onPause();
-            handler.removeCallbacks(pollRunnable);
-        }
-
-        private void pollLogs() {
-            if (logTextView != null) {
-                java.io.File f = logFile();
-                if (f.exists()) {
-                    try {
-                        rawLogContent = new String(java.nio.file.Files.readAllBytes(f.toPath()));
-                    } catch (Exception ignored) {}
-                }
-                applyFilter();
-            }
-            handler.postDelayed(pollRunnable, 500);
-        }
-
-        private void applyFilter() {
-            if (logTextView == null) return;
-            if (rawLogContent.isEmpty()) {
-                logTextView.setText("(belum ada log)");
-                return;
-            }
-            String[] lines = rawLogContent.split("\n", -1);
-            StringBuilder filtered = new StringBuilder();
-            for (String line : lines) {
-                boolean match;
-                switch (selectedFilterIndex) {
-                    case 1:
-                        match = line.contains("performClick") || line.contains("id=");
-                        break;
-                    case 2:
-                        match = line.contains("Error") || line.contains("Exception");
-                        break;
-                    case 3:
-                        match = line.contains("send") || line.contains("composer");
-                        break;
-                    case 4:
-                        match = !customFilter.isEmpty() && line.toLowerCase().contains(customFilter.toLowerCase());
-                        break;
-                    default:
-                        match = true;
-                        break;
-                }
-                if (match) {
-                    if (filtered.length() > 0) filtered.append("\n");
-                    filtered.append(line);
-                }
-            }
-            if (filtered.length() == 0) {
-                logTextView.setText("(tidak ada log yang cocok)");
-            } else {
-                logTextView.setText(filtered.toString());
             }
         }
 
