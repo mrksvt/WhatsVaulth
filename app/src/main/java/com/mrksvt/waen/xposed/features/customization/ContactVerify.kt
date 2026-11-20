@@ -17,6 +17,7 @@ import com.mrksvt.waen.xposed.utils.ReflectionUtils
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
+import java.lang.reflect.Constructor
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 
@@ -50,10 +51,13 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
         if (!prefs.getBoolean("verify_blocked_contact", false)) return
 
         val sendGetProfilePhoto = Unobfuscator.loadGetProfilePhoto(classLoader)
-        state.sendGetProfilePhoto = sendGetProfilePhoto
-        val profilePhotoProtocolHelper =
-            Unobfuscator.loadProfilePhotoProtocolHelperClass(classLoader)
-        initProfilePhotoProtocolHooks(profilePhotoProtocolHelper)
+        val constructor = sendGetProfilePhoto.constructors.firstOrNull { it.parameterCount > 3 }
+            ?: throw IllegalStateException("GetProfilePhoto constructor with required parameters not found")
+        state.sendGetProfilePhotoConstructor = constructor
+        val profilePhotoProtocolType = constructor.parameterTypes[2]
+        state.profilePhotoProtocolType = profilePhotoProtocolType
+        logDebug("ContactVerify protocol helper type: ${profilePhotoProtocolType.name}")
+        initProfilePhotoProtocolHooks(profilePhotoProtocolType)
         val dialerProfilePictureLoader = Unobfuscator.loadDialerProfilePictureLoader(classLoader)
         initProfilePhotoCallbacks(dialerProfilePictureLoader)
         registerActivityListener()
@@ -81,10 +85,12 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
         }
     }
 
-    private fun initProfilePhotoProtocolHooks(profilePhotoProtocolHelper: Class<*>) {
-        XposedBridge.hookAllConstructors(profilePhotoProtocolHelper, object : XC_MethodHook() {
+    private fun initProfilePhotoProtocolHooks(profilePhotoProtocolType: Class<*>) {
+        XposedBridge.hookAllConstructors(profilePhotoProtocolType, object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
-                state.profilePhotoProtocol = param.thisObject
+                if (profilePhotoProtocolType.isInstance(param.thisObject)) {
+                    state.profilePhotoProtocol = param.thisObject
+                }
             }
         })
     }
@@ -171,16 +177,21 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
 
     private fun checkContactPhotoProfile(userJid: FMessageWpp.UserJid) {
         try {
-            val sendGetProfilePhoto = state.sendGetProfilePhoto ?: return
-            val params =
-                ReflectionUtils.initArray(sendGetProfilePhoto.constructors[0].parameterTypes)
-            params[2] = state.profilePhotoProtocol
+            val constructor = state.sendGetProfilePhotoConstructor ?: return
+            val protocolType = state.profilePhotoProtocolType ?: return
+            val protocol = state.profilePhotoProtocol
+            if (protocol == null || !protocolType.isInstance(protocol)) {
+                logDebug("ContactVerify protocol helper not ready, expected: ${protocolType.name}")
+                return
+            }
+            val params = ReflectionUtils.initArray(constructor.parameterTypes)
+            params[2] = protocol
             params[3] = userJid.userJid
-            val runnable = sendGetProfilePhoto.constructors[0].newInstance(*params) as Runnable
+            val runnable = constructor.newInstance(*params) as Runnable
             state.pendingUserJid.set(userJid.userRawString)
             CompletableFuture.runAsync(runnable)
-        } catch (e: Exception) {
-            logDebug(e)
+        } catch (throwable: Throwable) {
+            logDebug(throwable)
         }
     }
 
@@ -191,7 +202,8 @@ class ContactVerify(loader: ClassLoader, preferences:SharedPreferences) :
     private class ContactCheckState {
         @Volatile
         var profilePhotoProtocol: Any? = null
-        var sendGetProfilePhoto: Class<*>? = null
+        var profilePhotoProtocolType: Class<*>? = null
+        var sendGetProfilePhotoConstructor: Constructor<*>? = null
         val checkerView = AtomicReference<TextView>()
         val pendingUserJid = AtomicReference<String>()
     }
