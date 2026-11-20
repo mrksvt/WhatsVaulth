@@ -415,27 +415,30 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
 
     private fun hookEnforceHiding() {
         try {
-            val messageClass = classLoader.loadClass("com.whatsapp.protocol.Message")
-            val methods = messageClass.declaredMethods
-            for (method in methods) {
-                if (method.returnType == Boolean::class.java &&
-                    method.name.contains("isRead", ignoreCase = true)) {
-                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
-                        override fun beforeHookedMethod(param: MethodHookParam) {
-                            if (hideRead || ghostMode) {
-                                param.result = null
-                                val message = param.thisObject
-                                val msgId = XposedHelpers.getObjectField(message, "id")?.toString()
-                                logDebug("Enforce hiding read receipt for message: $msgId")
-                            }
-                        }
-                    })
-                    logDebug("HideSeen enforceHiding installed on: ${method.name}")
-                    break
-                }
+            val messageClass = FMessageWpp.TYPE
+            val isReadMethod = messageClass.declaredMethods.firstOrNull { method ->
+                method.declaringClass == messageClass &&
+                    method.returnType == Boolean::class.javaPrimitiveType &&
+                    method.parameterCount == 0 &&
+                    method.name.contains("isRead", ignoreCase = true)
+            } ?: run {
+                logDebug("HideSeen enforceHiding failed: isRead method not found on ${messageClass.name}")
+                return
             }
-        } catch (e: Exception) {
-            logDebug("HideSeen enforceHiding failed: ${e.message}")
+
+            XposedBridge.hookMethod(isReadMethod, object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (hideRead || ghostMode) {
+                        param.result = null
+                        val message = param.thisObject
+                        val msgId = XposedHelpers.getObjectField(message, "id")?.toString()
+                        logDebug("Enforce hiding read receipt for message: $msgId")
+                    }
+                }
+            })
+            logDebug("HideSeen enforceHiding installed on: ${isReadMethod.name}")
+        } catch (throwable: Throwable) {
+            logDebug("HideSeen enforceHiding failed: ${throwable.message}")
         }
     }
 
