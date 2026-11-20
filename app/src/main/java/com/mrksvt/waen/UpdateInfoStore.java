@@ -39,6 +39,7 @@ public final class UpdateInfoStore {
     private static final String KEY_CHANNEL_UPDATES = "channel_updates";
     /** Legacy single-channel key, read once for migration. */
     private static final String KEY_LEGACY_CHANNEL = "channel";
+    private static final String KEY_LAST_CHECK_AT = "last_check_at";
 
     private UpdateInfoStore() {
     }
@@ -189,6 +190,14 @@ public final class UpdateInfoStore {
 
     public static boolean hasData(Context context) {
         return !getReleases(context).isEmpty();
+    }
+
+    public static long getLastCheckAt(Context context) {
+        return prefs(context).getLong(KEY_LAST_CHECK_AT, 0L);
+    }
+
+    public static void setLastCheckAt(Context context, long timestampMillis) {
+        prefs(context).edit().putLong(KEY_LAST_CHECK_AT, timestampMillis).apply();
     }
 
     public static void ignore(Context context, String hash) {
