@@ -427,7 +427,9 @@ class HideSeen(loader: ClassLoader, preferences:SharedPreferences) :
             XposedBridge.hookMethod(isReadMethod, object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     if (hideRead || ghostMode) {
-                        param.result = null
+                        // Getter ini return boolean primitif. Nilai null membuat caller
+                        // melakukan unboxing dan crash (NPE), jadi kembalikan false.
+                        param.result = false
                         val message = param.thisObject
                         val msgId = runCatching {
                             XposedHelpers.getObjectField(message, "id")?.toString()
