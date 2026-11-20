@@ -21,6 +21,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mrksvt.waen.media.RecordingMigrationWorker
 import com.mrksvt.waen.media.RecordingStorage
+import com.mrksvt.waen.update.UpdateCheckScheduler
 import com.mrksvt.waen.xposed.utils.Utils
 import de.robv.android.xposed.XposedHelpers
 import rikka.material.app.LocaleDelegate.Companion.defaultLocale
@@ -30,7 +31,10 @@ import java.util.Locale
 class App : Application() {
 
     private val prefsChangeListener =
-        SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == UpdateCheckScheduler.PREF_UPDATE_CHECK) {
+                UpdateCheckScheduler.sync(this)
+            }
             sendBroadcast(Intent(BuildConfig.APPLICATION_ID + ".PREFS_CHANGED"))
         }
 
@@ -40,6 +44,8 @@ class App : Application() {
         instance = this
         installCrashHandler()
         scheduleRecordingMigration()
+        // Sinkronkan jadwal pemeriksaan pembaruan dengan preferensi pengguna.
+        UpdateCheckScheduler.sync(this)
         var sharedPreferences: SharedPreferences? = null
 
         try {

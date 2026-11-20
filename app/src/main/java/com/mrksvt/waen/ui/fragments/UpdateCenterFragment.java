@@ -255,8 +255,10 @@ public class UpdateCenterFragment extends Fragment {
     }
 
     private void startUpdateCheck() {
+        // Swipe refresh selalu diizinkan, terlepas dari preferensi otomatis.
         CompletableFuture.runAsync(new UpdateChecker(requireContext().getApplicationContext(),
                 hasUpdate -> {
+                    UpdateInfoStore.setLastCheckAt(requireContext(), System.currentTimeMillis());
                     if (binding == null || !isAdded()) return;
                     requireActivity().runOnUiThread(this::onCheckFinished);
                 }));

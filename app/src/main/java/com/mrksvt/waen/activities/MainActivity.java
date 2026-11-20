@@ -30,6 +30,8 @@ import com.mrksvt.waen.App;
 import com.mrksvt.waen.R;
 import com.mrksvt.waen.ReleaseInfo;
 import com.mrksvt.waen.UpdateChecker;
+import com.mrksvt.waen.update.UpdateCheckPolicy;
+import com.mrksvt.waen.update.UpdateCheckScheduler;
 import com.mrksvt.waen.UpdateChannel;
 import com.mrksvt.waen.UpdateInfoStore;
 import com.mrksvt.waen.activities.base.BaseActivity;
@@ -468,8 +470,14 @@ public class MainActivity extends BaseActivity {
     }
 
     private void startUpdateCheck() {
+        boolean enabled = UpdateCheckScheduler.isEnabled(this);
+        if (!UpdateCheckPolicy.shouldCheckOnLaunch(enabled,
+                UpdateInfoStore.getLastCheckAt(this), System.currentTimeMillis())) {
+            return;
+        }
         CompletableFuture.runAsync(new UpdateChecker(
                 this, hasUpdate -> {
+                    UpdateInfoStore.setLastCheckAt(this, System.currentTimeMillis());
                     runOnUiThread(() -> {
                         refreshNotificationBadge();
                         notifyUpdateIfNeeded();

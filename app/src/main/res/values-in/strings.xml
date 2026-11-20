@@ -434,7 +434,7 @@ Harap gunakan versi WhatsApp yang didukung!</string>
     <string name="update_check_failed">Tidak dapat memeriksa pembaruan</string>
     <string name="update_check_failed_summary">Tidak dapat terhubung ke server pembaruan</string>
     <string name="current_version_s">Versi saat ini %s</string>
-    <string name="update_check_sum">Aktifkan atau nonaktifkan pemeriksaan otomatis untuk pembaruan. Ini akan menonaktifkan popup di dalam aplikasi WhatsApp.</string>
+    <string name="update_check_sum">Aktifkan atau nonaktifkan pemeriksaan pembaruan otomatis. Jika aktif, WhatsVault memeriksa build baru di latar belakang setiap 12 jam. Tarik untuk menyegarkan di Pusat Pembaruan tetap berfungsi walau opsi ini mati.</string>
     <string name="change_default_dpi">Ubah DPI Bawaan</string>
     <string name="change_default_dpi_sum">Ubah pengaturan DPI untuk aplikasi. Gunakan 0 untuk mengatur ulang ke bawaan.</string>
     <string name="no_contact_with_custom_privacy">Tidak ada kontak dengan privasi khusus!</string>
